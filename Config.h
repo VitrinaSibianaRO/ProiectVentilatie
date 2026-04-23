@@ -1,9 +1,9 @@
 #pragma once
 
 // --- CREDENTIALE BLYNK ---
-#define BLYNK_TEMPLATE_ID "TMPL42ximIY6M"
+#define BLYNK_TEMPLATE_ID "TMPL44j_Z2rAQ"
 #define BLYNK_TEMPLATE_NAME "Add agency"
-#define BLYNK_AUTH_TOKEN "OSF1fWefKtBmV8c5QUDsgtpkMHafaB_I"
+#define BLYNK_AUTH_TOKEN "fnY-Tln9F1zOCh-BnFMh3Jwi6dEI0vIP"
 
 // --- SETARI PINI HARDWARE (CARBON V3) ---
 #define DHT_LEFT_PIN 19     

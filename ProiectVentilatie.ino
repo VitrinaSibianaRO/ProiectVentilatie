@@ -16,8 +16,11 @@ BlynkTimer timer;
 // --- VARIABILE STARE GENERALE ---
 float globalTempThresh = 45.0;
 float globalHumThresh = 60.0;
+float globalTempMargin = 2.0; // Marja histerezis temperatura
+float globalHumMargin = 5.0;  // Marja histerezis umiditate
 int timerID;
-long currentInterval = 300000L; // Setează direct 300 secunde pentru economie la boot
+long currentInterval = 300000L; 
+int forceUpdateCounter = 0;    // Contor pentru "Heartbeat" (fortare trimitere date)
 
 // --- VARIABILE PENTRU ECONOMIE CREDITE (Last Sent) ---
 float lastSentTempL = -99.0, lastSentHumL = -99.0;
@@ -28,6 +31,7 @@ float humDiffThreshold = 5.0;  // Prag de 5% pentru umiditate (recomandat)
 unsigned long buttonPressTime = 0;
 bool isButtonPressed = false;
 unsigned long lastWiFiCheck = 0;
+bool isSyncing = false; // Flag pentru a evita Flood Error la sincronizarea initiala
 
 void processZones() {
   Serial.println("\n--- Citire si Procesare (Mod Econom) ---");
@@ -35,8 +39,22 @@ void processZones() {
   leftZone.readSensor();
   rightZone.readSensor();
 
-  leftZone.updateLogic(globalTempThresh, globalHumThresh);
-  rightZone.updateLogic(globalTempThresh, globalHumThresh);
+  leftZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
+  rightZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
+
+  forceUpdateCounter++;
+  bool shouldForce = (forceUpdateCounter >= 12); // La fiecare 12 citiri (aprox 1 ora la interval de 5 min) forțăm update
+  if (shouldForce) {
+    forceUpdateCounter = 0;
+    Serial.println("[Sistem] Heartbeat: Fortare trimitere date catre Blynk.");
+  }
+
+  // Verificare erori senzori pentru auto-reboot (daca un senzor e blocat de > 10 ori)
+  if (leftZone.getErrors() > 10 || rightZone.getErrors() > 10) {
+    Serial.println("[CRITICAL] Senzor blocat detectat! Repornire sistem...");
+    delay(1000);
+    ESP.restart();
+  }
 
   if (Blynk.connected()) {
     // --- LOGICA PENTRU ZONA STANGA ---
@@ -44,8 +62,7 @@ void processZones() {
       float currentTL = leftZone.getTemp();
       float currentHL = leftZone.getHum();
 
-      // Trimitem DOAR daca s-a schimbat temperatura cu 2 grade SAU umiditatea cu 5%
-      if (abs(currentTL - lastSentTempL) >= tempDiffThreshold || 
+      if (shouldForce || abs(currentTL - lastSentTempL) >= tempDiffThreshold || 
           abs(currentHL - lastSentHumL) >= humDiffThreshold) {
         
         Blynk.virtualWrite(V1, currentTL);
@@ -62,7 +79,7 @@ void processZones() {
       float currentTR = rightZone.getTemp();
       float currentHR = rightZone.getHum();
 
-      if (abs(currentTR - lastSentTempR) >= tempDiffThreshold || 
+      if (shouldForce || abs(currentTR - lastSentTempR) >= tempDiffThreshold || 
           abs(currentHR - lastSentHumR) >= humDiffThreshold) {
         
         Blynk.virtualWrite(V3, currentTR);
@@ -81,10 +98,12 @@ void processZones() {
 }
 
 void triggerImmediateUpdate() {
-  leftZone.updateLogic(globalTempThresh, globalHumThresh);
-  rightZone.updateLogic(globalTempThresh, globalHumThresh);
+  // NU citim senzorii aici, folosim doar ultimele valori memorate
+  leftZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
+  rightZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
   
-  if (Blynk.connected()) {
+  if (Blynk.connected() && !isSyncing) {
+    // Trimitem starea releelor catre Blynk DOAR daca nu suntem in proces de sync
     Blynk.virtualWrite(V5, leftZone.getRelayState() ? 1 : 0);
     Blynk.virtualWrite(V6, rightZone.getRelayState() ? 1 : 0);
   }
@@ -118,7 +137,11 @@ BLYNK_WRITE(V10) {
 
 // BLYNK HANDLERS RESTANTE (V5, V6, V7, V8, V9) ramân identice...
 BLYNK_CONNECTED() { 
-  Blynk.syncVirtual(V5, V6, V7, V8, V9, V10); 
+  isSyncing = true;
+  Serial.println("[Blynk] Conectat. Sincronizare parametri...");
+  Blynk.syncVirtual(V5, V6, V7, V8, V9, V10, V11, V12); 
+  isSyncing = false;
+  triggerImmediateUpdate(); // Facem o singura actualizare dupa ce am primit toti parametrii
 }
 BLYNK_WRITE(V5) { leftZone.setManualOverride(param.asInt() == 1); triggerImmediateUpdate(); }
 BLYNK_WRITE(V6) { rightZone.setManualOverride(param.asInt() == 1); triggerImmediateUpdate(); }
@@ -130,6 +153,16 @@ BLYNK_WRITE(V9) {
   currentInterval = val * 1000L;
   timer.deleteTimer(timerID);
   timerID = timer.setInterval(currentInterval, processZones);
+}
+BLYNK_WRITE(V11) { globalTempMargin = param.asFloat(); triggerImmediateUpdate(); }
+BLYNK_WRITE(V12) { globalHumMargin = param.asFloat(); triggerImmediateUpdate(); }
+BLYNK_WRITE(V20) {
+  if (param.asInt() == 1) {
+    Serial.println("[Sistem] Comanda de Reboot primita din Blynk...");
+    Blynk.virtualWrite(V20, 0); // Resetam butonul in app
+    delay(500);
+    ESP.restart(); 
+  }
 }
 
 void setup() {
@@ -152,8 +185,20 @@ void setup() {
 }
 
 void loop() {
-  if (WiFi.status() == WL_CONNECTED) { Blynk.run(); }
+  // Gestionare WiFi si Blynk Reconnection
+  if (WiFi.status() != WL_CONNECTED) {
+    if (millis() - lastWiFiCheck > 30000) { // Incearca reconectarea la fiecare 30 sec
+      Serial.println("[WiFi] Conexiune pierduta. Reincercare robusta...");
+      WiFi.disconnect();
+      WiFi.reconnect();
+      lastWiFiCheck = millis();
+    }
+  } else {
+    Blynk.run(); // Apelam mereu Blynk.run() cand avem WiFi pentru a permite reconectarea interna
+  }
+
   timer.run();
+  
   if (digitalRead(RESET_BUTTON_PIN) == LOW) {
     if (!isButtonPressed) { buttonPressTime = millis(); isButtonPressed = true; statusLed.setColor(255, 255, 0); }
     else if (millis() - buttonPressTime > 3000) { 
