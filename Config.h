@@ -1,9 +1,8 @@
 #pragma once
 
-// --- CREDENTIALE BLYNK ---
-#define BLYNK_TEMPLATE_ID "TMPL44j_Z2rAQ"
-#define BLYNK_TEMPLATE_NAME "Add agency"
-#define BLYNK_AUTH_TOKEN "fnY-Tln9F1zOCh-BnFMh3Jwi6dEI0vIP"
+// --- CREDENTIALE IMPLICITE (vor fi suprascrise de WiFiManager) ---
+#define DEFAULT_MQTT_SERVER "your-cluster-url.s1.eu.hivemq.cloud"
+#define DEFAULT_MQTT_PORT "8883"
 
 // --- SETARI PINI HARDWARE (CARBON V3) ---
 #define DHT_LEFT_PIN 19     

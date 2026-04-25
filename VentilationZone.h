@@ -6,7 +6,7 @@ class VentilationZone {
 private:
   DHT dht;
   int relayPin;
-  String zoneName;
+  const char* zoneName;
   
   float smoothTemp;
   float smoothHum;
@@ -18,12 +18,11 @@ private:
   int consecutiveErrors; // Contor erori senzor pentru detectie blocaj
 
 public:
-  VentilationZone(int dhtPin, int relPin, String name);
+  VentilationZone(int dhtPin, int relPin, const char* name);
   void begin();
   void setManualOverride(bool state);
   void readSensor();
   
-  // Am modificat functia sa primeasca si marjele setate din Blynk
   void updateLogic(float threshTemp, float threshHum, float marginTemp, float marginHum);
   
   float getTemp();
@@ -31,5 +30,5 @@ public:
   bool getRelayState();
   bool isFirstReadDone();
   int getErrors();
-  String getName();
+  const char* getName();
 };

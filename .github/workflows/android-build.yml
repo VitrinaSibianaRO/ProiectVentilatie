@@ -1,0 +1,58 @@
+name: Android CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: '8.0.x'
+
+    - name: Install MAUI Workload
+      run: dotnet workload install maui
+
+    - name: Decode Keystore
+      run: |
+        $keystoreBase64 = "${{ secrets.KEYSTORE_BASE64 }}"
+        $bytes = [Convert]::FromBase64String($keystoreBase64)
+        [IO.File]::WriteAllBytes("MobileApp\my-release-key.keystore", $bytes)
+      shell: pwsh
+
+    - name: Build and Publish AAB (Google Play)
+      working-directory: MobileApp
+      run: >
+        dotnet publish -f net8.0-android -c Release
+        -p:AndroidPackageFormat=aab
+        -p:AndroidKeyStore=true
+        -p:AndroidSigningKeyStore=my-release-key.keystore
+        -p:AndroidSigningKeyAlias=${{ secrets.KEYSTORE_ALIAS }}
+        -p:AndroidSigningKeyPass=${{ secrets.KEYSTORE_PASS }}
+        -p:AndroidSigningStorePass=${{ secrets.KEYSTORE_PASS }}
+
+    - name: Build APK (Sideload / Direct Install)
+      working-directory: MobileApp
+      run: >
+        dotnet publish -f net8.0-android -c Release
+        -p:AndroidPackageFormat=apk
+        -p:AndroidKeyStore=true
+        -p:AndroidSigningKeyStore=my-release-key.keystore
+        -p:AndroidSigningKeyAlias=${{ secrets.KEYSTORE_ALIAS }}
+        -p:AndroidSigningKeyPass=${{ secrets.KEYSTORE_PASS }}
+        -p:AndroidSigningStorePass=${{ secrets.KEYSTORE_PASS }}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: Android-Build
+        path: |
+          MobileApp/bin/Release/net8.0-android/publish/*-Signed.aab
+          MobileApp/bin/Release/net8.0-android/publish/*-Signed.apk

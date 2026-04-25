@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             x:Class="ProiectVentilatie.Mobile.Views.DashboardPage"
+             Title="Dashboard">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="20">
+            
+            <Label Text="{Binding ConnectionStatus}" 
+                   HorizontalOptions="Center" 
+                   TextColor="{StaticResource PrimaryColor}" 
+                   FontAttributes="Bold" />
+
+            <Button Text="REFRESH DATE" Command="{Binding RefreshCommand}" />
+
+            <!-- Zona Stanga -->
+            <Frame>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="ZONA STANGA" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
+                    <Grid ColumnDefinitions="*,*">
+                        <Label Grid.Column="0" Text="{Binding LeftTemp, StringFormat='Temp: {0:F1}°C'}" FontSize="16"/>
+                        <Label Grid.Column="1" Text="{Binding LeftHum, StringFormat='Umiditate: {0:F1}%'}" FontSize="16"/>
+                    </Grid>
+                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                        <Label Text="Ventilator: " FontSize="16" VerticalOptions="Center"/>
+                        <Label Text="{Binding LeftRelay}" FontSize="16" FontAttributes="Bold" VerticalOptions="Center"
+                               TextColor="{StaticResource PrimaryColor}"/>
+                        <Button Text="TOGGLE" Command="{Binding ToggleLeftCommand}" HorizontalOptions="EndAndExpand" HeightRequest="35" FontSize="12"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Zona Dreapta -->
+            <Frame>
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="ZONA DREAPTA" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
+                    <Grid ColumnDefinitions="*,*">
+                        <Label Grid.Column="0" Text="{Binding RightTemp, StringFormat='Temp: {0:F1}°C'}" FontSize="16"/>
+                        <Label Grid.Column="1" Text="{Binding RightHum, StringFormat='Umiditate: {0:F1}%'}" FontSize="16"/>
+                    </Grid>
+                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
+                        <Label Text="Ventilator: " FontSize="16" VerticalOptions="Center"/>
+                        <Label Text="{Binding RightRelay}" FontSize="16" FontAttributes="Bold" VerticalOptions="Center"
+                               TextColor="{StaticResource PrimaryColor}"/>
+                        <Button Text="TOGGLE" Command="{Binding ToggleRightCommand}" HorizontalOptions="EndAndExpand" HeightRequest="35" FontSize="12"/>
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+            </Frame>
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

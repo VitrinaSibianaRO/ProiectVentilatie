@@ -1,6 +1,6 @@
 #include "VentilationZone.h"
 
-VentilationZone::VentilationZone(int dhtPin, int relPin, String name) 
+VentilationZone::VentilationZone(int dhtPin, int relPin, const char* name) 
   : dht(dhtPin, DHT22), relayPin(relPin), zoneName(name) {
   smoothTemp = 0.0;
   smoothHum = 0.0;
@@ -39,7 +39,7 @@ void VentilationZone::readSensor() {
     consecutiveErrors = 0; // Resetam erorile daca citirea e buna
   } else {
     consecutiveErrors++;
-    Serial.printf("[!] Eroare senzor zona: %s (Erori consecutive: %d)\n", zoneName.c_str(), consecutiveErrors);
+    Serial.printf("[!] Eroare senzor zona: %s (Erori consecutive: %d)\n", zoneName, consecutiveErrors);
   }
 }
 
@@ -64,4 +64,4 @@ float VentilationZone::getHum() { return smoothHum; }
 bool VentilationZone::getRelayState() { return relayState; }
 bool VentilationZone::isFirstReadDone() { return firstReadDone; }
 int VentilationZone::getErrors() { return consecutiveErrors; }
-String VentilationZone::getName() { return zoneName; }
+const char* VentilationZone::getName() { return zoneName; }
