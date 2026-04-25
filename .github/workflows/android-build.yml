@@ -15,7 +15,7 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
-        dotnet-version: '8.0.x'
+        dotnet-version: '10.0.x'
 
     - name: Install MAUI Workload
       run: dotnet workload install maui
@@ -30,7 +30,7 @@ jobs:
     - name: Build and Publish AAB (Google Play)
       working-directory: MobileApp
       run: >
-        dotnet publish -f net8.0-android -c Release
+        dotnet publish -f net10.0-android -c Release
         -p:AndroidPackageFormat=aab
         -p:AndroidKeyStore=true
         -p:AndroidSigningKeyStore=my-release-key.keystore
@@ -41,7 +41,7 @@ jobs:
     - name: Build APK (Sideload / Direct Install)
       working-directory: MobileApp
       run: >
-        dotnet publish -f net8.0-android -c Release
+        dotnet publish -f net10.0-android -c Release
         -p:AndroidPackageFormat=apk
         -p:AndroidKeyStore=true
         -p:AndroidSigningKeyStore=my-release-key.keystore
@@ -54,5 +54,5 @@ jobs:
       with:
         name: Android-Build
         path: |
-          MobileApp/bin/Release/net8.0-android/publish/*-Signed.aab
-          MobileApp/bin/Release/net8.0-android/publish/*-Signed.apk
+          MobileApp/bin/Release/net10.0-android/publish/*-Signed.aab
+          MobileApp/bin/Release/net10.0-android/publish/*-Signed.apk
