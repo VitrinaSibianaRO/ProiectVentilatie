@@ -25,7 +25,11 @@ jobs:
       run: >
         dotnet publish -f net10.0-android -c Release
         -p:AndroidPackageFormat=apk
-        -p:AndroidKeyStore=false
+        -p:AndroidKeyStore=true
+        -p:AndroidSigningKeyStore=ventilatie.keystore
+        -p:AndroidSigningKeyAlias=ventilatie
+        -p:AndroidSigningKeyPass=ventilatie123
+        -p:AndroidSigningStorePass=ventilatie123
 
     - name: Upload APK
       uses: actions/upload-artifact@v4
