@@ -62,7 +62,7 @@ public class MqttService : IMqttService
 
     public async Task SendCommandAsync(object command)
     {
-        if (_client.IsConnected)
+        if (_client.IsConnected())
         {
             var json = JsonSerializer.Serialize(command);
             await _client.PublishAsync("ventilation/command", json);
