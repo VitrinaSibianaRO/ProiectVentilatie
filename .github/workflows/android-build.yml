@@ -20,39 +20,15 @@ jobs:
     - name: Install MAUI Workload
       run: dotnet workload install maui
 
-    - name: Decode Keystore
-      run: |
-        $keystoreBase64 = "${{ secrets.KEYSTORE_BASE64 }}"
-        $bytes = [Convert]::FromBase64String($keystoreBase64)
-        [IO.File]::WriteAllBytes("MobileApp\my-release-key.keystore", $bytes)
-      shell: pwsh
-
-    - name: Build and Publish AAB (Google Play)
-      working-directory: MobileApp
-      run: >
-        dotnet publish -f net10.0-android -c Release
-        -p:AndroidPackageFormat=aab
-        -p:AndroidKeyStore=true
-        -p:AndroidSigningKeyStore=my-release-key.keystore
-        -p:AndroidSigningKeyAlias=${{ secrets.KEYSTORE_ALIAS }}
-        -p:AndroidSigningKeyPass=${{ secrets.KEYSTORE_PASS }}
-        -p:AndroidSigningStorePass=${{ secrets.KEYSTORE_PASS }}
-
-    - name: Build APK (Sideload / Direct Install)
+    - name: Build APK
       working-directory: MobileApp
       run: >
         dotnet publish -f net10.0-android -c Release
         -p:AndroidPackageFormat=apk
-        -p:AndroidKeyStore=true
-        -p:AndroidSigningKeyStore=my-release-key.keystore
-        -p:AndroidSigningKeyAlias=${{ secrets.KEYSTORE_ALIAS }}
-        -p:AndroidSigningKeyPass=${{ secrets.KEYSTORE_PASS }}
-        -p:AndroidSigningStorePass=${{ secrets.KEYSTORE_PASS }}
+        -p:AndroidKeyStore=false
 
-    - name: Upload Artifacts
+    - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: Android-Build
-        path: |
-          MobileApp/bin/Release/net10.0-android/publish/*-Signed.aab
-          MobileApp/bin/Release/net10.0-android/publish/*-Signed.apk
+        name: Android-APK
+        path: MobileApp/bin/Release/net10.0-android/publish/*.apk
