@@ -1,0 +1,5 @@
+{
+    "omnisharp.dotnetPath": "/home/ovidiu/.dotnet/dotnet",
+    "java.jdt.ls.java.home": "/home/ovidiu/Java/jdk-17",
+    "maui.androidSdkDirectory": "/home/ovidiu/Android/Sdk"
+}

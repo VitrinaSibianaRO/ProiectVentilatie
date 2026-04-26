@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
              x:Class="ProiectVentilatie.Mobile.Views.DashboardPage"
              Title="Dashboard">
 
@@ -19,9 +20,9 @@
             <Frame>
                 <VerticalStackLayout Spacing="10">
                     <Label Text="ZONA STANGA" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
-                    <Grid ColumnDefinitions="*,*">
-                        <Label Grid.Column="0" Text="{Binding LeftTemp, StringFormat='Temp: {0:F1}°C'}" FontSize="16"/>
-                        <Label Grid.Column="1" Text="{Binding LeftHum, StringFormat='Umiditate: {0:F1}%'}" FontSize="16"/>
+                    <Grid ColumnDefinitions="*,*" HeightRequest="120">
+                        <controls:GaugeView Grid.Column="0" Value="{Binding LeftTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="Temp" ProgressColor="{StaticResource PrimaryColor}"/>
+                        <controls:GaugeView Grid.Column="1" Value="{Binding LeftHum}" MinValue="0" MaxValue="100" Units="%" Title="Umiditate" ProgressColor="{StaticResource PrimaryColor}"/>
                     </Grid>
                     <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
                         <Label Text="Ventilator: " FontSize="16" VerticalOptions="Center"/>
@@ -36,9 +37,9 @@
             <Frame>
                 <VerticalStackLayout Spacing="10">
                     <Label Text="ZONA DREAPTA" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
-                    <Grid ColumnDefinitions="*,*">
-                        <Label Grid.Column="0" Text="{Binding RightTemp, StringFormat='Temp: {0:F1}°C'}" FontSize="16"/>
-                        <Label Grid.Column="1" Text="{Binding RightHum, StringFormat='Umiditate: {0:F1}%'}" FontSize="16"/>
+                    <Grid ColumnDefinitions="*,*" HeightRequest="120">
+                        <controls:GaugeView Grid.Column="0" Value="{Binding RightTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="Temp" ProgressColor="{StaticResource PrimaryColor}"/>
+                        <controls:GaugeView Grid.Column="1" Value="{Binding RightHum}" MinValue="0" MaxValue="100" Units="%" Title="Umiditate" ProgressColor="{StaticResource PrimaryColor}"/>
                     </Grid>
                     <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
                         <Label Text="Ventilator: " FontSize="16" VerticalOptions="Center"/>
