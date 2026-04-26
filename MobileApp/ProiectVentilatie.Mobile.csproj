@@ -22,6 +22,8 @@
 
 
 	<ItemGroup>
+		<PackageReference Include="Microsoft.Maui.Controls" Version="10.0.20" />
+		<PackageReference Include="Microsoft.Maui.Controls.Compatibility" Version="10.0.20" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
 		<PackageReference Include="HiveMQtt" Version="0.9.0" />
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
