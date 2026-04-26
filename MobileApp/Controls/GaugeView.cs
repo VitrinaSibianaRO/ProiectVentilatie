@@ -112,14 +112,14 @@ public class GaugeDrawable : IDrawable
         // Draw texts
         canvas.FontColor = Colors.White;
         canvas.FontSize = 20;
-        canvas.Font = Font.DefaultBold;
+        canvas.Font = Microsoft.Maui.Graphics.Font.DefaultBold;
         
         string valueStr = $"{_gauge.Value:F1}{_gauge.Units}";
-        canvas.DrawString(valueStr, center.X, center.Y, HorizontalAlignment.Center, VerticalAlignment.Center);
+        canvas.DrawString(valueStr, 0, 0, dirtyRect.Width, dirtyRect.Height, HorizontalAlignment.Center, VerticalAlignment.Center);
 
         canvas.FontSize = 12;
         canvas.FontColor = Colors.LightGray;
-        canvas.Font = Font.Default;
-        canvas.DrawString(_gauge.Title, center.X, center.Y + 25, HorizontalAlignment.Center, VerticalAlignment.Center);
+        canvas.Font = Microsoft.Maui.Graphics.Font.Default;
+        canvas.DrawString(_gauge.Title, 0, 25, dirtyRect.Width, dirtyRect.Height, HorizontalAlignment.Center, VerticalAlignment.Center);
     }
 }
