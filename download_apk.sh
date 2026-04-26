@@ -4,7 +4,7 @@
 TARGET_DIR="APK"
 
 # Creare folder daca nu exista
-mkdir -p "$TARGET_DIR"
+mkdir -p "$TARGET_DIR" && rm -f "$TARGET_DIR"/*
 
 echo "------------------------------------------------"
 echo "Cautare si descarcare ultimul APK (Android-APK)..."

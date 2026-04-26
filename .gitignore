@@ -1,2 +1,29 @@
-/build
-/pumpfun_deploy_key
+# ProiectVentilatie - Git Ignore
+
+# User-specific folders
+/scratch/
+/APK/
+
+# .NET / MAUI specific
+bin/
+obj/
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio
+.vs/
+.vscode/
+
+# Ignore keystores if you want to keep them private (but we need it for GH Actions)
+# *.keystore
+# *.jks
+
+# Logs
+*.log
+
+# OS generated files
+.DS_Store
+Thumbs.db
+APK/com.proiect.ventilatie-Signed.apk
+APK/com.proiect.ventilatie.apk

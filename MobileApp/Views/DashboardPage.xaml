@@ -7,48 +7,44 @@
              Title="Dashboard">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="15" Spacing="20">
             
             <Label Text="{Binding ConnectionStatus}" 
                    HorizontalOptions="Center" 
                    TextColor="{StaticResource PrimaryColor}" 
                    FontAttributes="Bold" />
 
-            <Button Text="REFRESH DATE" Command="{Binding RefreshCommand}" />
+            <Button Text="REFRESH DATE" Command="{Binding RefreshCommand}" Margin="10,0"/>
 
-            <!-- Zona Stanga -->
-            <Frame>
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="ZONA STANGA" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
-                    <Grid ColumnDefinitions="*,*" HeightRequest="120">
-                        <controls:GaugeView Grid.Column="0" Value="{Binding LeftTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="Temp" ProgressColor="{StaticResource PrimaryColor}"/>
-                        <controls:GaugeView Grid.Column="1" Value="{Binding LeftHum}" MinValue="0" MaxValue="100" Units="%" Title="Umiditate" ProgressColor="{StaticResource PrimaryColor}"/>
-                    </Grid>
-                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
-                        <Label Text="Ventilator: " FontSize="16" VerticalOptions="Center"/>
-                        <Label Text="{Binding LeftRelay}" FontSize="16" FontAttributes="Bold" VerticalOptions="Center"
-                               TextColor="{StaticResource PrimaryColor}"/>
-                        <Button Text="TOGGLE" Command="{Binding ToggleLeftCommand}" HorizontalOptions="EndAndExpand" HeightRequest="35" FontSize="12"/>
-                    </HorizontalStackLayout>
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="15" RowSpacing="20">
+                <!-- Stanga -->
+                <VerticalStackLayout Grid.Column="0" Spacing="20">
+                    <controls:GaugeView Value="{Binding LeftTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="TEMP STÂNGA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
+                    <controls:GaugeView Value="{Binding LeftHum}" MinValue="0" MaxValue="100" Units="%" Title="UMID STÂNGA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
+                    
+                    <Frame Padding="10" BackgroundColor="{StaticResource SurfaceColor}">
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="Vent. Stânga" FontSize="14" HorizontalOptions="Center" TextColor="LightGray"/>
+                            <Label Text="{Binding LeftRelay}" FontSize="16" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{StaticResource PrimaryColor}"/>
+                            <Button Text="TOGGLE" Command="{Binding ToggleLeftCommand}" HeightRequest="35" FontSize="12"/>
+                        </VerticalStackLayout>
+                    </Frame>
                 </VerticalStackLayout>
-            </Frame>
 
-            <!-- Zona Dreapta -->
-            <Frame>
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="ZONA DREAPTA" FontSize="18" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
-                    <Grid ColumnDefinitions="*,*" HeightRequest="120">
-                        <controls:GaugeView Grid.Column="0" Value="{Binding RightTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="Temp" ProgressColor="{StaticResource PrimaryColor}"/>
-                        <controls:GaugeView Grid.Column="1" Value="{Binding RightHum}" MinValue="0" MaxValue="100" Units="%" Title="Umiditate" ProgressColor="{StaticResource PrimaryColor}"/>
-                    </Grid>
-                    <HorizontalStackLayout Spacing="10" VerticalOptions="Center">
-                        <Label Text="Ventilator: " FontSize="16" VerticalOptions="Center"/>
-                        <Label Text="{Binding RightRelay}" FontSize="16" FontAttributes="Bold" VerticalOptions="Center"
-                               TextColor="{StaticResource PrimaryColor}"/>
-                        <Button Text="TOGGLE" Command="{Binding ToggleRightCommand}" HorizontalOptions="EndAndExpand" HeightRequest="35" FontSize="12"/>
-                    </HorizontalStackLayout>
+                <!-- Dreapta -->
+                <VerticalStackLayout Grid.Column="1" Spacing="20">
+                    <controls:GaugeView Value="{Binding RightTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="TEMP DREAPTA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
+                    <controls:GaugeView Value="{Binding RightHum}" MinValue="0" MaxValue="100" Units="%" Title="UMID DREAPTA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
+                    
+                    <Frame Padding="10" BackgroundColor="{StaticResource SurfaceColor}">
+                        <VerticalStackLayout Spacing="5">
+                            <Label Text="Vent. Dreapta" FontSize="14" HorizontalOptions="Center" TextColor="LightGray"/>
+                            <Label Text="{Binding RightRelay}" FontSize="16" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{StaticResource PrimaryColor}"/>
+                            <Button Text="TOGGLE" Command="{Binding ToggleRightCommand}" HeightRequest="35" FontSize="12"/>
+                        </VerticalStackLayout>
+                    </Frame>
                 </VerticalStackLayout>
-            </Frame>
+            </Grid>
 
         </VerticalStackLayout>
     </ScrollView>
