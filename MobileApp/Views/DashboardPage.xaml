@@ -18,29 +18,29 @@
 
             <Grid ColumnDefinitions="*,*" ColumnSpacing="15" RowSpacing="20">
                 <!-- Stanga -->
-                <VerticalStackLayout Grid.Column="0" Spacing="20">
-                    <controls:GaugeView Value="{Binding LeftTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="TEMP STÂNGA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
-                    <controls:GaugeView Value="{Binding LeftHum}" MinValue="0" MaxValue="100" Units="%" Title="UMID STÂNGA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
+                <VerticalStackLayout Grid.Column="0" Spacing="15">
+                    <controls:GaugeView Value="{Binding LeftTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="TEMP STÂNGA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="170"/>
+                    <controls:GaugeView Value="{Binding LeftHum}" MinValue="0" MaxValue="100" Units="%" Title="UMID STÂNGA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="170"/>
                     
-                    <Frame Padding="10" BackgroundColor="{StaticResource SurfaceColor}">
+                    <Frame Padding="10" BackgroundColor="{StaticResource SurfaceColor}" BorderColor="#333333" HasShadow="True">
                         <VerticalStackLayout Spacing="5">
-                            <Label Text="Vent. Stânga" FontSize="14" HorizontalOptions="Center" TextColor="LightGray"/>
-                            <Label Text="{Binding LeftRelay}" FontSize="16" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{StaticResource PrimaryColor}"/>
-                            <Button Text="TOGGLE" Command="{Binding ToggleLeftCommand}" HeightRequest="35" FontSize="12"/>
+                            <Label Text="Vent. Stânga" FontSize="13" HorizontalOptions="Center" TextColor="Gray"/>
+                            <Label Text="{Binding LeftRelay}" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{StaticResource PrimaryColor}"/>
+                            <Button Text="TOGGLE" Command="{Binding ToggleLeftCommand}" HeightRequest="40" FontSize="13" CornerRadius="10"/>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>
 
                 <!-- Dreapta -->
-                <VerticalStackLayout Grid.Column="1" Spacing="20">
-                    <controls:GaugeView Value="{Binding RightTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="TEMP DREAPTA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
-                    <controls:GaugeView Value="{Binding RightHum}" MinValue="0" MaxValue="100" Units="%" Title="UMID DREAPTA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="160"/>
+                <VerticalStackLayout Grid.Column="1" Spacing="15">
+                    <controls:GaugeView Value="{Binding RightTemp}" MinValue="-10" MaxValue="40" Units="°C" Title="TEMP DREAPTA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="170"/>
+                    <controls:GaugeView Value="{Binding RightHum}" MinValue="0" MaxValue="100" Units="%" Title="UMID DREAPTA" ProgressColor="{StaticResource PrimaryColor}" HeightRequest="170"/>
                     
-                    <Frame Padding="10" BackgroundColor="{StaticResource SurfaceColor}">
+                    <Frame Padding="10" BackgroundColor="{StaticResource SurfaceColor}" BorderColor="#333333" HasShadow="True">
                         <VerticalStackLayout Spacing="5">
-                            <Label Text="Vent. Dreapta" FontSize="14" HorizontalOptions="Center" TextColor="LightGray"/>
-                            <Label Text="{Binding RightRelay}" FontSize="16" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{StaticResource PrimaryColor}"/>
-                            <Button Text="TOGGLE" Command="{Binding ToggleRightCommand}" HeightRequest="35" FontSize="12"/>
+                            <Label Text="Vent. Dreapta" FontSize="13" HorizontalOptions="Center" TextColor="Gray"/>
+                            <Label Text="{Binding RightRelay}" FontSize="18" FontAttributes="Bold" HorizontalOptions="Center" TextColor="{StaticResource PrimaryColor}"/>
+                            <Button Text="TOGGLE" Command="{Binding ToggleRightCommand}" HeightRequest="40" FontSize="13" CornerRadius="10"/>
                         </VerticalStackLayout>
                     </Frame>
                 </VerticalStackLayout>

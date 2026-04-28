@@ -64,83 +64,88 @@ public class GaugeDrawable : IDrawable
     {
         float centerX = dirtyRect.Width / 2;
         float centerY = dirtyRect.Height / 2;
-        float padding = 15f; 
+        float padding = 10f; 
         float radius = Math.Min(dirtyRect.Width, dirtyRect.Height) / 2 - padding;
 
         if (radius <= 0) return;
 
-        // 1. Draw 360 Dotted Background Circle
-        canvas.StrokeColor = Color.FromArgb("#555555");
-        canvas.StrokeSize = 2f;
-        canvas.StrokeDashPattern = new float[] { 2f, 6f };
+        // 1. Draw Background Track (Subtle)
+        canvas.StrokeColor = Color.FromArgb("#222222");
+        canvas.StrokeSize = radius * 0.08f;
+        canvas.StrokeLineCap = LineCap.Round;
+        float startAngle = 135f;
+        float totalSweep = 270f;
         
-        canvas.DrawCircle(centerX, centerY, radius);
+        PathF trackPath = new PathF();
+        trackPath.AddArc(centerX - radius, centerY - radius, radius * 2, radius * 2, startAngle, (startAngle + totalSweep) % 360, true);
+        canvas.DrawPath(trackPath);
 
-        // Reset dash pattern
+        // 2. Draw 360 Dotted Background Circle (Decorative)
+        canvas.StrokeColor = Color.FromArgb("#444444");
+        canvas.StrokeSize = 1.5f;
+        canvas.StrokeDashPattern = new float[] { 2f, 6f };
+        canvas.DrawCircle(centerX, centerY, radius + 5);
         canvas.StrokeDashPattern = null;
 
-        // 2. Calculate Progress
+        // 3. Calculate Progress
         double range = _gauge.MaxValue - _gauge.MinValue;
         double fill = Math.Max(0, Math.Min(range, _gauge.Value - _gauge.MinValue));
         double percentage = range > 0 ? fill / range : 0;
 
-        float startAngle = 135f; // Start from bottom left
-        float totalSweep = 270f;
-        float strokeThickness = 6f; // Thinner, solid elegant line
-
-        // 3. Draw Progress Arc
+        // 4. Draw Progress Arc
         if (percentage > 0)
         {
-            float currentEndAngle = startAngle + (totalSweep * (float)percentage);
+            float sweepAngle = totalSweep * (float)percentage;
+            float currentEndAngle = startAngle + sweepAngle;
             
             PathF progressPath = new PathF();
-            if (percentage >= 0.999f)
-            {
-                progressPath.AddArc(centerX - radius, centerY - radius, radius * 2, radius * 2, startAngle, startAngle + totalSweep, true);
-            }
-            else
-            {
-                progressPath.AddArc(centerX - radius, centerY - radius, radius * 2, radius * 2, startAngle, currentEndAngle % 360, true);
-            }
+            progressPath.AddArc(centerX - radius, centerY - radius, radius * 2, radius * 2, startAngle, currentEndAngle % 360, true);
 
             canvas.StrokeColor = _gauge.ProgressColor;
-            canvas.StrokeSize = strokeThickness;
+            canvas.StrokeSize = radius * 0.1f;
             canvas.StrokeLineCap = LineCap.Round;
             canvas.DrawPath(progressPath);
             
-            // 4. Draw Knob at end of progress
+            // 5. Draw Knob at end of progress
             double endRad = (currentEndAngle % 360) * Math.PI / 180.0;
             float knobX = centerX + (float)(radius * Math.Cos(endRad));
             float knobY = centerY + (float)(radius * Math.Sin(endRad));
 
-            canvas.FillColor = Color.FromArgb("#121212"); // Background color to look hollow
-            canvas.DrawCircle(knobX, knobY, 5f);
+            canvas.FillColor = Color.FromArgb("#121212");
+            canvas.FillCircle(knobX, knobY, radius * 0.06f);
             canvas.StrokeColor = Colors.White;
             canvas.StrokeSize = 2f;
-            canvas.DrawCircle(knobX, knobY, 5f);
+            canvas.DrawCircle(knobX, knobY, radius * 0.06f);
         }
 
-        // 5. Draw Texts
-        string valueStr = $"{_gauge.Value:F1}"; // 1 decimal, e.g. 21.5
-        canvas.FontColor = Colors.White;
-        canvas.FontSize = 40; 
-        canvas.Font = Microsoft.Maui.Graphics.Font.Default;
-        
-        // We use GetStringSize to accurately place the unit relative to the main value
-        SizeF valueSize = canvas.GetStringSize(valueStr, Microsoft.Maui.Graphics.Font.Default, 40);
-        
-        // Draw Value
-        canvas.DrawString(valueStr, 0, centerY - (valueSize.Height / 2), dirtyRect.Width, valueSize.Height, HorizontalAlignment.Center, VerticalAlignment.Center);
-        
-        // Draw Unit (top right of the value)
-        canvas.FontSize = 16;
-        canvas.FontColor = Colors.White;
-        float unitX = centerX + (valueSize.Width / 2) + 2;
-        canvas.DrawString(_gauge.Units, unitX, centerY - (valueSize.Height / 2), 50, 20, HorizontalAlignment.Left, VerticalAlignment.Top);
+        // 6. Draw Texts (Using relative font sizes)
+        string valueStr = $"{_gauge.Value:F1}";
+        float mainFontSize = radius * 0.55f;
+        float unitFontSize = radius * 0.22f;
+        float titleFontSize = radius * 0.18f;
 
-        // Draw Short Title
-        canvas.FontColor = Colors.LightGray;
-        canvas.FontSize = 12;
-        canvas.DrawString(_gauge.Title, 0, centerY - (valueSize.Height / 2) - 25, dirtyRect.Width, 20, HorizontalAlignment.Center, VerticalAlignment.Bottom);
+        canvas.FontColor = Colors.White;
+        canvas.Font = Microsoft.Maui.Graphics.Font.Default;
+
+        // Measurement for alignment
+        canvas.FontSize = mainFontSize;
+        SizeF valueSize = canvas.GetStringSize(valueStr, Microsoft.Maui.Graphics.Font.Default, mainFontSize);
+        
+        // Value (Centered in the control)
+        // We use a larger rectangle to avoid clipping on Android
+        RectF valueRect = new RectF(0, centerY - (valueSize.Height / 2) - 5, dirtyRect.Width, valueSize.Height + 10);
+        canvas.DrawString(valueStr, valueRect, HorizontalAlignment.Center, VerticalAlignment.Center);
+        
+        // Unit (Positioned relative to value)
+        canvas.FontSize = unitFontSize;
+        float unitX = centerX + (valueSize.Width / 2) + 4;
+        RectF unitRect = new RectF(unitX, centerY - (valueSize.Height / 2) + 5, 60, 30);
+        canvas.DrawString(_gauge.Units, unitRect, HorizontalAlignment.Left, VerticalAlignment.Top);
+
+        // Title (Above the value)
+        canvas.FontColor = Color.FromArgb("#BBBBBB");
+        canvas.FontSize = titleFontSize;
+        RectF titleRect = new RectF(0, centerY - (valueSize.Height / 2) - titleFontSize - 8, dirtyRect.Width, titleFontSize + 10);
+        canvas.DrawString(_gauge.Title, titleRect, HorizontalAlignment.Center, VerticalAlignment.Bottom);
     }
 }
