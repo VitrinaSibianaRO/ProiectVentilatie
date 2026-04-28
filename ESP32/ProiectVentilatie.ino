@@ -1,292 +1,424 @@
-#include "Config.h" 
+// ============================================================
+//  ProiectVentilatie.ino
+//
+//  Arhitectură production-grade pentru automatizare ventilaţie:
+//  - Logica releelor este 100% locală şi autonomă.
+//  - Blynk este UI-only: trimite parametri, primeşte date.
+//  - Parametrii sunt persistaţi în NVS (supravieţuiesc reboot).
+//  - Sistemul funcţionează complet offline dacă Blynk pică.
+//  - Override manual cu timeout automat (nu rămâne blocat).
+//  - Watchdog hardware 60s împotriva oricărui blocaj.
+// ============================================================
+
+#include "Config.h"
+#include "AppPreferences.h"
 #include "SystemLED.h"
 #include "VentilationZone.h"
 
 #include <WiFi.h>
-#include <WiFiClientSecure.h>
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
-#include <esp_task_wdt.h>
 #include <WiFiManager.h>
-#include <Preferences.h>
+#include <BlynkSimpleEsp32.h>
+#include <esp_task_wdt.h>
 
-// --- CERTIFICAT ROOT PENTRU HIVEMQ CLOUD (ISRG Root X1) ---
-const char* root_ca = \
-"-----BEGIN CERTIFICATE-----\n" \
-"MIIFazCCA1OgAwIBAgIRAANYZIjzCG0K03PqQzI4QjIwDQYJKoZIhvcNAQELBQAw\n" \
-"TzELMAkGA1UEBhMCVVMxKTAnBgNVBAoTIEludGVybmV0IFNlY3VyaXR5IFJlc2Vh\n" \
-"cmNoIEdyb3VwMRUwEwYDVQQDEwxJU1JHIFJvb3QgWDEwHhcNMTUwNjA0MTEwNDM4\n" \
-"WhcNMzUwNjA0MTEwNDM4WjBPMQswCQYDVQQGEwJVUzEpMCcGA1UEChMgSW50ZXJu\n" \
-"ZXQgU2VjdXJpdHkgUmVzZWFyY2ggR3JvdXAxFTATBgNVBAMTDElTUkcgUm9vdCBY\n" \
-"MTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAK3oJ1yOObpPeYa0MBX0\n" \
-"aP4C29J2nL80s3B5hB4A5C10s8E2wL312P6A/bA+aE0X3qKz/ZpZ138Yt0K+y+eE\n" \
-"7Bf5f3e7A+vA1p2+mP4G0Q3pT9hYh4R+y2G1t8X21n6d4+t7q2w9k/H3qP2D+6y5\n" \
-"G/rA/9y+h3t2w8n0o22D+q2E3m8Z6B4J3P3H9Q3D/0c3D9xX4x0Z8F+v6C3O6r+v\n" \
-"yY8f/7T8oH7v3eYw8E4P+Y6u8eQ4G0T2sW5D/6+B/z8X9E/o1E3O3t3o4F3r+O8r\n" \
-"P6E2w+u8Y2+u/2M3r3+T4P+M8O+X9T3A/7t3E3+3e3/6/5e7+6T+R6n8tZ2B+B5e\n" \
-"Z8k4G+7y+T3Z7+m8+v/8r3u+m4k+2s/4y2u+k4+z7t5+2p+1t/1o9m+3q4O9v/r+\n" \
-"s+2x+2l/8t3X6w4X+6M6m2g/3f7e5t5y7n/6u4e+1i5v+8w9Y+7a+1z7D9n/6t5Y\n" \
-"B3A+8g7s8E7w/5h9M9X9Q5T9v8h9w9b7c/7v8r5r7E9n9c9E8m8E/7b7d7n7K9l7\n" \
-"s9B8A9X8Z6n8e6A9b7E9D9h9X8Z6a9w8B7a9X9X9M8h9c8A9m8c9e8D9c9k9Q8E9\n" \
-"h9F8a9S8W9A9X9c/v9E8h9n/k9E9m9R9n/E/x9c8D9b8Z8s9t/E9m8B8X9n9E9M\n" \
-"A0GCSqGSIb3DQEBCwUAA4ICAQCW1r/8M9c9W9D9k9M8E9n9B8A9h9X9F9X9c/w9\n" \
-"v/B9c8B/r9W8s9H9E8b8A9X9M8E/t8a9T9F8A9k/R8B9m8t9F8k/r9t8c9c/u9E\n" \
-"d9b8E9R9k9M8t9X8E/r9n/T9W9E9X9B9k8A9h/R9v/F9k9c9t8X9c9E8r/v8t/F\n" \
-"v9m8d9X9E9k/c9A/D8k/u8s9F9n9X/v9A9k9c9A9n/W8t9X8A9n9c8E9r9W9D9k\n" \
-"h9F8a9S8W9A9X9c/v9E8h9n/k9E9m9R9n/E/x9c8D9b8Z8s9t/E9m8B8X9n9E9M\n" \
-"c9t8X9c9E8r/v8t/Fv9m8d9X9E9k/c9A/D8k/u8s9F9n9X/v9A9k9c9A9n/W8t9\n" \
-"X8A9n9c8E9r9W9D9kh9F8a9S8W9A9X9c/v9E8h9n/k9E9m9R9n/E/x9c8D9b8Z8\n" \
-"-----END CERTIFICATE-----\n";
-
-// --- INSTANTIERE OBIECTE GLOBALE ---
-SystemLED statusLed(LED_COUNT, LED_PIN, LED_ENABLE_PIN);
-VentilationZone leftZone(DHT_LEFT_PIN, RELAY_LEFT_PIN, "STANGA");
+// ============================================================
+//  OBIECTE GLOBALE
+// ============================================================
+AppPreferences  prefs;
+SystemLED       statusLed(LED_COUNT, LED_PIN, LED_ENABLE_PIN);
+VentilationZone leftZone (DHT_LEFT_PIN,  RELAY_LEFT_PIN,  "STANGA");
 VentilationZone rightZone(DHT_RIGHT_PIN, RELAY_RIGHT_PIN, "DREAPTA");
+BlynkTimer      timer;
 
-WiFiClientSecure secureClient;
-PubSubClient mqttClient(secureClient);
-Preferences preferences;
+// ============================================================
+//  FORWARD DECLARATIONS
+// ============================================================
+void processZones();
+void pushRelayState();
+void rebuildMainTimer();
+void safeStopRelays();
+void checkMemory();
 
-// --- VARIABILE STARE GENERALE ---
-float globalTempThresh = 45.0;
-float globalHumThresh = 60.0;
-float globalTempMargin = 2.0; 
-float globalHumMargin = 5.0;  
-long currentInterval = 300000L; // 5 minute
+// ============================================================
+//  STARE INTERNĂ
+// ============================================================
 
-unsigned long lastSensorRead = 0;
-unsigned long lastPublish = 0;
-unsigned long buttonPressTime = 0;
-bool isButtonPressed = false;
+// ID-ul timerului principal — reținut pentru a-l putea reface
+// când se schimbă intervalul fără race condition.
+int  mainTimerID        = -1;
+bool timerRebuildNeeded = false;
 
-// 15 sec watchdog
-#define WDT_TIMEOUT_SEC 15 
+// Pending flags pentru comenzile venite din Blynk.
+// Handler-ii BLYNK_WRITE scriu aici; logica se aplică în processZones().
+struct PendingCmd {
+    bool    overrideLeftSet   = false;
+    bool    overrideLeftVal   = false;
+    bool    overrideLeftClear = false;
 
-// Variabile MQTT salvate in NVS
-char mqtt_server[60];
-char mqtt_port[6];
-char mqtt_user[60];
-char mqtt_pass[60];
-bool shouldSaveConfig = false;
+    bool    overrideRightSet   = false;
+    bool    overrideRightVal   = false;
+    bool    overrideRightClear = false;
 
-void saveConfigCallback() {
-  Serial.println("Should save config");
-  shouldSaveConfig = true;
+    bool    resetDefaults = false;
+    bool    restartDevice = false;
+} pending;
+
+// Valori trimise anterior către Blynk — pentru trimitere condiţionată.
+float lastSentTempL = -999.f, lastSentHumL = -999.f;
+float lastSentTempR = -999.f, lastSentHumR = -999.f;
+int   cycleCount    = 0;
+
+// WiFi reconnect throttle
+unsigned long lastWiFiCheckMs = 0;
+
+// Buton fizic reset
+unsigned long buttonPressMs  = 0;
+bool          buttonHeld     = false;
+
+// ============================================================
+//  FUNCŢII HELPER
+// ============================================================
+
+void safeStopRelays() {
+    leftZone.emergencyOff();
+    rightZone.emergencyOff();
 }
 
-void loadCustomParams() {
-  preferences.begin("mqtt_config", false);
-  String server = preferences.getString("server", DEFAULT_MQTT_SERVER);
-  String port = preferences.getString("port", DEFAULT_MQTT_PORT);
-  String user = preferences.getString("user", "");
-  String pass = preferences.getString("pass", "");
-  
-  strlcpy(mqtt_server, server.c_str(), sizeof(mqtt_server));
-  strlcpy(mqtt_port, port.c_str(), sizeof(mqtt_port));
-  strlcpy(mqtt_user, user.c_str(), sizeof(mqtt_user));
-  strlcpy(mqtt_pass, pass.c_str(), sizeof(mqtt_pass));
-  preferences.end();
+void rebuildMainTimer() {
+    if (mainTimerID >= 0) timer.deleteTimer(mainTimerID);
+    mainTimerID = timer.setInterval((long)prefs.intervalSec * 1000L, processZones);
+    Serial.printf("[Timer] Interval setat la %d secunde.\n", prefs.intervalSec);
 }
 
-void saveCustomParams() {
-  preferences.begin("mqtt_config", false);
-  preferences.putString("server", mqtt_server);
-  preferences.putString("port", mqtt_port);
-  preferences.putString("user", mqtt_user);
-  preferences.putString("pass", mqtt_pass);
-  preferences.end();
+// Sincronizează starea curentă a releelor şi overrides spre Blynk.
+// Apelată după orice schimbare locală, nu la comandă din cloud.
+void pushRelayState() {
+    if (!Blynk.connected()) return;
+    Blynk.virtualWrite(VP_RELAY_LEFT,    leftZone.getRelayState()  ? 1 : 0);
+    Blynk.virtualWrite(VP_RELAY_RIGHT,   rightZone.getRelayState() ? 1 : 0);
+    Blynk.virtualWrite(VP_OVERRIDE_LEFT,  leftZone.getManualOverride()  ? 1 : 0);
+    Blynk.virtualWrite(VP_OVERRIDE_RIGHT, rightZone.getManualOverride() ? 1 : 0);
 }
 
-void setupWiFiManager() {
-  WiFiManager wm;
-  wm.setSaveConfigCallback(saveConfigCallback);
-  
-  WiFiManagerParameter custom_mqtt_server("server", "MQTT Server", mqtt_server, 60);
-  WiFiManagerParameter custom_mqtt_port("port", "MQTT Port", mqtt_port, 6);
-  WiFiManagerParameter custom_mqtt_user("user", "MQTT Username", mqtt_user, 60);
-  WiFiManagerParameter custom_mqtt_pass("pass", "MQTT Password", mqtt_pass, 60);
-  
-  wm.addParameter(&custom_mqtt_server);
-  wm.addParameter(&custom_mqtt_port);
-  wm.addParameter(&custom_mqtt_user);
-  wm.addParameter(&custom_mqtt_pass);
-  
-  if (!wm.autoConnect("ESP32_Setare_Ventilatie")) {
-    Serial.println("Eroare conectare. Timeout -> Auto-Restart");
-    delay(3000);
-    ESP.restart();
-  }
-  
-  if (shouldSaveConfig) {
-    strlcpy(mqtt_server, custom_mqtt_server.getValue(), sizeof(mqtt_server));
-    strlcpy(mqtt_port, custom_mqtt_port.getValue(), sizeof(mqtt_port));
-    strlcpy(mqtt_user, custom_mqtt_user.getValue(), sizeof(mqtt_user));
-    strlcpy(mqtt_pass, custom_mqtt_pass.getValue(), sizeof(mqtt_pass));
-    saveCustomParams();
-  }
-  Serial.println("WiFi conectat!");
-}
+// ============================================================
+//  CICLU PRINCIPAL DE CITIRE + DECIZIE
+//  Apelat periodic de BlynkTimer. Tot ce ţine de logica
+//  releelor se întâmplă EXCLUSIV aici.
+// ============================================================
+void processZones() {
+    Serial.println("\n--- Ciclu senzori ---");
 
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
-  StaticJsonDocument<256> doc;
-  DeserializationError error = deserializeJson(doc, payload, length);
-
-  if (error) return;
-
-  const char* cmd = doc["cmd"];
-  if (!cmd) return;
-
-  if (strcmp(cmd, "refresh") == 0) {
-    lastPublish = 0; 
-  }
-  else if (strcmp(cmd, "reboot") == 0) {
-    delay(1000);
-    ESP.restart();
-  }
-  else if (strcmp(cmd, "setRelay") == 0) {
-    const char* zone = doc["zone"];
-    bool state = doc["state"];
-    if (zone && strcmp(zone, "left") == 0) leftZone.setManualOverride(state);
-    if (zone && strcmp(zone, "right") == 0) rightZone.setManualOverride(state);
-    leftZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
-    rightZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
-    lastPublish = 0; 
-  }
-  else if (strcmp(cmd, "setConfig") == 0) {
-    if (doc.containsKey("threshT")) globalTempThresh = doc["threshT"];
-    if (doc.containsKey("threshH")) globalHumThresh = doc["threshH"];
-    if (doc.containsKey("marginT")) globalTempMargin = doc["marginT"];
-    if (doc.containsKey("marginH")) globalHumMargin = doc["marginH"];
-    if (doc.containsKey("interval")) currentInterval = doc["interval"];
-    leftZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
-    rightZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
-    lastPublish = 0; 
-  }
-}
-
-void connectMQTT() {
-  if (mqttClient.connected() || WiFi.status() != WL_CONNECTED) return;
-
-  String clientId = "ESP32-Vent-" + String(random(0xffff), HEX);
-  mqttClient.setBufferSize(512);
-
-  if (mqttClient.connect(clientId.c_str(), mqtt_user, mqtt_pass)) {
-    mqttClient.subscribe("ventilation/command");
-    statusLed.setColor(0, 255, 0); // Verde = OK
-  } else {
-    statusLed.setColor(255, 0, 0); // Rosu = Eroare MQTT
-  }
-}
-
-void publishState() {
-  if (!mqttClient.connected()) return;
-
-  StaticJsonDocument<512> doc;
-
-  JsonObject left = doc.createNestedObject("left");
-  left["temp"] = leftZone.getTemp();
-  left["hum"] = leftZone.getHum();
-  left["relay"] = leftZone.getRelayState();
-  left["err"] = leftZone.getErrors();
-
-  JsonObject right = doc.createNestedObject("right");
-  right["temp"] = rightZone.getTemp();
-  right["hum"] = rightZone.getHum();
-  right["relay"] = rightZone.getRelayState();
-  right["err"] = rightZone.getErrors();
-
-  JsonObject config = doc.createNestedObject("config");
-  config["threshT"] = globalTempThresh;
-  config["threshH"] = globalHumThresh;
-  config["marginT"] = globalTempMargin;
-  config["marginH"] = globalHumMargin;
-  config["interval"] = currentInterval;
-
-  char buffer[512];
-  serializeJson(doc, buffer);
-  mqttClient.publish("ventilation/state", buffer);
-}
-
-void setup() {
-  Serial.begin(115200);
-  delay(1000);
-
-  esp_task_wdt_init(WDT_TIMEOUT_SEC, true); 
-  esp_task_wdt_add(NULL);
-
-  statusLed.begin();
-  statusLed.setColor(0, 0, 255); // Albastru = Boot
-
-  leftZone.begin();
-  rightZone.begin();
-  pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
-
-  loadCustomParams();
-  setupWiFiManager();
-
-  secureClient.setCACert(root_ca);
-  mqttClient.setServer(mqtt_server, atoi(mqtt_port));
-  mqttClient.setCallback(mqttCallback);
-}
-
-void loop() {
-  esp_task_wdt_reset(); 
-  unsigned long currentMillis = millis();
-
-  // --- RECONNECT NON-BLOCANT ---
-  static unsigned long lastReconnectAttempt = 0;
-  if (!mqttClient.connected()) {
-    if (currentMillis - lastReconnectAttempt > 5000) {
-      lastReconnectAttempt = currentMillis;
-      if (WiFi.status() != WL_CONNECTED) {
-        WiFi.reconnect();
-      } else {
-        connectMQTT();
-      }
+    // 1. Aplică comenzile pending sosite din Blynk în ciclu anterior.
+    //    Facem asta la începutul ciclului, nu în handler, pentru a evita
+    //    orice interacţiune între ISR-ul Blynk şi digitalWrite.
+    if (pending.resetDefaults) {
+        pending.resetDefaults = false;
+        prefs.resetToDefaults();
+        leftZone.setManualOverride(false);
+        rightZone.setManualOverride(false);
+        timerRebuildNeeded = true;
+        // Sincronizăm UI-ul Blynk cu noile valori default
+        if (Blynk.connected()) {
+            Blynk.virtualWrite(VP_THRESH_TEMP,     prefs.tempThresh);
+            Blynk.virtualWrite(VP_THRESH_HUM,      prefs.humThresh);
+            Blynk.virtualWrite(VP_INTERVAL,        prefs.intervalSec);
+            Blynk.virtualWrite(VP_OVERRIDE_LEFT,   0);
+            Blynk.virtualWrite(VP_OVERRIDE_RIGHT,  0);
+            Blynk.virtualWrite(VP_RESET_DEFAULTS,  0);
+        }
     }
-  } else {
-    mqttClient.loop();
-  }
 
-  // --- CITIRE SENZORI (minim 2.5 secunde) ---
-  static unsigned long lastSensorPoll = 0;
-  if (currentMillis - lastSensorPoll >= 5000) {
-    lastSensorPoll = currentMillis;
+    if (pending.overrideLeftClear) {
+        pending.overrideLeftClear = false;
+        prefs.saveOverrideLeft(false);
+        leftZone.setManualOverride(false);
+    } else if (pending.overrideLeftSet) {
+        pending.overrideLeftSet = false;
+        prefs.saveOverrideLeft(pending.overrideLeftVal);
+        leftZone.setManualOverride(pending.overrideLeftVal);
+    }
+
+    if (pending.overrideRightClear) {
+        pending.overrideRightClear = false;
+        prefs.saveOverrideRight(false);
+        rightZone.setManualOverride(false);
+    } else if (pending.overrideRightSet) {
+        pending.overrideRightSet = false;
+        prefs.saveOverrideRight(pending.overrideRightVal);
+        rightZone.setManualOverride(pending.overrideRightVal);
+    }
+
+    // 2. Verifică timeout overrides (expiră după N ore).
+    bool overrideExpired = prefs.tickOverrideExpiry();
+    if (overrideExpired) {
+        leftZone.setManualOverride(prefs.overrideLeft);
+        rightZone.setManualOverride(prefs.overrideRight);
+        if (Blynk.connected()) {
+            Blynk.virtualWrite(VP_OVERRIDE_LEFT,  0);
+            Blynk.virtualWrite(VP_OVERRIDE_RIGHT, 0);
+            Blynk.logEvent("override_expired", "Override manual a expirat automat.");
+        }
+    }
+
+    // 3. Citeşte senzorii (cooldown intern în VentilationZone).
     leftZone.readSensor();
     rightZone.readSensor();
 
-    leftZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
-    rightZone.updateLogic(globalTempThresh, globalHumThresh, globalTempMargin, globalHumMargin);
-    
-    if (leftZone.getErrors() > 10 && rightZone.getErrors() > 10) {
+    // 4. Aplică logica de decizie locală — SINGURA sursă de adevăr.
+    leftZone.updateLogic(prefs.tempThresh, prefs.humThresh);
+    rightZone.updateLogic(prefs.tempThresh, prefs.humThresh);
+
+    Serial.printf("  [STANGA]  T:%.1f°C  H:%.1f%%  Releu:%s  Override:%s\n",
+        leftZone.getTemp(), leftZone.getHum(),
+        leftZone.getRelayState() ? "ON" : "OFF",
+        leftZone.getManualOverride() ? "DA" : "NU");
+    Serial.printf("  [DREAPTA] T:%.1f°C  H:%.1f%%  Releu:%s  Override:%s\n",
+        rightZone.getTemp(), rightZone.getHum(),
+        rightZone.getRelayState() ? "ON" : "OFF",
+        rightZone.getManualOverride() ? "DA" : "NU");
+
+    // 5. Raportează datele către Blynk (condiţionat — nu trimiteri inutile).
+    if (Blynk.connected()) {
+        cycleCount++;
+        bool forceUpdate = (cycleCount >= 10);   // heartbeat la 10 cicluri
+        if (forceUpdate) cycleCount = 0;
+
+        if (leftZone.isFirstReadDone()) {
+            float tL = leftZone.getTemp(), hL = leftZone.getHum();
+            if (forceUpdate || fabsf(tL - lastSentTempL) >= 0.5f
+                            || fabsf(hL - lastSentHumL)  >= 1.0f) {
+                Blynk.virtualWrite(VP_TEMP_LEFT, tL);
+                Blynk.virtualWrite(VP_HUM_LEFT,  hL);
+                lastSentTempL = tL; lastSentHumL = hL;
+            }
+        }
+
+        if (rightZone.isFirstReadDone()) {
+            float tR = rightZone.getTemp(), hR = rightZone.getHum();
+            if (forceUpdate || fabsf(tR - lastSentTempR) >= 0.5f
+                            || fabsf(hR - lastSentHumR)  >= 1.0f) {
+                Blynk.virtualWrite(VP_TEMP_RIGHT, tR);
+                Blynk.virtualWrite(VP_HUM_RIGHT,  hR);
+                lastSentTempR = tR; lastSentHumR = hR;
+            }
+        }
+
+        // Starea releelor şi overrides — mereu trimise (sunt valori de stare).
+        pushRelayState();
+
+        if (forceUpdate)
+            Serial.println("  [Blynk] Heartbeat trimis.");
+    }
+
+    // Alertă erori consecutive senzor
+    if (leftZone.getConsecErrors() >= 5 && Blynk.connected())
+        Blynk.logEvent("sensor_error", "Senzor STANGA: 5+ erori consecutive!");
+    if (rightZone.getConsecErrors() >= 5 && Blynk.connected())
+        Blynk.logEvent("sensor_error", "Senzor DREAPTA: 5+ erori consecutive!");
+}
+
+void checkMemory() {
+    uint32_t heap = ESP.getFreeHeap();
+    Serial.printf("[Sistem] Heap liber: %u bytes\n", heap);
+    if (Blynk.connected())
+        Blynk.virtualWrite(VP_FREE_HEAP, heap / 1024);
+    if (heap < 30000) {
+        Serial.println("[CRITIC] Heap critic! Restart preventiv...");
+        safeStopRelays();
+        delay(500);
+        ESP.restart();
+    }
+}
+
+// ============================================================
+//  BLYNK HANDLERS
+//  REGULĂ: handler-ii NU scriu direct în releu şi NU apelează
+//  digitalWrite. Setează doar flags/valori; processZones() decide.
+// ============================================================
+
+BLYNK_CONNECTED() {
+    // Sincronizăm DOAR parametrii de configurare din cloud.
+    // V5, V6 (starea releelor) NU sunt sincronizate — ESP32 le impune.
+    Blynk.syncVirtual(VP_THRESH_TEMP, VP_THRESH_HUM, VP_INTERVAL, VP_RESET_DEFAULTS);
+    // Trimitem imediat starea curentă a releelor spre UI
+    pushRelayState();
+    Serial.println("[Blynk] Conectat. Parametri sincronizaţi.");
+}
+
+BLYNK_WRITE(VP_THRESH_TEMP) {
+    float v = param.asFloat();
+    if (v > 0 && v < 80.0f) {
+        prefs.saveTempThresh(v);
+        Serial.printf("[Blynk] Prag temperatură: %.1f°C\n", v);
+    }
+}
+
+BLYNK_WRITE(VP_THRESH_HUM) {
+    float v = param.asFloat();
+    if (v >= 0 && v <= 100.0f) {
+        prefs.saveHumThresh(v);
+        Serial.printf("[Blynk] Prag umiditate: %.1f%%\n", v);
+    }
+}
+
+BLYNK_WRITE(VP_INTERVAL) {
+    int v = param.asInt();
+    v = constrain(v, MIN_INTERVAL_SEC, MAX_INTERVAL_SEC);
+    prefs.saveIntervalSec(v);
+    // Timer-ul va fi refăcut în loop() — nu din handler Blynk.
+    timerRebuildNeeded = true;
+    Serial.printf("[Blynk] Interval solicitat: %d sec\n", v);
+}
+
+// Override stânga: 1 = forţat ON, 0 = forţat OFF, 2 = clear (revenire la auto)
+BLYNK_WRITE(VP_OVERRIDE_LEFT) {
+    int v = param.asInt();
+    if (v == 2) {
+        pending.overrideLeftClear = true;
+    } else {
+        pending.overrideLeftSet = true;
+        pending.overrideLeftVal = (v == 1);
+    }
+}
+
+// Override dreapta: aceeaşi convenţie
+BLYNK_WRITE(VP_OVERRIDE_RIGHT) {
+    int v = param.asInt();
+    if (v == 2) {
+        pending.overrideRightClear = true;
+    } else {
+        pending.overrideRightSet = true;
+        pending.overrideRightVal = (v == 1);
+    }
+}
+
+BLYNK_WRITE(VP_RESET_DEFAULTS) {
+    if (param.asInt() == 1)
+        pending.resetDefaults = true;
+}
+
+BLYNK_WRITE(VP_RESTART) {
+    if (param.asInt() == 1) {
+        Serial.println("[Blynk] Comandă restart primită.");
+        if (Blynk.connected())
+            Blynk.logEvent("system_restart", "Restart la cererea utilizatorului.");
+        statusLed.setBlue();
+        safeStopRelays();
+        delay(2000);
+        ESP.restart();
+    }
+}
+
+// ============================================================
+//  SETUP
+// ============================================================
+void setup() {
+    Serial.begin(115200);
+    delay(500);
+    Serial.println("\n=== Pornire sistem ventilatie ===");
+
+    // Iniţializăm hardware-ul înainte de orice altceva.
+    statusLed.begin();
+    leftZone.begin();
+    rightZone.begin();
+    pinMode(RESET_BUTTON_PIN, INPUT_PULLUP);
+
+    // Încărcăm parametrii din NVS — aceştia vor ghida logica de la primul ciclu.
+    prefs.begin();
+    Serial.printf("[Prefs] Încărcaţi: T≥%.0f°C  H≥%.0f%%  Interval:%ds\n",
+        prefs.tempThresh, prefs.humThresh, prefs.intervalSec);
+
+    // Watchdog — iniţializat DUPĂ delay-urile de boot.
+    // API-ul diferă între arduino-esp32 2.x şi 3.x — detectăm la compilare.
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && ESP_ARDUINO_VERSION_MAJOR >= 3
+    esp_task_wdt_deinit();
+    esp_task_wdt_config_t wdt_cfg = {
+        .timeout_ms     = WDT_TIMEOUT_SEC * 1000,
+        .idle_core_mask = (1 << 0),
+        .trigger_panic  = true
+    };
+    esp_task_wdt_init(&wdt_cfg);
+#else
+    esp_task_wdt_init(WDT_TIMEOUT_SEC, true);
+#endif
+    esp_task_wdt_add(NULL);
+    Serial.printf("[WDT] Watchdog iniţializat: %ds timeout.\n", WDT_TIMEOUT_SEC);
+
+    // WiFiManager — portal captiv dacă nu există reţea salvată.
+    WiFiManager wm;
+    wm.setConnectTimeout(30);
+    wm.setConfigPortalTimeout(180);
+    if (!wm.autoConnect("ESP32_Ventilatie")) {
+        Serial.println("[WiFi] Timeout portal. Restart...");
+        safeStopRelays();
         delay(1000);
         ESP.restart();
     }
-  }
+    Serial.printf("[WiFi] Conectat: %s  IP: %s\n",
+        WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
 
-  // --- PUBLICARE DATE ---
-  if (currentMillis - lastPublish >= currentInterval || lastPublish == 0) {
-    lastPublish = currentMillis;
-    publishState();
-  }
+    Blynk.config(BLYNK_AUTH_TOKEN);
+    // Nu blocăm în connect — sistemul porneşte şi fără Blynk.
+    Blynk.connect(3000);
 
-  // --- BUTON RESET WIFIMANAGER ---
-  if (digitalRead(RESET_BUTTON_PIN) == LOW) {
-    if (!isButtonPressed) {
-      buttonPressTime = currentMillis;
-      isButtonPressed = true;
-      statusLed.setColor(255, 255, 0); // Galben = Buton apasat
-    } else if (currentMillis - buttonPressTime > 3000) {
-      statusLed.setColor(255, 255, 255); // Alb = Se da reset
-      delay(500);
-      WiFiManager wm;
-      wm.resetSettings(); // Sterge credențialele WiFi
-      preferences.begin("mqtt_config", false);
-      preferences.clear(); // Sterge setările MQTT
-      preferences.end();
-      ESP.restart(); 
+    // Timer principal de citire senzori.
+    mainTimerID = timer.setInterval((long)prefs.intervalSec * 1000L, processZones);
+    // Verificare memorie la fiecare 10 minute.
+    timer.setInterval(600000L, checkMemory);
+
+    // Facem o primă citire imediată, fără să aşteptăm primul interval.
+    processZones();
+
+    Serial.println("[Setup] Sistem pornit cu succes.");
+}
+
+// ============================================================
+//  LOOP
+// ============================================================
+void loop() {
+    esp_task_wdt_reset();
+
+    // Reconstrucţia timerului — se face în loop(), nu din handler Blynk.
+    // Elimină race condition-ul cu deleteTimer în timp ce timerul rulează.
+    if (timerRebuildNeeded) {
+        timerRebuildNeeded = false;
+        rebuildMainTimer();
     }
-  } else {
-    isButtonPressed = false;
-  }
+
+    // Gestionare WiFi + Blynk
+    bool wifiOk = (WiFi.status() == WL_CONNECTED);
+
+    if (!wifiOk) {
+        if (millis() - lastWiFiCheckMs > 30000) {
+            lastWiFiCheckMs = millis();
+            Serial.println("[WiFi] Conexiune pierdută. Reconectare...");
+            WiFi.reconnect();
+        }
+    } else {
+        Blynk.run();
+    }
+
+    // Timer rulează întotdeauna — logica autonomă nu depinde de WiFi.
+    timer.run();
+
+    // Actualizăm LED-ul cu starea reală.
+    statusLed.updateStatus(wifiOk, Blynk.connected());
+
+    // Buton fizic reset WiFiManager — ţinut apăsat 3 secunde.
+    if (digitalRead(RESET_BUTTON_PIN) == LOW) {
+        if (!buttonHeld) {
+            buttonHeld    = true;
+            buttonPressMs = millis();
+            statusLed.setColor(180, 180, 0);
+        } else if (millis() - buttonPressMs > 3000) {
+            Serial.println("[Buton] Reset WiFiManager declanşat.");
+            statusLed.setWhite();
+            safeStopRelays();
+            delay(500);
+            WiFiManager wm;
+            wm.resetSettings();
+            ESP.restart();
+        }
+    } else {
+        buttonHeld = false;
+    }
 }

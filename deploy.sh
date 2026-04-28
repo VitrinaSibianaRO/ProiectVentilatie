@@ -70,44 +70,52 @@ echo "   > APK gasit: $(basename "$APK_PATH")"
 echo "📱 Pas 2: Verificare conexiune Android..."
 
 if [ "$USE_WAYDROID" = true ]; then
-    # 1. Daca Waydroid e RUNNING dar Weston e inchis -> sesiune orfana
-    if waydroid status | grep -q "RUNNING" && ! pgrep -x "weston" > /dev/null; then
-        echo "   > Sesiune orfana detectata (Weston lipseste). Oprire..."
-        waydroid session stop > /dev/null 2>&1
+    # 0. Verificare existenta comanda waydroid
+    if ! command -v waydroid >/dev/null 2>&1; then
+        echo "❌ Eroare: Comanda 'waydroid' nu a fost gasita."
+        exit 1
+    fi
+
+    echo "   > Optimizare Desktop (Centrare ferestre)..."
+    gsettings set org.gnome.mutter center-new-windows true > /dev/null 2>&1 || true
+
+    echo "   > Configurare dimensiuni Mobile (450x900)..."
+    # Setam proprietatile pentru aspect ratio de telefon (Nativ)
+    waydroid prop set persist.waydroid.width 450 > /dev/null 2>&1 || true
+    waydroid prop set persist.waydroid.height 900 > /dev/null 2>&1 || true
+    waydroid prop set persist.waydroid.dpi 280 > /dev/null 2>&1 || true
+    # Fix pentru stabilitate grafica si prevenire crash/freeze
+    waydroid prop set persist.waydroid.gles 1 > /dev/null 2>&1 || true
+    waydroid prop set persist.waydroid.suspend false > /dev/null 2>&1 || true
+
+    echo "   > Resetare sesiune Waydroid..."
+    waydroid session stop > /dev/null 2>&1 || true
+    pkill -9 waydroid > /dev/null 2>&1 || true
+    pkill -9 weston > /dev/null 2>&1 || true # Curatam si weston daca a ramas
+    sleep 2
+
+    echo "   > Pornire sesiune Waydroid Nativ..."
+    # Pornim sesiunea direct pe display-ul tau actual (Wayland)
+    waydroid session start > /dev/null 2>&1 &
+    
+    echo "   > Se asteapta initializarea..."
+    for i in {1..40}; do
+        if timeout 2 waydroid app list 2>/dev/null | grep -q "com.android"; then 
+            break
+        fi
+        echo -n "."
         sleep 2
-    fi
-
-    # 2. Omoram procesele de instalare/lansare blocate anterior
-    pkill -f "waydroid app install" > /dev/null 2>&1 || true
-    pkill -f "waydroid app launch" > /dev/null 2>&1 || true
-
-    if ! waydroid status | grep -q "RUNNING"; then
-        echo "   > Waydroid nu este pornit. Pornire automata via Weston..."
-        # Oprim eventuale instante weston blocate
-        pkill -x "weston" > /dev/null 2>&1 || true
-        sleep 1
-        
-        weston --width=480 --height=1040 > /dev/null 2>&1 &
-        sleep 3
-        
-        WAYLAND_DISPLAY=wayland-1 waydroid session start > /dev/null 2>&1 &
-        
-        echo "   > Se asteapta pornirea Waydroid (poate dura 10-30s)..."
-        # Asteptam pana cand platforma Android raspunde la comenzi
-        for i in {1..30}; do
-            if timeout 5 waydroid app list 2>/dev/null | grep -q "com.android"; then 
-                break
-            fi
-            sleep 2
-        done
-    fi
+    done
+    echo ""
     
     # Verificare finala
     if timeout 5 waydroid app list 2>/dev/null | grep -q "com.android"; then
         echo "   > Waydroid este GATA."
+        # Deschidem interfata Full UI daca nu e deschisa deja
+        waydroid show-full-ui > /dev/null 2>&1 &
         DEVICE="waydroid"
     else
-        echo "❌ Eroare: Nu am putut porni Waydroid automat. Platforma nu raspunde."
+        echo "❌ Eroare: Nu am putut porni Waydroid. Incearca 'sudo waydroid container restart' manual."
         exit 1
     fi
 else
@@ -163,6 +171,17 @@ fi
 # 7. Lansare
 echo "🚀 Pas 4: Lansare aplicatie..."
 if [ "$DEVICE" = "waydroid" ]; then
+    # Ne asiguram ca containerul nu este inghetat (FROZEN)
+    # Daca cere parola sudo, utilizatorul o va vedea in terminal
+    if waydroid status | grep -q "FROZEN"; then
+        echo "   > Container inghetat detectat. Incercare dezghetare..."
+        sudo waydroid container unfreeze >/dev/null 2>&1 || true
+    fi
+
+    # Deschidem interfata grafica
+    waydroid show-full-ui > /dev/null 2>&1 &
+    sleep 2
+
     # Oprim instanta veche a aplicatiei pentru o pornire curata
     waydroid shell am force-stop "$PACKAGE_NAME" >/dev/null 2>&1 || true
     waydroid app launch "$PACKAGE_NAME"

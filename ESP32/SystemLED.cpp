@@ -1,16 +1,40 @@
+// ============================================================
+//  SystemLED.cpp
+// ============================================================
+
 #include "SystemLED.h"
 
-SystemLED::SystemLED(uint16_t count, uint8_t pin, uint8_t enPin) 
-  : strip(count, pin, NEO_GRB + NEO_KHZ800), enablePin(enPin) {}
+SystemLED::SystemLED(uint16_t count, uint8_t pin, uint8_t enPin)
+    : _strip(count, pin, NEO_GRB + NEO_KHZ800),
+      _enablePin(enPin),
+      _r(0), _g(0), _b(200) {}
 
 void SystemLED::begin() {
-  pinMode(enablePin, OUTPUT);
-  digitalWrite(enablePin, LOW); // Activeaza tensiunea catre LED pe placa Carbon V3
-  strip.begin();
-  strip.setBrightness(50);
+    pinMode(_enablePin, OUTPUT);
+    digitalWrite(_enablePin, LOW);   // activează tensiunea pe Carbon V3
+    _strip.begin();
+    _strip.setBrightness(40);
+    setColor(0, 0, 200);             // albastru la boot
 }
 
 void SystemLED::setColor(uint8_t r, uint8_t g, uint8_t b) {
-  strip.setPixelColor(0, strip.Color(r, g, b));
-  strip.show();
+    _r = r; _g = g; _b = b;
+    _strip.setPixelColor(0, _strip.Color(r, g, b));
+    _strip.show();
 }
+
+void SystemLED::updateStatus(bool wifiOk, bool blynkOk) {
+    if (!wifiOk) {
+        if (_r != 200 || _g != 0 || _b != 0)
+            setColor(200, 0, 0);          // roșu — fără WiFi
+    } else if (!blynkOk) {
+        if (_r != 180 || _g != 100 || _b != 0)
+            setColor(180, 100, 0);        // galben — WiFi ok, Blynk deconectat
+    } else {
+        if (_r != 0 || _g != 180 || _b != 0)
+            setColor(0, 180, 0);          // verde — totul funcționează
+    }
+}
+
+void SystemLED::setWhite() { setColor(200, 200, 200); }
+void SystemLED::setBlue()  { setColor(0, 0, 200); }
