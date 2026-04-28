@@ -154,6 +154,10 @@ fi
 # 6. Instalare
 echo "📦 Pas 3: Instalare APK..."
 if [ "$DEVICE" = "waydroid" ]; then
+    # Dezinstalam aplicatia pentru a forta o instalare curata si a evita cache-ul
+    echo "   > Dezinstalare versiune veche..."
+    waydroid shell pm uninstall "$PACKAGE_NAME" > /dev/null 2>&1 || true
+    
     waydroid app install "$APK_PATH"
     echo "   > Instalare reusita pe Waydroid."
 else
