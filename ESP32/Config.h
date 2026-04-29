@@ -87,6 +87,35 @@
 // WiFi: restart preventiv dacă suntem deconectați mai mult de N ms
 #define WIFI_DOWN_RESTART_MS         600000UL     // 10 min
 
+// WiFi: numele AP-ului pentru WiFiManager portal captiv
+#define WIFI_AP_NAME                 "ESP32_Ventilatie"
+
+// ============================================================
+//  NTP
+// ============================================================
+#define NTP_TIMEZONE             "EET-2EEST,M3.5.0/3,M10.5.0/4"   // Europa/București
+#define NTP_SERVER1              "pool.ntp.org"
+#define NTP_SERVER2              "time.google.com"
+#define NTP_RESYNC_MS            86400000UL   // 24h
+#define NTP_EPOCH_VALID_AFTER    1700000000UL // > 2023 = NTP sincronizat
+
+// ============================================================
+//  OTA
+// ============================================================
+#define OTA_URL_WHITELIST1       "https://github.com/"
+#define OTA_URL_WHITELIST2       "https://objects.githubusercontent.com/"
+
+// ============================================================
+//  EVENT LOG
+// ============================================================
+#define EVENT_LOG_MAX_ENTRIES     50
+
+// ============================================================
+//  NVS NAMESPACES
+// ============================================================
+#define NVS_PREFS_NAMESPACE      "ventilatie"
+#define NVS_LOG_NAMESPACE        "log"
+
 // ============================================================
 //  FIRMWARE VERSION
 // ============================================================

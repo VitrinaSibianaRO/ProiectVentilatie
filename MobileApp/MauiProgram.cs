@@ -1,4 +1,7 @@
+using System.Reflection;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using ProiectVentilatie.Mobile.Models;
 
 namespace ProiectVentilatie.Mobile;
 
@@ -19,14 +22,29 @@ public static class MauiProgram
         builder.Logging.AddDebug();
 #endif
 
+        // Load embedded appsettings.json
+        var assembly = Assembly.GetExecutingAssembly();
+        using var stream = assembly.GetManifestResourceStream(
+            "ProiectVentilatie.Mobile.appsettings.json");
+
+        if (stream != null)
+        {
+            var config = new ConfigurationBuilder()
+                .AddJsonStream(stream)
+                .Build();
+
+            // Bind Mqtt section → MqttSettings
+            builder.Services.Configure<MqttSettings>(config.GetSection("Mqtt"));
+        }
+
         // Services
-        builder.Services.AddSingleton<ProiectVentilatie.Mobile.Services.IMqttService, ProiectVentilatie.Mobile.Services.MqttService>();
+        builder.Services.AddSingleton<Services.IMqttService, Services.MqttService>();
 
         // ViewModels
-        builder.Services.AddTransient<ProiectVentilatie.Mobile.ViewModels.DashboardViewModel>();
+        builder.Services.AddTransient<ViewModels.DashboardViewModel>();
 
         // Views
-        builder.Services.AddTransient<ProiectVentilatie.Mobile.Views.DashboardPage>();
+        builder.Services.AddTransient<Views.DashboardPage>();
 
         return builder.Build();
     }

@@ -3,11 +3,12 @@
 //
 //  Arhitectură production-grade pentru automatizare ventilaţie:
 //  - Logica releelor este 100% locală şi autonomă.
-//  - Blynk este UI-only: trimite parametri, primeşte date.
+//  - Blynk + HiveMQ MQTT în paralel (Faza 2: comenzi + lock).
 //  - Parametrii sunt persistaţi în NVS (supravieţuiesc reboot).
-//  - Sistemul funcţionează complet offline dacă Blynk pică.
+//  - Sistemul funcţionează complet offline dacă Blynk/MQTT pică.
 //  - Override manual cu timeout automat (nu rămâne blocat).
 //  - Watchdog hardware 60s împotriva oricărui blocaj.
+//  - Lock bidirecţional Blynk ↔ MAUI previne conflicte.
 // ============================================================
 
 #include "Config.h"
@@ -15,6 +16,9 @@
 #include "SystemLED.h"
 #include "VentilationZone.h"
 #include "MqttBridge.h"
+#include "TimeSync.h"
+#include "EventLog.h"
+#include "OtaUpdater.h"
 
 #include <WiFi.h>
 #include <WiFiManager.h>
@@ -30,6 +34,7 @@ VentilationZone leftZone (DHT_LEFT_PIN,  RELAY_LEFT_PIN,  "STANGA");
 VentilationZone rightZone(DHT_RIGHT_PIN, RELAY_RIGHT_PIN, "DREAPTA");
 BlynkTimer      timer;
 MqttBridge      mqtt;
+EventLog        eventLog;
 
 // ============================================================
 //  FORWARD DECLARATIONS
@@ -72,6 +77,14 @@ int   cycleCount    = 0;
 // WiFi reconnect throttle
 unsigned long lastWiFiCheckMs = 0;
 
+// WiFi down — restart preventiv după 10 min (Faza 3)
+unsigned long wifiDownSinceMs = 0;
+bool          wifiWasDown     = false;
+
+// Stare anterioară releu — pentru detecție tranziție (event log)
+bool prevRelayLeft  = false;
+bool prevRelayRight = false;
+
 // Buton fizic reset
 unsigned long buttonPressMs  = 0;
 bool          buttonHeld     = false;
@@ -91,7 +104,7 @@ void rebuildMainTimer() {
     Serial.printf("[Timer] Interval setat la %d secunde.\n", prefs.intervalSec);
 }
 
-// Sincronizează starea curentă a releelor şi overrides spre Blynk.
+// Sincronizează starea curentă a releelor, overrides şi lock spre Blynk.
 // Apelată după orice schimbare locală, nu la comandă din cloud.
 void pushRelayState() {
     if (!Blynk.connected()) return;
@@ -99,6 +112,7 @@ void pushRelayState() {
     Blynk.virtualWrite(VP_RELAY_RIGHT,   rightZone.getRelayState() ? 1 : 0);
     Blynk.virtualWrite(VP_OVERRIDE_LEFT,  leftZone.getManualOverride()  ? 1 : 0);
     Blynk.virtualWrite(VP_OVERRIDE_RIGHT, rightZone.getManualOverride() ? 1 : 0);
+    Blynk.virtualWrite(VP_LOCK_OWNER,    (int)mqtt.getLockOwner());
 }
 
 // ============================================================
@@ -109,11 +123,158 @@ void pushRelayState() {
 void processZones() {
     Serial.println("\n--- Ciclu senzori ---");
 
+    // 0. Procesare pending MQTT commands (Faza 2).
+    //    Callback-ul MQTT setează doar flags; aici le aplicăm.
+    if (mqtt.hasPendingCommands()) {
+        MqttPending& mp = mqtt.getPending();
+
+        if (mp.refresh) {
+            mp.refresh = false;
+            mqtt.requestPublishNow();
+            Serial.println("[MQTT] cmd:refresh → push state.");
+        }
+
+        if (mp.setOverrideL) {
+            mp.setOverrideL = false;
+            if (mp.overrideLVal == 2) {
+                prefs.saveOverrideLeft(false);
+                leftZone.setManualOverride(false);
+                Serial.println("[MQTT] Override stânga: cleared.");
+            } else {
+                bool val = (mp.overrideLVal == 1);
+                prefs.saveOverrideLeft(val);
+                leftZone.setManualOverride(val);
+                Serial.printf("[MQTT] Override stânga: %s\n", val ? "ON" : "OFF");
+            }
+        }
+
+        if (mp.setOverrideR) {
+            mp.setOverrideR = false;
+            if (mp.overrideRVal == 2) {
+                prefs.saveOverrideRight(false);
+                rightZone.setManualOverride(false);
+                Serial.println("[MQTT] Override dreapta: cleared.");
+            } else {
+                bool val = (mp.overrideRVal == 1);
+                prefs.saveOverrideRight(val);
+                rightZone.setManualOverride(val);
+                Serial.printf("[MQTT] Override dreapta: %s\n", val ? "ON" : "OFF");
+            }
+        }
+
+        if (mp.setConfig) {
+            mp.setConfig = false;
+            if (mp.threshT > 0 && mp.threshT < 80.0f)
+                prefs.saveTempThresh(mp.threshT);
+            if (mp.threshH >= 0 && mp.threshH <= 100.0f)
+                prefs.saveHumThresh(mp.threshH);
+            if (mp.interval >= MIN_INTERVAL_SEC && mp.interval <= MAX_INTERVAL_SEC) {
+                prefs.saveIntervalSec(mp.interval);
+                timerRebuildNeeded = true;
+            }
+            // Sync Blynk UI cu valorile noi
+            if (Blynk.connected()) {
+                Blynk.virtualWrite(VP_THRESH_TEMP, prefs.tempThresh);
+                Blynk.virtualWrite(VP_THRESH_HUM,  prefs.humThresh);
+                Blynk.virtualWrite(VP_INTERVAL,    prefs.intervalSec);
+            }
+            Serial.printf("[MQTT] Config: T≥%.1f H≥%.1f Int:%d\n",
+                prefs.tempThresh, prefs.humThresh, prefs.intervalSec);
+        }
+
+        if (mp.resetDefaults) {
+            mp.resetDefaults = false;
+            prefs.resetToDefaults();
+            leftZone.setManualOverride(false);
+            rightZone.setManualOverride(false);
+            timerRebuildNeeded = true;
+            if (Blynk.connected()) {
+                Blynk.virtualWrite(VP_THRESH_TEMP,     prefs.tempThresh);
+                Blynk.virtualWrite(VP_THRESH_HUM,      prefs.humThresh);
+                Blynk.virtualWrite(VP_INTERVAL,        prefs.intervalSec);
+                Blynk.virtualWrite(VP_OVERRIDE_LEFT,   0);
+                Blynk.virtualWrite(VP_OVERRIDE_RIGHT,  0);
+                Blynk.virtualWrite(VP_RESET_DEFAULTS,  0);
+            }
+            Serial.println("[MQTT] cmd:reset → defaults restaurate.");
+        }
+
+        if (mp.reboot) {
+            mp.reboot = false;
+            Serial.println("[MQTT] cmd:reboot → restart curat.");
+            if (Blynk.connected())
+                Blynk.logEvent("system_restart", "Restart MQTT.");
+            mqtt.publishOnline(false);
+            delay(200);
+            safeStopRelays();
+            delay(300);
+            ESP.restart();
+        }
+
+        // cmd:getLog — citește log din NVS și publică pe ventilatie/log
+        if (mp.getLog) {
+            mp.getLog = false;
+            char logBuf[4096];
+            size_t n = eventLog.dumpJson(logBuf, sizeof(logBuf));
+            if (n > 0) {
+                mqtt.publishLog(logBuf, n);
+            } else {
+                mqtt.publishLog("{\"entries\":[]}", 16);
+            }
+            Serial.println("[MQTT] cmd:getLog → log publicat.");
+        }
+
+        // cmd:update — OTA via GitHub releases
+        if (mp.update) {
+            mp.update = false;
+            Serial.println("[MQTT] cmd:update → start OTA...");
+
+            // Callback pentru progress reporting pe MQTT
+            auto otaProgress = [](int pct) {
+                char evBuf[64];
+                snprintf(evBuf, sizeof(evBuf),
+                    "{\"event\":\"ota_progress\",\"pct\":%d}", pct);
+                mqtt.publishEventJson(evBuf);
+            };
+
+            OtaResult res = OtaUpdater::start(mp.otaUrl, mp.otaSha, otaProgress);
+
+            if (res == OTA_OK) {
+                // OTA reușit — restart
+                mqtt.publishEventJson("{\"event\":\"ota_done\"}");
+                mqtt.publishOnline(false);
+                delay(200);
+                ESP.restart();
+            } else {
+                // OTA eșuat
+                const char* reasons[] = {
+                    "ok", "url_invalid", "connect", "http",
+                    "begin", "write", "end", "sha_mismatch"
+                };
+                char evBuf[128];
+                snprintf(evBuf, sizeof(evBuf),
+                    "{\"event\":\"ota_failed\",\"reason\":\"%s\"}",
+                    reasons[(int)res]);
+                mqtt.publishEventJson(evBuf);
+                Serial.printf("[OTA] Failed: %s\n", reasons[(int)res]);
+            }
+        }
+
+        // Sync Blynk relay/override state
+        pushRelayState();
+
+        // Release lock + push state cu lock=null
+        mqtt.setLockOwner(LOCK_NONE);
+        mqtt.requestPublishNow();
+    }
+
     // 1. Aplică comenzile pending sosite din Blynk în ciclu anterior.
     //    Facem asta la începutul ciclului, nu în handler, pentru a evita
     //    orice interacţiune între ISR-ul Blynk şi digitalWrite.
+    bool blynkPendingProcessed = false;
     if (pending.resetDefaults) {
         pending.resetDefaults = false;
+        blynkPendingProcessed = true;
         prefs.resetToDefaults();
         leftZone.setManualOverride(false);
         rightZone.setManualOverride(false);
@@ -131,22 +292,32 @@ void processZones() {
 
     if (pending.overrideLeftClear) {
         pending.overrideLeftClear = false;
+        blynkPendingProcessed = true;
         prefs.saveOverrideLeft(false);
         leftZone.setManualOverride(false);
     } else if (pending.overrideLeftSet) {
         pending.overrideLeftSet = false;
+        blynkPendingProcessed = true;
         prefs.saveOverrideLeft(pending.overrideLeftVal);
         leftZone.setManualOverride(pending.overrideLeftVal);
     }
 
     if (pending.overrideRightClear) {
         pending.overrideRightClear = false;
+        blynkPendingProcessed = true;
         prefs.saveOverrideRight(false);
         rightZone.setManualOverride(false);
     } else if (pending.overrideRightSet) {
         pending.overrideRightSet = false;
+        blynkPendingProcessed = true;
         prefs.saveOverrideRight(pending.overrideRightVal);
         rightZone.setManualOverride(pending.overrideRightVal);
+    }
+
+    // Dacă am procesat un pending Blynk, publicăm state imediat + release lock
+    if (blynkPendingProcessed) {
+        mqtt.setLockOwner(LOCK_NONE);
+        mqtt.requestPublishNow();
     }
 
     // 2. Verifică timeout overrides (expiră după N ore).
@@ -159,6 +330,12 @@ void processZones() {
             Blynk.virtualWrite(VP_OVERRIDE_RIGHT, 0);
             Blynk.logEvent("override_expired", "Override manual a expirat automat.");
         }
+        // Event log — override expired (Faza 3)
+        if (!prefs.overrideLeft)
+            eventLog.append(EVT_OVERRIDE_EXPIRED, ZONE_LEFT, "Override anulat");
+        if (!prefs.overrideRight)
+            eventLog.append(EVT_OVERRIDE_EXPIRED, ZONE_RIGHT, "Override anulat");
+        mqtt.requestPublishNow();
     }
 
     // 3. Citeşte senzorii (cooldown intern în VentilationZone).
@@ -211,11 +388,36 @@ void processZones() {
             Serial.println("  [Blynk] Heartbeat trimis.");
     }
 
-    // Alertă erori consecutive senzor
-    if (leftZone.getConsecErrors() >= 5 && Blynk.connected())
-        Blynk.logEvent("sensor_error", "Senzor STANGA: 5+ erori consecutive!");
-    if (rightZone.getConsecErrors() >= 5 && Blynk.connected())
-        Blynk.logEvent("sensor_error", "Senzor DREAPTA: 5+ erori consecutive!");
+    // Alertă erori consecutive senzor + event log (Faza 3)
+    if (leftZone.getConsecErrors() >= 5) {
+        if (Blynk.connected())
+            Blynk.logEvent("sensor_error", "Senzor STANGA: 5+ erori consecutive!");
+        // Log doar la exact 5 (nu la fiecare ciclu)
+        if (leftZone.getConsecErrors() == 5)
+            eventLog.append(EVT_SENSOR_ERR, ZONE_LEFT, "5 erori DHT");
+    }
+    if (rightZone.getConsecErrors() >= 5) {
+        if (Blynk.connected())
+            Blynk.logEvent("sensor_error", "Senzor DREAPTA: 5+ erori consecutive!");
+        if (rightZone.getConsecErrors() == 5)
+            eventLog.append(EVT_SENSOR_ERR, ZONE_RIGHT, "5 erori DHT");
+    }
+
+    // Detectare tranziție releu — event log (Faza 3)
+    if (leftZone.getRelayState() != prevRelayLeft) {
+        prevRelayLeft = leftZone.getRelayState();
+        const char* msg = prevRelayLeft
+            ? (leftZone.getManualOverride() ? "ON override" : "ON auto")
+            : (leftZone.getManualOverride() ? "OFF override" : "OFF auto");
+        eventLog.append(EVT_RELAY_CHANGE, ZONE_LEFT, msg);
+    }
+    if (rightZone.getRelayState() != prevRelayRight) {
+        prevRelayRight = rightZone.getRelayState();
+        const char* msg = prevRelayRight
+            ? (rightZone.getManualOverride() ? "ON override" : "ON auto")
+            : (rightZone.getManualOverride() ? "OFF override" : "OFF auto");
+        eventLog.append(EVT_RELAY_CHANGE, ZONE_RIGHT, msg);
+    }
 }
 
 void checkMemory() {
@@ -225,8 +427,10 @@ void checkMemory() {
         Blynk.virtualWrite(VP_FREE_HEAP, heap / 1024);
     if (heap < 30000) {
         Serial.println("[CRITIC] Heap critic! Restart preventiv...");
+        mqtt.publishOnline(false);
+        delay(200);
         safeStopRelays();
-        delay(500);
+        delay(300);
         ESP.restart();
     }
 }
@@ -243,28 +447,49 @@ BLYNK_CONNECTED() {
     Blynk.syncVirtual(VP_THRESH_TEMP, VP_THRESH_HUM, VP_INTERVAL, VP_RESET_DEFAULTS);
     // Trimitem imediat starea curentă a releelor spre UI
     pushRelayState();
+    // Lock owner reset + firmware build number (Faza 2)
+    Blynk.virtualWrite(VP_LOCK_OWNER, (int)mqtt.getLockOwner());
+    Blynk.virtualWrite(VP_FW_BUILD, (int)FW_BUILD_NUMBER);
     Serial.println("[Blynk] Conectat. Parametri sincronizaţi.");
 }
 
 BLYNK_WRITE(VP_THRESH_TEMP) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_THRESH_TEMP, prefs.tempThresh);
+        return;
+    }
     float v = param.asFloat();
     if (v > 0 && v < 80.0f) {
+        mqtt.setLockOwner(LOCK_BLYNK);
+        mqtt.requestPublishNow();
         prefs.saveTempThresh(v);
         Serial.printf("[Blynk] Prag temperatură: %.1f°C\n", v);
     }
 }
 
 BLYNK_WRITE(VP_THRESH_HUM) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_THRESH_HUM, prefs.humThresh);
+        return;
+    }
     float v = param.asFloat();
     if (v >= 0 && v <= 100.0f) {
+        mqtt.setLockOwner(LOCK_BLYNK);
+        mqtt.requestPublishNow();
         prefs.saveHumThresh(v);
         Serial.printf("[Blynk] Prag umiditate: %.1f%%\n", v);
     }
 }
 
 BLYNK_WRITE(VP_INTERVAL) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_INTERVAL, prefs.intervalSec);
+        return;
+    }
     int v = param.asInt();
     v = constrain(v, MIN_INTERVAL_SEC, MAX_INTERVAL_SEC);
+    mqtt.setLockOwner(LOCK_BLYNK);
+    mqtt.requestPublishNow();
     prefs.saveIntervalSec(v);
     // Timer-ul va fi refăcut în loop() — nu din handler Blynk.
     timerRebuildNeeded = true;
@@ -273,6 +498,12 @@ BLYNK_WRITE(VP_INTERVAL) {
 
 // Override stânga: 1 = forţat ON, 0 = forţat OFF, 2 = clear (revenire la auto)
 BLYNK_WRITE(VP_OVERRIDE_LEFT) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_OVERRIDE_LEFT, leftZone.getManualOverride() ? 1 : 0);
+        return;
+    }
+    mqtt.setLockOwner(LOCK_BLYNK);
+    mqtt.requestPublishNow();
     int v = param.asInt();
     if (v == 2) {
         pending.overrideLeftClear = true;
@@ -284,6 +515,12 @@ BLYNK_WRITE(VP_OVERRIDE_LEFT) {
 
 // Override dreapta: aceeaşi convenţie
 BLYNK_WRITE(VP_OVERRIDE_RIGHT) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_OVERRIDE_RIGHT, rightZone.getManualOverride() ? 1 : 0);
+        return;
+    }
+    mqtt.setLockOwner(LOCK_BLYNK);
+    mqtt.requestPublishNow();
     int v = param.asInt();
     if (v == 2) {
         pending.overrideRightClear = true;
@@ -294,8 +531,15 @@ BLYNK_WRITE(VP_OVERRIDE_RIGHT) {
 }
 
 BLYNK_WRITE(VP_RESET_DEFAULTS) {
-    if (param.asInt() == 1)
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_RESET_DEFAULTS, 0);
+        return;
+    }
+    if (param.asInt() == 1) {
+        mqtt.setLockOwner(LOCK_BLYNK);
+        mqtt.requestPublishNow();
         pending.resetDefaults = true;
+    }
 }
 
 BLYNK_WRITE(VP_RESTART) {
@@ -303,9 +547,11 @@ BLYNK_WRITE(VP_RESTART) {
         Serial.println("[Blynk] Comandă restart primită.");
         if (Blynk.connected())
             Blynk.logEvent("system_restart", "Restart la cererea utilizatorului.");
+        mqtt.publishOnline(false);
+        delay(200);
         statusLed.setBlue();
         safeStopRelays();
-        delay(2000);
+        delay(500);
         ESP.restart();
     }
 }
@@ -349,7 +595,7 @@ void setup() {
     WiFiManager wm;
     wm.setConnectTimeout(30);
     wm.setConfigPortalTimeout(180);
-    if (!wm.autoConnect("ESP32_Ventilatie")) {
+    if (!wm.autoConnect(WIFI_AP_NAME)) {
         Serial.println("[WiFi] Timeout portal. Restart...");
         safeStopRelays();
         delay(1000);
@@ -357,6 +603,12 @@ void setup() {
     }
     Serial.printf("[WiFi] Conectat: %s  IP: %s\n",
         WiFi.SSID().c_str(), WiFi.localIP().toString().c_str());
+
+    // NTP sync (Faza 3) — trebuie după WiFi connect
+    TimeSync::begin();
+
+    // Event log (Faza 3) — NVS namespace "log"
+    eventLog.begin();
 
     Blynk.config(BLYNK_AUTH_TOKEN);
     // Nu blocăm în connect — sistemul porneşte şi fără Blynk.
@@ -394,16 +646,39 @@ void loop() {
     bool wifiOk = (WiFi.status() == WL_CONNECTED);
 
     if (!wifiOk) {
+        // Tracking WiFi down pentru restart preventiv (Faza 3)
+        if (!wifiWasDown) {
+            wifiWasDown = true;
+            wifiDownSinceMs = millis();
+        }
+        // Restart preventiv dacă WiFi e down > WIFI_DOWN_RESTART_MS (10 min)
+        if (millis() - wifiDownSinceMs >= WIFI_DOWN_RESTART_MS) {
+            Serial.println("[WiFi] Down > 10 min. Restart preventiv...");
+            mqtt.publishOnline(false);
+            delay(200);
+            safeStopRelays();
+            delay(300);
+            ESP.restart();
+        }
         if (millis() - lastWiFiCheckMs > 30000) {
             lastWiFiCheckMs = millis();
             Serial.println("[WiFi] Conexiune pierdută. Reconectare...");
             WiFi.reconnect();
         }
     } else {
+        // WiFi OK — reset tracking
+        wifiWasDown = false;
+
         Blynk.run();
         // MQTT pump — non-blocking, gestionează reconnect cu backoff.
         mqtt.loop();
-        // Heartbeat 1h + push pe schimbare automată stare releu.
+        // NTP re-sync la 24h (Faza 3)
+        TimeSync::loop();
+        // Procesare imediată comenzi MQTT (nu așteptăm timer-ul periodic)
+        if (mqtt.hasPendingCommands()) {
+            processZones();
+        }
+        // Heartbeat 1h + push pe schimbare automată stare releu + pushNow.
         mqtt.publishStateIfNeeded(leftZone, rightZone);
     }
 

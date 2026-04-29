@@ -2,6 +2,10 @@ using System.Text.Json.Serialization;
 
 namespace ProiectVentilatie.Mobile.Models;
 
+/// <summary>
+/// Model aliniat cu JSON-ul publicat de ESP32 pe ventilatie/state.
+/// Câmpuri: left, right, config, lock, fw, uptimeSec, heap.
+/// </summary>
 public class VentilationState
 {
     [JsonPropertyName("left")]
@@ -12,6 +16,18 @@ public class VentilationState
 
     [JsonPropertyName("config")]
     public ConfigState Config { get; set; } = new();
+
+    [JsonPropertyName("lock")]
+    public LockState? Lock { get; set; }
+
+    [JsonPropertyName("fw")]
+    public int Fw { get; set; }
+
+    [JsonPropertyName("uptimeSec")]
+    public long UptimeSec { get; set; }
+
+    [JsonPropertyName("heap")]
+    public int Heap { get; set; }
 }
 
 public class ZoneState
@@ -25,8 +41,11 @@ public class ZoneState
     [JsonPropertyName("relay")]
     public bool Relay { get; set; }
 
-    [JsonPropertyName("err")]
-    public int Err { get; set; }
+    [JsonPropertyName("override")]
+    public bool Override { get; set; }
+
+    [JsonPropertyName("errs")]
+    public int Errs { get; set; }
 }
 
 public class ConfigState
@@ -37,12 +56,18 @@ public class ConfigState
     [JsonPropertyName("threshH")]
     public float ThreshH { get; set; }
 
-    [JsonPropertyName("marginT")]
-    public float MarginT { get; set; }
-
-    [JsonPropertyName("marginH")]
-    public float MarginH { get; set; }
-
     [JsonPropertyName("interval")]
-    public long Interval { get; set; }
+    public int Interval { get; set; }
+
+    [JsonPropertyName("ovrTimeout")]
+    public int OvrTimeout { get; set; }
+}
+
+public class LockState
+{
+    [JsonPropertyName("owner")]
+    public string? Owner { get; set; }
+
+    [JsonPropertyName("ageMs")]
+    public int AgeMs { get; set; }
 }

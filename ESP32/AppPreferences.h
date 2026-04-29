@@ -23,7 +23,7 @@ public:
     int     overrideTimeoutMin;
 
     void begin() {
-        _prefs.begin("ventilatie", false);
+        _prefs.begin(NVS_PREFS_NAMESPACE, false);
         load();
     }
 
