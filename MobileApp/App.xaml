@@ -6,12 +6,15 @@
     <Application.Resources>
         <ResourceDictionary>
             <!-- Dark Mode + Turquoise Theme -->
-            <Color x:Key="BackgroundColor">#121212</Color>
-            <Color x:Key="SurfaceColor">#1E1E1E</Color>
-            <Color x:Key="PrimaryColor">#009688</Color> <!-- Darker Turquoise / Teal -->
+            <!-- Industrial Cyberpunk Theme -->
+            <Color x:Key="BackgroundColor">#050a14</Color>
+            <Color x:Key="SurfaceColor">#0d1e2e</Color>
+            <Color x:Key="PrimaryColor">#00e6ff</Color> <!-- Neon Cyan -->
+            <Color x:Key="SecondaryColor">#00e87a</Color> <!-- Emerald Green -->
+            <Color x:Key="AccentColor">#ff7a45</Color> <!-- Industrial Orange -->
             <Color x:Key="TextColor">#FFFFFF</Color>
-            <Color x:Key="SecondaryTextColor">#AAAAAA</Color>
-            <Color x:Key="ErrorColor">#CF6679</Color>
+            <Color x:Key="SecondaryTextColor">#6688aa</Color>
+            <Color x:Key="ErrorColor">#ff4422</Color>
 
             <Style TargetType="Page">
                 <Setter Property="BackgroundColor" Value="{StaticResource BackgroundColor}" />
@@ -19,21 +22,26 @@
 
             <Style TargetType="Label">
                 <Setter Property="TextColor" Value="{StaticResource TextColor}" />
-                <Setter Property="FontFamily" Value="OpenSansRegular" />
+                <Setter Property="FontFamily" Value="Rajdhani" />
             </Style>
             
             <Style TargetType="Button">
-                <Setter Property="BackgroundColor" Value="{StaticResource PrimaryColor}" />
-                <Setter Property="TextColor" Value="#000000" />
+                <Setter Property="BackgroundColor" Value="Transparent" />
+                <Setter Property="TextColor" Value="{StaticResource PrimaryColor}" />
+                <Setter Property="BorderColor" Value="{StaticResource PrimaryColor}" />
+                <Setter Property="BorderWidth" Value="1.5" />
+                <Setter Property="FontFamily" Value="Rajdhani" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="CornerRadius" Value="12" />
+                <Setter Property="HeightRequest" Value="44" />
             </Style>
             
             <Style TargetType="Frame">
                 <Setter Property="BackgroundColor" Value="{StaticResource SurfaceColor}" />
-                <Setter Property="BorderColor" Value="Transparent" />
-                <Setter Property="CornerRadius" Value="12" />
-                <Setter Property="HasShadow" Value="True" />
+                <Setter Property="BorderColor" Value="{StaticResource PrimaryColor}" />
+                <Setter Property="CornerRadius" Value="14" />
+                <Setter Property="HasShadow" Value="False" />
+                <Setter Property="Padding" Value="15" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

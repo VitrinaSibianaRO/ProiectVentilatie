@@ -46,6 +46,10 @@
         "net10.0-android36.0": {
           "targetAlias": "net10.0-android",
           "dependencies": {
+            "CommunityToolkit.Maui": {
+              "target": "Package",
+              "version": "[9.1.0, )"
+            },
             "CommunityToolkit.Mvvm": {
               "target": "Package",
               "version": "[8.2.2, )"
@@ -83,6 +87,10 @@
             "Newtonsoft.Json": {
               "target": "Package",
               "version": "[13.0.3, )"
+            },
+            "SkiaSharp.Views.Maui.Controls": {
+              "target": "Package",
+              "version": "[3.116.1, )"
             }
           },
           "imports": [

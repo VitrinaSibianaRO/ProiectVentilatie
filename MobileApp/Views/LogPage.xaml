@@ -7,73 +7,86 @@
              x:DataType="vm:LogViewModel"
              Title="Log">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="15" RowSpacing="10">
-
-        <Label Grid.Row="0"
-               Text="Log evenimente"
-               FontSize="20" FontAttributes="Bold"
-               TextColor="{StaticResource PrimaryColor}" />
-
-        <!-- Filter + Reload -->
-        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
-            <Picker Grid.Column="0"
-                    Title="Filtru tip"
-                    ItemsSource="{Binding AvailableFilters}"
-                    SelectedItem="{Binding SelectedFilter, Mode=TwoWay}"
-                    HeightRequest="40" />
-            <Button Grid.Column="1"
-                    Text="↻ REÎNCARCĂ"
-                    Command="{Binding ReloadCommand}"
-                    HeightRequest="40" FontSize="12" />
+    <Grid RowDefinitions="Auto,Auto,*" Padding="0">
+        
+        <!-- Toolbar Area -->
+        <Grid ColumnDefinitions="*, Auto" Padding="20,15" BackgroundColor="#001028">
+            <VerticalStackLayout Spacing="2">
+                <Label Text="SYSTEM LOGS // EVENTS" 
+                       FontFamily="RajdhaniBold" FontSize="18" 
+                       TextColor="{StaticResource PrimaryColor}" />
+                <Label Text="{Binding Entries.Count, StringFormat='{0} INTRĂRI ÎN MEMORIE'}" 
+                       FontFamily="Rajdhani" FontSize="11" 
+                       TextColor="{StaticResource SecondaryTextColor}" />
+            </VerticalStackLayout>
+            
+            <Button Grid.Column="1" Text="↓ FETCH" 
+                    Command="{Binding ReloadCommand}" 
+                    FontFamily="RajdhaniBold" FontSize="13" 
+                    HeightRequest="35" Padding="15,0" />
         </Grid>
 
-        <!-- Status -->
-        <Label Grid.Row="2"
-               Text="{Binding StatusMessage}"
-               FontSize="11"
-               TextColor="{StaticResource SecondaryTextColor}" />
+        <!-- Filter Tabs -->
+        <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="20,10" BackgroundColor="#050a14">
+            <Button Text="TOATE" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" />
+            <Button Text="RELEU" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" BorderColor="{StaticResource PrimaryColor}" />
+            <Button Text="SENZOR" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" BorderColor="{StaticResource ErrorColor}" TextColor="{StaticResource ErrorColor}" />
+            <Button Text="OVERRIDE" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" BorderColor="{StaticResource AccentColor}" TextColor="{StaticResource AccentColor}" />
+        </HorizontalStackLayout>
 
-        <!-- Listă evenimente -->
-        <CollectionView Grid.Row="3"
-                        ItemsSource="{Binding Entries}"
-                        EmptyView="Niciun eveniment. Apasă REÎNCARCĂ.">
+        <!-- Log List -->
+        <CollectionView Grid.Row="2" ItemsSource="{Binding Entries}" Margin="15,10">
             <CollectionView.ItemTemplate>
                 <DataTemplate x:DataType="models:LogEntry">
-                    <Frame Padding="12" Margin="0,4"
-                           BackgroundColor="{StaticResource SurfaceColor}"
-                           BorderColor="#333333"
-                           CornerRadius="8">
-                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="3">
-                            <!-- Icon -->
-                            <Label Grid.RowSpan="2"
-                                   Grid.Column="0"
-                                   Text="{Binding Icon}"
-                                   FontSize="22"
-                                   VerticalOptions="Center" />
+                    <Border Stroke="{StaticResource PrimaryColor}" StrokeThickness="0.3" 
+                            Margin="0,0,0,10" Padding="12" BackgroundColor="#0a1a2f">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="10" />
+                        </Border.StrokeShape>
+                        <Grid ColumnDefinitions="Auto, *">
+                            <!-- Icon Badge -->
+                            <Border WidthRequest="32" HeightRequest="32" VerticalOptions="Center" 
+                                    BackgroundColor="#1a2a3f" StrokeThickness="0">
+                                <Border.StrokeShape>
+                                    <RoundRectangle CornerRadius="8" />
+                                </Border.StrokeShape>
+                                <Label Text="⚡" HorizontalOptions="Center" VerticalOptions="Center" FontSize="16" />
+                            </Border>
 
-                            <!-- Header: type + zone -->
-                            <Label Grid.Row="0" Grid.Column="1">
-                                <Label.FormattedText>
-                                    <FormattedString>
-                                        <Span Text="{Binding TypeLabel}" FontAttributes="Bold" />
-                                        <Span Text=" · " TextColor="{StaticResource SecondaryTextColor}" />
-                                        <Span Text="{Binding ZoneLabel}" TextColor="{StaticResource PrimaryColor}" />
-                                    </FormattedString>
-                                </Label.FormattedText>
-                            </Label>
-
-                            <!-- Message + timestamp -->
-                            <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="2">
-                                <Label Text="{Binding Msg}" FontSize="12" />
-                                <Label Text="{Binding TsDisplay}"
-                                       FontSize="10"
-                                       TextColor="{StaticResource SecondaryTextColor}" />
+                            <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" Spacing="2">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <Label Text="{Binding Type}" FontFamily="RajdhaniBold" FontSize="11" TextColor="{StaticResource PrimaryColor}" />
+                                    <Label Grid.Column="1" Text="{Binding Timestamp, StringFormat='{0:HH:mm:ss}'}" 
+                                           FontFamily="ShareTechMono" FontSize="10" TextColor="{StaticResource SecondaryTextColor}" />
+                                </Grid>
+                                <HorizontalStackLayout Spacing="6">
+                                    <Border BackgroundColor="#1a3a4f" Padding="5,1" StrokeThickness="0">
+                                        <Border.StrokeShape>
+                                            <RoundRectangle CornerRadius="4" />
+                                        </Border.StrokeShape>
+                                        <Label Text="{Binding Zone}" FontFamily="RajdhaniBold" FontSize="9" TextColor="{StaticResource PrimaryColor}" />
+                                    </Border>
+                                    <Label Text="{Binding Message}" FontFamily="Rajdhani" FontSize="13" TextColor="White" LineBreakMode="TailTruncation" />
+                                </HorizontalStackLayout>
                             </VerticalStackLayout>
                         </Grid>
-                    </Frame>
+                    </Border>
                 </DataTemplate>
             </CollectionView.ItemTemplate>
+            
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10" Padding="40">
+                    <Label Text="📋" FontSize="40" HorizontalOptions="Center" Opacity="0.3" />
+                    <Label Text="NICIUN EVENIMENT DETECTAT" 
+                           FontFamily="RajdhaniBold" FontSize="14" 
+                           TextColor="{StaticResource SecondaryTextColor}" 
+                           HorizontalOptions="Center" />
+                    <Label Text="APASĂ FETCH PENTRU A CITI DIN DISPOZITIV" 
+                           FontFamily="Rajdhani" FontSize="11" 
+                           TextColor="{StaticResource SecondaryTextColor}" Opacity="0.6"
+                           HorizontalOptions="Center" />
+                </VerticalStackLayout>
+            </CollectionView.EmptyView>
         </CollectionView>
-
     </Grid>
 </ContentPage>

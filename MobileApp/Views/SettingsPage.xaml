@@ -7,95 +7,185 @@
              Title="Setari">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="20" Spacing="24">
 
-            <Label Text="Setari Automatizare"
-                   FontSize="20" FontAttributes="Bold"
-                   TextColor="{StaticResource PrimaryColor}" />
+            <!-- ── PAGE HEADER ── -->
+            <VerticalStackLayout Spacing="2">
+                <Label Text="SETTINGS // CONTROL"
+                       FontFamily="RajdhaniBold" FontSize="22"
+                       TextColor="{StaticResource PrimaryColor}" />
+                <Label Text="MODIFICĂRILE SE APLICĂ INSTANT PE DISPOZITIV"
+                       FontFamily="Rajdhani" FontSize="11"
+                       TextColor="{StaticResource SecondaryTextColor}" />
+            </VerticalStackLayout>
 
-            <Label Text="Modificările trimise aici se aplică instant pe ESP32 și se sincronizează automat cu Blynk."
-                   FontSize="12"
-                   TextColor="{StaticResource SecondaryTextColor}" />
+            <!-- ── LOCK BANNER ── -->
+            <Border Stroke="{StaticResource AccentColor}" StrokeThickness="1"
+                    Padding="12,10" BackgroundColor="#1a1500"
+                    IsVisible="{Binding IsLocked}">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="8" />
+                </Border.StrokeShape>
+                <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
+                    <Label Text="🔒" FontSize="16" VerticalOptions="Center" />
+                    <Label Text="CONTROL BLOCAT — BLYNK ACTIV"
+                           FontFamily="RajdhaniBold" FontSize="13"
+                           TextColor="{StaticResource AccentColor}" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Border>
 
-            <!-- ═══ LOCK BANNER ═══ -->
-            <Frame Padding="10" CornerRadius="8"
-                   BackgroundColor="#4D1565C0"
-                   BorderColor="#1565C0"
-                   IsVisible="{Binding IsLocked}">
-                <Label Text="🔒 Control blocat (Blynk activ) — așteaptă eliberarea"
-                       FontSize="13" FontAttributes="Bold"
-                       TextColor="#90CAF9" HorizontalOptions="Center" />
-            </Frame>
+            <!-- ── SECTION: PRAGURI DECLANȘARE ── -->
+            <Border Stroke="{StaticResource AccentColor}" StrokeThickness="0.5"
+                    Padding="20,18" BackgroundColor="#060f1e">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="22">
 
-            <!-- ═══ SLIDERS ═══ -->
-            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
-                   BorderColor="#333333">
-                <VerticalStackLayout Spacing="20">
+                    <HorizontalStackLayout Spacing="10">
+                        <BoxView WidthRequest="3" HeightRequest="18" Color="{StaticResource AccentColor}" VerticalOptions="Center" />
+                        <Label Text="PRAGURI DECLANȘARE"
+                               FontFamily="RajdhaniBold" FontSize="15" TextColor="White" />
+                    </HorizontalStackLayout>
 
                     <!-- Prag temperatură -->
-                    <VerticalStackLayout Spacing="5">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="Prag Temperatură" FontAttributes="Bold" />
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <VerticalStackLayout>
+                                <Label Text="PRAG TEMPERATURĂ" FontFamily="Rajdhani" FontSize="12"
+                                       TextColor="{StaticResource SecondaryTextColor}" />
+                                <Label Text="Releul pornește când T ≥ prag"
+                                       FontFamily="Rajdhani" FontSize="10"
+                                       TextColor="{StaticResource SecondaryTextColor}" Opacity="0.6" />
+                            </VerticalStackLayout>
                             <Label Grid.Column="1"
                                    Text="{Binding TempThreshold, StringFormat='{0:F1} °C'}"
-                                   TextColor="{StaticResource PrimaryColor}"
-                                   FontAttributes="Bold" />
+                                   FontFamily="ShareTechMono" FontSize="20"
+                                   TextColor="{StaticResource AccentColor}"
+                                   VerticalOptions="Center" />
                         </Grid>
                         <Slider Minimum="1" Maximum="80"
+                                ThumbColor="{StaticResource AccentColor}"
+                                MinimumTrackColor="{StaticResource AccentColor}"
+                                MaximumTrackColor="#0d2030"
                                 Value="{Binding TempThreshold, Mode=TwoWay}" />
                     </VerticalStackLayout>
 
                     <!-- Prag umiditate -->
-                    <VerticalStackLayout Spacing="5">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="Prag Umiditate" FontAttributes="Bold" />
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <VerticalStackLayout>
+                                <Label Text="PRAG UMIDITATE" FontFamily="Rajdhani" FontSize="12"
+                                       TextColor="{StaticResource SecondaryTextColor}" />
+                                <Label Text="Releul pornește când H ≥ prag"
+                                       FontFamily="Rajdhani" FontSize="10"
+                                       TextColor="{StaticResource SecondaryTextColor}" Opacity="0.6" />
+                            </VerticalStackLayout>
                             <Label Grid.Column="1"
                                    Text="{Binding HumThreshold, StringFormat='{0:F0} %'}"
+                                   FontFamily="ShareTechMono" FontSize="20"
                                    TextColor="{StaticResource PrimaryColor}"
-                                   FontAttributes="Bold" />
+                                   VerticalOptions="Center" />
                         </Grid>
                         <Slider Minimum="0" Maximum="100"
+                                ThumbColor="{StaticResource PrimaryColor}"
+                                MinimumTrackColor="{StaticResource PrimaryColor}"
+                                MaximumTrackColor="#0d2030"
                                 Value="{Binding HumThreshold, Mode=TwoWay}" />
                     </VerticalStackLayout>
 
+                </VerticalStackLayout>
+            </Border>
+
+            <!-- ── SECTION: TIMING ── -->
+            <Border Stroke="{StaticResource PrimaryColor}" StrokeThickness="0.5"
+                    Padding="20,18" BackgroundColor="#060f1e">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="22">
+
+                    <HorizontalStackLayout Spacing="10">
+                        <BoxView WidthRequest="3" HeightRequest="18" Color="{StaticResource PrimaryColor}" VerticalOptions="Center" />
+                        <Label Text="TIMING"
+                               FontFamily="RajdhaniBold" FontSize="15" TextColor="White" />
+                    </HorizontalStackLayout>
+
                     <!-- Interval senzori -->
-                    <VerticalStackLayout Spacing="5">
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Grid.Column="0" Text="Interval Citire Senzori" FontAttributes="Bold" />
+                    <VerticalStackLayout Spacing="6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <VerticalStackLayout>
+                                <Label Text="INTERVAL CITIRE SENZORI" FontFamily="Rajdhani" FontSize="12"
+                                       TextColor="{StaticResource SecondaryTextColor}" />
+                                <Label Text="Frecvența citirii DHT11/22"
+                                       FontFamily="Rajdhani" FontSize="10"
+                                       TextColor="{StaticResource SecondaryTextColor}" Opacity="0.6" />
+                            </VerticalStackLayout>
                             <Label Grid.Column="1"
-                                   Text="{Binding IntervalSec, StringFormat='{0} sec'}"
-                                   TextColor="{StaticResource PrimaryColor}"
-                                   FontAttributes="Bold" />
+                                   Text="{Binding IntervalSec, StringFormat='{0} SEC'}"
+                                   FontFamily="ShareTechMono" FontSize="20"
+                                   TextColor="{StaticResource SecondaryColor}"
+                                   VerticalOptions="Center" />
                         </Grid>
                         <Slider Minimum="10" Maximum="3600"
+                                ThumbColor="{StaticResource SecondaryColor}"
+                                MinimumTrackColor="{StaticResource SecondaryColor}"
+                                MaximumTrackColor="#0d2030"
                                 Value="{Binding IntervalSec, Mode=TwoWay}" />
-                        <Label Text="(min: 10s, max: 1h)"
-                               FontSize="10"
-                               TextColor="{StaticResource SecondaryTextColor}" />
+
+                        <!-- Preset Buttons -->
+                        <HorizontalStackLayout Spacing="8" HorizontalOptions="Center">
+                            <Button Text="10s" Command="{Binding SetInterval10Command}"
+                                    FontFamily="RajdhaniBold" FontSize="11"
+                                    HeightRequest="30" Padding="12,0"
+                                    BorderColor="{StaticResource SecondaryColor}"
+                                    TextColor="{StaticResource SecondaryColor}" />
+                            <Button Text="1m" Command="{Binding SetInterval60Command}"
+                                    FontFamily="RajdhaniBold" FontSize="11"
+                                    HeightRequest="30" Padding="12,0"
+                                    BorderColor="{StaticResource SecondaryColor}"
+                                    TextColor="{StaticResource SecondaryColor}" />
+                            <Button Text="5m" Command="{Binding SetInterval300Command}"
+                                    FontFamily="RajdhaniBold" FontSize="11"
+                                    HeightRequest="30" Padding="12,0"
+                                    BorderColor="{StaticResource SecondaryColor}"
+                                    TextColor="{StaticResource SecondaryColor}" />
+                            <Button Text="15m" Command="{Binding SetInterval900Command}"
+                                    FontFamily="RajdhaniBold" FontSize="11"
+                                    HeightRequest="30" Padding="12,0"
+                                    BorderColor="{StaticResource SecondaryColor}"
+                                    TextColor="{StaticResource SecondaryColor}" />
+                            <Button Text="1h" Command="{Binding SetInterval3600Command}"
+                                    FontFamily="RajdhaniBold" FontSize="11"
+                                    HeightRequest="30" Padding="12,0"
+                                    BorderColor="{StaticResource SecondaryColor}"
+                                    TextColor="{StaticResource SecondaryColor}" />
+                        </HorizontalStackLayout>
                     </VerticalStackLayout>
 
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
 
-            <!-- ═══ STATUS MESSAGE ═══ -->
+            <!-- ── STATUS MESSAGE ── -->
             <Label Text="{Binding StatusMessage}"
                    TextColor="{Binding StatusColor}"
-                   FontSize="13"
+                   FontFamily="Rajdhani" FontSize="13"
                    HorizontalOptions="Center" />
 
-            <!-- ═══ SAVE BUTTON ═══ -->
-            <Button Text="SALVEAZĂ SETĂRI"
-                    Command="{Binding SaveCommand}"
-                    HeightRequest="48"
-                    FontSize="14" FontAttributes="Bold" />
-
-            <!-- ═══ RESET DEFAULTS ═══ -->
-            <Button Text="Reset la valori implicite"
-                    Command="{Binding ResetDefaultsCommand}"
-                    BackgroundColor="{StaticResource ErrorColor}"
-                    TextColor="White"
-                    HeightRequest="40"
-                    FontSize="13" />
+            <!-- ── ACTION BUTTONS ── -->
+            <VerticalStackLayout Spacing="12">
+                <Button Text="↑ TRIMITE CONFIG"
+                        Command="{Binding SaveCommand}"
+                        FontFamily="RajdhaniBold" FontSize="16"
+                        HeightRequest="50" />
+                <Button Text="↺ RESET DEFAULTS"
+                        Command="{Binding ResetDefaultsCommand}"
+                        BackgroundColor="Transparent"
+                        TextColor="{StaticResource ErrorColor}"
+                        BorderColor="{StaticResource ErrorColor}"
+                        FontFamily="RajdhaniBold" FontSize="14"
+                        HeightRequest="44" />
+            </VerticalStackLayout>
 
         </VerticalStackLayout>
     </ScrollView>

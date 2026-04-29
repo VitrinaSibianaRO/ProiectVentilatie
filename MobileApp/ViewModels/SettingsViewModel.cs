@@ -94,6 +94,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private bool CanSave() => HasChanges && !IsLocked && IsConnected;
 
+    [RelayCommand]
+    private void SetInterval(int seconds)
+    {
+        IntervalSec = seconds;
+    }
+
+    [RelayCommand]
+    private void SetInterval10() => IntervalSec = 10;
+
+    [RelayCommand]
+    private void SetInterval60() => IntervalSec = 60;
+
+    [RelayCommand]
+    private void SetInterval300() => IntervalSec = 300;
+
+    [RelayCommand]
+    private void SetInterval900() => IntervalSec = 900;
+
+    [RelayCommand]
+    private void SetInterval3600() => IntervalSec = 3600;
+
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {

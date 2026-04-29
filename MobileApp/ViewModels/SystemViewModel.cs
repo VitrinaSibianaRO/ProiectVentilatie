@@ -39,6 +39,8 @@ public partial class SystemViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int _espFwBuild;
     [ObservableProperty] private string _espUptimeText = "—";
     [ObservableProperty] private string _espHeapText = "—";
+    [ObservableProperty] private double _espHeapProgress = 0.0;
+    [ObservableProperty] private bool _isHeapCritical = false;
     [ObservableProperty] private int _leftErrors;
     [ObservableProperty] private int _rightErrors;
     [ObservableProperty] private string _lastUpdateAgoText = "Niciodată";
@@ -101,6 +103,9 @@ public partial class SystemViewModel : ObservableObject, IDisposable
         EspFwBuild = state.Fw;
         EspUptimeText = FormatUptime(state.UptimeSec);
         EspHeapText = FormatHeap(state.Heap);
+        // Heap progress: normalize against 200KB typical max
+        EspHeapProgress = Math.Clamp(state.Heap / 200_000.0, 0, 1);
+        IsHeapCritical = state.Heap < 30_000;
         LeftErrors = state.Left.Errs;
         RightErrors = state.Right.Errs;
         UpdateAgoText();

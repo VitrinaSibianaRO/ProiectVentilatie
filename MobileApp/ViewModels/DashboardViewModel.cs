@@ -28,6 +28,13 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _overrideLeftText = "Auto";
     [ObservableProperty] private string _overrideRightText = "Auto";
 
+    // Aliases for MiniFanView.IsOn binding
+    public bool LeftRelayActive => LeftRelay;
+    public bool RightRelayActive => RightRelay;
+
+    // Formatted uptime for hero banner
+    [ObservableProperty] private string _uptimeText = "—";
+
     // ── Conexiune + Online ───────────────────────────
     [ObservableProperty] private string _connectionStatus = "Deconectat";
     [ObservableProperty] private bool _isOnline;
@@ -96,12 +103,17 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         RightRelay = state.Right.Relay;
         RelayLeftText = state.Left.Relay ? "PORNIT" : "OPRIT";
         RelayRightText = state.Right.Relay ? "PORNIT" : "OPRIT";
+        OnPropertyChanged(nameof(LeftRelayActive));
+        OnPropertyChanged(nameof(RightRelayActive));
 
         // Override
         LeftOverride = state.Left.Override;
         RightOverride = state.Right.Override;
         OverrideLeftText = state.Left.Override ? "Manual ON" : "Auto";
         OverrideRightText = state.Right.Override ? "Manual ON" : "Auto";
+
+        // Uptime formatted
+        UptimeText = FormatUptime(state.UptimeSec);
 
         // Lock
         if (state.Lock != null && !string.IsNullOrEmpty(state.Lock.Owner))
@@ -145,6 +157,14 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
             < 3600 => $"Actualizat acum {(int)elapsed.TotalMinutes} min",
             _ => $"Actualizat acum {(int)elapsed.TotalHours}h"
         };
+    }
+
+    private static string FormatUptime(long sec)
+    {
+        if (sec < 60) return $"{sec}s";
+        if (sec < 3600) return $"{sec / 60}m {sec % 60}s";
+        if (sec < 86400) return $"{sec / 3600}h {(sec % 3600) / 60}m";
+        return $"{sec / 86400}d {(sec % 86400) / 3600}h";
     }
 
     [RelayCommand]

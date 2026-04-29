@@ -7,9 +7,40 @@
     Shell.FlyoutBehavior="Disabled"
     Title="Ventilatie Smart"
     BackgroundColor="{StaticResource BackgroundColor}"
-    TabBarBackgroundColor="{StaticResource SurfaceColor}"
+    ForegroundColor="{StaticResource TextColor}"
+    UnselectedColor="{StaticResource SecondaryTextColor}"
+    TabBarBackgroundColor="{StaticResource BackgroundColor}"
     TabBarTitleColor="{StaticResource PrimaryColor}"
     TabBarUnselectedColor="{StaticResource SecondaryTextColor}">
+
+    <Shell.TitleView>
+        <Grid ColumnDefinitions="Auto, *, Auto" Padding="10,0">
+            <Label Text="VENTILATIE"
+                   VerticalOptions="Center"
+                   FontFamily="RajdhaniBold"
+                   FontSize="18"
+                   TextColor="{StaticResource PrimaryColor}" />
+            <Label Grid.Column="1"
+                   Text=" SMART"
+                   VerticalOptions="Center"
+                   FontFamily="Rajdhani"
+                   FontSize="18"
+                   TextColor="{StaticResource TextColor}" />
+
+            <HorizontalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
+                <!-- Status dot — culoare actualizată în Dashboard via PulseBadgeView -->
+                <BoxView WidthRequest="8" HeightRequest="8"
+                         CornerRadius="4"
+                         Color="{StaticResource PrimaryColor}"
+                         VerticalOptions="Center" />
+                <Label Text="ESP32"
+                       FontFamily="ShareTechMono"
+                       FontSize="12"
+                       VerticalOptions="Center"
+                       TextColor="{StaticResource PrimaryColor}" />
+            </HorizontalStackLayout>
+        </Grid>
+    </Shell.TitleView>
 
     <TabBar>
         <Tab Title="Dashboard" Icon="dashboard.png">

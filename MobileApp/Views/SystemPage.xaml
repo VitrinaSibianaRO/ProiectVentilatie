@@ -7,139 +7,153 @@
              Title="Sistem">
 
     <ScrollView>
-        <VerticalStackLayout Padding="20" Spacing="20">
+        <VerticalStackLayout Padding="20" Spacing="25">
 
-            <Label Text="Sistem"
-                   FontSize="20" FontAttributes="Bold"
-                   TextColor="{StaticResource PrimaryColor}" />
+            <VerticalStackLayout Spacing="5">
+                <Label Text="SYSTEM // DIAGNOSTICS"
+                       FontFamily="RajdhaniBold" FontSize="22"
+                       TextColor="{StaticResource PrimaryColor}" />
+                <Label Text="MONITORIZARE ȘI UPDATE FIRMWARE"
+                       FontFamily="Rajdhani" FontSize="11"
+                       TextColor="{StaticResource SecondaryTextColor}" />
+            </VerticalStackLayout>
 
-            <!-- ═══ BROKER STATUS ═══ -->
-            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
-                   BorderColor="#333333">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="Broker MQTT" FontAttributes="Bold" />
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Host: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1" Text="{Binding BrokerHost}" FontSize="11" />
+            <!-- ═══ SYSTEM INFO ═══ -->
+            <Border Stroke="{StaticResource PrimaryColor}" StrokeThickness="0.5"
+                    Padding="20" BackgroundColor="#060f1e">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="20">
+
+                    <HorizontalStackLayout Spacing="10">
+                        <BoxView WidthRequest="3" HeightRequest="18" Color="{StaticResource PrimaryColor}" VerticalOptions="Center" />
+                        <Label Text="INFORMAȚII DISPOZITIV" FontFamily="RajdhaniBold" FontSize="15" TextColor="White" />
+                    </HorizontalStackLayout>
+
+                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto,Auto,Auto,Auto" RowSpacing="14">
+
+                        <Label Text="STATUS ESP32" FontFamily="Rajdhani" FontSize="12" TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding EspStatusText}"
+                               FontFamily="RajdhaniBold" FontSize="16" TextColor="{Binding EspStatusColor}" />
+
+                        <Label Grid.Row="1" Text="FIRMWARE VERSION" FontFamily="Rajdhani" FontSize="12" TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Row="1" Grid.Column="1" Text="{Binding EspFwBuild, StringFormat='Build #{0}'}"
+                               FontFamily="ShareTechMono" FontSize="16" TextColor="{StaticResource PrimaryColor}" />
+
+                        <Label Grid.Row="2" Text="UPTIME" FontFamily="Rajdhani" FontSize="12" TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Row="2" Grid.Column="1" Text="{Binding EspUptimeText}"
+                               FontFamily="ShareTechMono" FontSize="16" TextColor="White" />
+
+                        <Label Grid.Row="3" Text="BROKER" FontFamily="Rajdhani" FontSize="12" TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Row="3" Grid.Column="1" Text="{Binding BrokerHost}"
+                               FontFamily="ShareTechMono" FontSize="13" TextColor="{StaticResource SecondaryColor}" />
                     </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Port: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1" Text="{Binding BrokerPort}" />
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Status: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1"
-                               Text="{Binding BrokerStatusText}"
-                               TextColor="{Binding BrokerStatusColor}"
-                               FontAttributes="Bold" />
-                    </Grid>
+
+                    <BoxView HeightRequest="1" Color="{StaticResource PrimaryColor}" Opacity="0.12" />
+
+                    <!-- Heap Memory Bar — legat dinamic -->
+                    <VerticalStackLayout Spacing="8">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <Label Text="HEAP MEMORY FREE" FontFamily="Rajdhani" FontSize="11" TextColor="{StaticResource SecondaryTextColor}" />
+                            <Label Grid.Column="1" Text="{Binding EspHeapText}"
+                                   FontFamily="ShareTechMono" FontSize="11" TextColor="{StaticResource SecondaryColor}" />
+                        </Grid>
+                        <ProgressBar Progress="{Binding EspHeapProgress}"
+                                     ProgressColor="{StaticResource SecondaryColor}"
+                                     HeightRequest="6" />
+                        <!-- Avertisment heap critic < 30KB -->
+                        <Label Text="⚠ HEAP CRITIC — REBOOT RECOMANDAT"
+                               FontFamily="RajdhaniBold" FontSize="11"
+                               TextColor="{StaticResource ErrorColor}"
+                               IsVisible="{Binding IsHeapCritical}" />
+                    </VerticalStackLayout>
+
                 </VerticalStackLayout>
-            </Frame>
-
-            <!-- ═══ ESP32 STATUS ═══ -->
-            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
-                   BorderColor="#333333">
-                <VerticalStackLayout Spacing="8">
-                    <Label Text="ESP32" FontAttributes="Bold" />
-                    <Label Text="{Binding EspStatusText}"
-                           TextColor="{Binding EspStatusColor}"
-                           FontSize="14" FontAttributes="Bold" />
-                    <Label Text="{Binding LastUpdateAgoText}"
-                           FontSize="11"
-                           TextColor="{StaticResource SecondaryTextColor}" />
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Uptime: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1" Text="{Binding EspUptimeText}" />
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Heap liber: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1" Text="{Binding EspHeapText}" />
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Erori senzori: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1">
-                            <Label.Text>
-                                <MultiBinding StringFormat="Stânga: {0}, Dreapta: {1}">
-                                    <Binding Path="LeftErrors" />
-                                    <Binding Path="RightErrors" />
-                                </MultiBinding>
-                            </Label.Text>
-                        </Label>
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Firmware: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1" Text="{Binding EspFwBuild, StringFormat='build #{0}'}" />
-                    </Grid>
-                    <Grid ColumnDefinitions="Auto,*">
-                        <Label Grid.Column="0" Text="Versiune app: " TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Grid.Column="1" Text="{Binding AppVersionText}" />
-                    </Grid>
-                </VerticalStackLayout>
-            </Frame>
-
-            <!-- ═══ ACȚIUNI RAPIDE ═══ -->
-            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
-                <Button Grid.Column="0" Text="🔄 REFRESH"
-                        Command="{Binding RefreshCommand}"
-                        HeightRequest="44" FontSize="13" />
-                <Button Grid.Column="1" Text="⏻ REBOOT ESP32"
-                        Command="{Binding RebootCommand}"
-                        BackgroundColor="{StaticResource ErrorColor}"
-                        TextColor="White"
-                        HeightRequest="44" FontSize="13" />
-            </Grid>
+            </Border>
 
             <!-- ═══ OTA UPDATE ═══ -->
-            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
-                   BorderColor="#333333">
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="🔧 Update Firmware (OTA)" FontAttributes="Bold" FontSize="15" />
-                    <Label Text="Doar URL-uri GitHub Releases sunt acceptate. SHA-256 garantează integritatea."
-                           FontSize="11"
-                           TextColor="{StaticResource SecondaryTextColor}" />
+            <Border Stroke="{StaticResource SecondaryColor}" StrokeThickness="0.5"
+                    Padding="20" BackgroundColor="#060f1e">
+                <Border.StrokeShape>
+                    <RoundRectangle CornerRadius="16" />
+                </Border.StrokeShape>
+                <VerticalStackLayout Spacing="18">
 
-                    <Label Text="URL repo (persistent):" FontSize="12" />
-                    <Entry Placeholder="https://github.com/USER/REPO/releases/download/"
-                           Text="{Binding OtaRepoUrl, Mode=TwoWay}"
-                           FontSize="11" />
+                    <HorizontalStackLayout Spacing="10">
+                        <BoxView WidthRequest="3" HeightRequest="18" Color="{StaticResource SecondaryColor}" VerticalOptions="Center" />
+                        <Label Text="FIRMWARE OVER-THE-AIR" FontFamily="RajdhaniBold" FontSize="15" TextColor="White" />
+                    </HorizontalStackLayout>
 
-                    <Label Text="Versiune (ex: v1.3):" FontSize="12" />
-                    <Entry Placeholder="v1.3"
-                           Text="{Binding OtaVersion, Mode=TwoWay}"
-                           FontSize="12" />
+                    <VerticalStackLayout Spacing="12">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="REPO URL" FontFamily="Rajdhani" FontSize="11" TextColor="{StaticResource SecondaryTextColor}" />
+                            <Entry Text="{Binding OtaRepoUrl}"
+                                   FontFamily="ShareTechMono" FontSize="12"
+                                   BackgroundColor="#030810" TextColor="White" />
+                        </VerticalStackLayout>
 
-                    <Label Text="Numele fișierului:" FontSize="12" />
-                    <Entry Placeholder="firmware.bin"
-                           Text="{Binding OtaFilename, Mode=TwoWay}"
-                           FontSize="12" />
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <VerticalStackLayout Spacing="4">
+                                <Label Text="VERSION" FontFamily="Rajdhani" FontSize="11" TextColor="{StaticResource SecondaryTextColor}" />
+                                <Entry Text="{Binding OtaVersion}"
+                                       FontFamily="ShareTechMono" FontSize="12"
+                                       BackgroundColor="#030810" TextColor="White" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1" Spacing="4">
+                                <Label Text="FILENAME" FontFamily="Rajdhani" FontSize="11" TextColor="{StaticResource SecondaryTextColor}" />
+                                <Entry Text="{Binding OtaFilename}"
+                                       FontFamily="ShareTechMono" FontSize="12"
+                                       BackgroundColor="#030810" TextColor="White" />
+                            </VerticalStackLayout>
+                        </Grid>
 
-                    <Label Text="SHA-256 (64 hex chars):" FontSize="12" />
-                    <Entry Placeholder="abc123def456..."
-                           Text="{Binding OtaSha, Mode=TwoWay}"
-                           FontSize="10" />
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="SHA-256 (64 hex)" FontFamily="Rajdhani" FontSize="11" TextColor="{StaticResource SecondaryTextColor}" />
+                            <Entry Text="{Binding OtaSha}"
+                                   FontFamily="ShareTechMono" FontSize="10"
+                                   BackgroundColor="#030810" TextColor="White" />
+                        </VerticalStackLayout>
 
-                    <Label Text="URL final compus:" FontSize="11"
-                           TextColor="{StaticResource SecondaryTextColor}" />
-                    <Label Text="{Binding OtaFinalUrl}"
-                           FontSize="10"
-                           TextColor="{StaticResource PrimaryColor}"
-                           LineBreakMode="WordWrap" />
+                        <!-- URL final compus live -->
+                        <Label Text="{Binding OtaFinalUrl}"
+                               FontFamily="ShareTechMono" FontSize="10"
+                               TextColor="{StaticResource PrimaryColor}"
+                               LineBreakMode="WordWrap" />
+                    </VerticalStackLayout>
 
-                    <ProgressBar Progress="{Binding OtaProgress}"
-                                 IsVisible="{Binding OtaInProgress}"
-                                 ProgressColor="{StaticResource PrimaryColor}"
-                                 HeightRequest="6" />
-
-                    <Label Text="{Binding OtaStatusMessage}"
-                           TextColor="{Binding OtaStatusColor}"
-                           FontSize="12" />
+                    <!-- Progress OTA activ -->
+                    <VerticalStackLayout Spacing="6" IsVisible="{Binding OtaInProgress}">
+                        <ProgressBar Progress="{Binding OtaProgress}"
+                                     ProgressColor="{StaticResource PrimaryColor}"
+                                     HeightRequest="6" />
+                        <Label Text="{Binding OtaStatusMessage}"
+                               FontFamily="ShareTechMono" FontSize="11"
+                               TextColor="{Binding OtaStatusColor}"
+                               HorizontalOptions="Center" />
+                    </VerticalStackLayout>
 
                     <Button Text="TRIMITE UPDATE"
                             Command="{Binding SendOtaUpdateCommand}"
-                            HeightRequest="44"
-                            FontSize="13" FontAttributes="Bold" />
+                            FontFamily="RajdhaniBold" FontSize="14"
+                            BackgroundColor="{StaticResource SecondaryColor}"
+                            TextColor="Black" />
                 </VerticalStackLayout>
-            </Frame>
+            </Border>
+
+            <!-- ═══ SYSTEM ACTIONS ═══ -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="15">
+                <Button Text="⏻ REBOOT"
+                        Command="{Binding RebootCommand}"
+                        FontFamily="RajdhaniBold" FontSize="14"
+                        BorderColor="{StaticResource AccentColor}"
+                        TextColor="{StaticResource AccentColor}" />
+                <Button Grid.Column="1" Text="↺ REFRESH"
+                        Command="{Binding RefreshCommand}"
+                        FontFamily="RajdhaniBold" FontSize="14"
+                        BorderColor="{StaticResource PrimaryColor}"
+                        TextColor="{StaticResource PrimaryColor}" />
+            </Grid>
 
         </VerticalStackLayout>
     </ScrollView>
