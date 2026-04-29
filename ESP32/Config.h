@@ -52,3 +52,50 @@
 #define VP_OVERRIDE_RIGHT   V12  // override manual dreapta
 #define VP_FREE_HEAP        V21
 #define VP_RESTART          V20
+#define VP_LOCK_OWNER       V22  // 0=none, 1=blynk, 2=mqtt
+#define VP_FW_BUILD         V23  // firmware build number (read-only)
+
+// ============================================================
+//  HIVEMQ CLOUD (MQTT)
+// ============================================================
+#define MQTT_HOST           "1e4444c383474a30b57cfe4f240e6122.s1.eu.hivemq.cloud"
+#define MQTT_PORT           8883
+#define MQTT_USER           "ventilatie_esp32"
+#define MQTT_PASS           "PAROLA_DE_COMPLETAT"
+#define MQTT_CLIENT_PREFIX  "esp32-vent-"
+
+// Topic-uri
+#define TOPIC_STATE         "ventilatie/state"
+#define TOPIC_CMD           "ventilatie/cmd"
+#define TOPIC_ONLINE        "ventilatie/online"
+#define TOPIC_EVENT         "ventilatie/event"
+#define TOPIC_LOG           "ventilatie/log"
+
+// Buffer size pentru PubSubClient (default e doar 256B — prea mic pentru log).
+#define MQTT_BUF_SIZE                4096
+
+// Heartbeat: publicare state forțată la fiecare interval
+#define MQTT_HEARTBEAT_MS            3600000UL    // 1h
+
+// Throttle hard între publicări consecutive (anti-flood)
+#define MQTT_PUBLISH_MIN_INTERVAL_MS 500UL
+
+// Reconnect MQTT (backoff)
+#define MQTT_RECONNECT_INITIAL_MS    5000UL
+#define MQTT_RECONNECT_MAX_MS        60000UL
+
+// WiFi: restart preventiv dacă suntem deconectați mai mult de N ms
+#define WIFI_DOWN_RESTART_MS         600000UL     // 10 min
+
+// ============================================================
+//  FIRMWARE VERSION
+// ============================================================
+// Version.h e auto-generat de scripts/bump_build.sh la fiecare build.
+// Dacă fișierul lipsește (primul build sau build manual fără script),
+// folosim fallback 0.
+#if __has_include("Version.h")
+  #include "Version.h"
+#endif
+#ifndef FW_BUILD_NUMBER
+  #define FW_BUILD_NUMBER 0
+#endif

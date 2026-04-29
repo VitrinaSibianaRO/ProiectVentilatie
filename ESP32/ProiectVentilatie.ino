@@ -14,6 +14,7 @@
 #include "AppPreferences.h"
 #include "SystemLED.h"
 #include "VentilationZone.h"
+#include "MqttBridge.h"
 
 #include <WiFi.h>
 #include <WiFiManager.h>
@@ -28,6 +29,7 @@ SystemLED       statusLed(LED_COUNT, LED_PIN, LED_ENABLE_PIN);
 VentilationZone leftZone (DHT_LEFT_PIN,  RELAY_LEFT_PIN,  "STANGA");
 VentilationZone rightZone(DHT_RIGHT_PIN, RELAY_RIGHT_PIN, "DREAPTA");
 BlynkTimer      timer;
+MqttBridge      mqtt;
 
 // ============================================================
 //  FORWARD DECLARATIONS
@@ -360,6 +362,9 @@ void setup() {
     // Nu blocăm în connect — sistemul porneşte şi fără Blynk.
     Blynk.connect(3000);
 
+    // MQTT bridge — conectare non-blocking, încercări periodice în loop().
+    mqtt.begin(&prefs);
+
     // Timer principal de citire senzori.
     mainTimerID = timer.setInterval((long)prefs.intervalSec * 1000L, processZones);
     // Verificare memorie la fiecare 10 minute.
@@ -368,7 +373,8 @@ void setup() {
     // Facem o primă citire imediată, fără să aşteptăm primul interval.
     processZones();
 
-    Serial.println("[Setup] Sistem pornit cu succes.");
+    Serial.printf("[Setup] Sistem pornit cu succes. Firmware build #%d\n",
+                  (int)FW_BUILD_NUMBER);
 }
 
 // ============================================================
@@ -395,6 +401,10 @@ void loop() {
         }
     } else {
         Blynk.run();
+        // MQTT pump — non-blocking, gestionează reconnect cu backoff.
+        mqtt.loop();
+        // Heartbeat 1h + push pe schimbare automată stare releu.
+        mqtt.publishStateIfNeeded(leftZone, rightZone);
     }
 
     // Timer rulează întotdeauna — logica autonomă nu depinde de WiFi.

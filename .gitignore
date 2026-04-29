@@ -25,3 +25,8 @@ obj/
 # OS generated files
 .DS_Store
 Thumbs.db
+
+# Auto-generated build versioning (gitignored — contoare locale)
+ESP32/build_number.txt
+ESP32/Version.h
+MobileApp/build_number.txt

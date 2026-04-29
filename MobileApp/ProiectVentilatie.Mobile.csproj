@@ -12,6 +12,8 @@
 		<ApplicationTitle>Ventilatie Smart</ApplicationTitle>
 		<ApplicationId>com.proiect.ventilatie</ApplicationId>
 		<ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
+		<!-- ApplicationVersion este setat dinamic de target-ul IncrementBuildNumber. -->
+		<!-- Valoarea aici e fallback dacă build_number.txt nu există încă. -->
 		<ApplicationVersion>1</ApplicationVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">11.0</SupportedOSPlatformVersion>
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">13.1</SupportedOSPlatformVersion>
@@ -29,5 +31,29 @@
 		<PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	</ItemGroup>
+
+	<!-- Auto-incrementare build number la fiecare `dotnet build`.
+	     Citește MobileApp/build_number.txt (gitignored), incrementează cu 1,
+	     scrie înapoi și setează ApplicationVersion la noua valoare. -->
+	<Target Name="IncrementBuildNumber" BeforeTargets="BeforeBuild">
+		<PropertyGroup>
+			<BuildNumberFile>$(MSBuildProjectDirectory)/build_number.txt</BuildNumberFile>
+		</PropertyGroup>
+		<WriteLinesToFile Condition="!Exists('$(BuildNumberFile)')"
+		                  File="$(BuildNumberFile)"
+		                  Lines="0"
+		                  Overwrite="true" />
+		<PropertyGroup>
+			<_CurrentBuild>$([System.IO.File]::ReadAllText('$(BuildNumberFile)').Trim())</_CurrentBuild>
+			<_NewBuild>$([MSBuild]::Add($(_CurrentBuild), 1))</_NewBuild>
+		</PropertyGroup>
+		<WriteLinesToFile File="$(BuildNumberFile)"
+		                  Lines="$(_NewBuild)"
+		                  Overwrite="true" />
+		<PropertyGroup>
+			<ApplicationVersion>$(_NewBuild)</ApplicationVersion>
+		</PropertyGroup>
+		<Message Importance="high" Text="[MAUI] Build #$(_NewBuild) (display $(ApplicationDisplayVersion))" />
+	</Target>
 
 </Project>
