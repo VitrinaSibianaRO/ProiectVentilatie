@@ -3,6 +3,7 @@
 # User-specific folders
 /scratch/
 /APK/
+/VS/
 
 # .NET / MAUI specific
 bin/
