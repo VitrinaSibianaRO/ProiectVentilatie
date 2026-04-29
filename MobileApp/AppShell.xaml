@@ -21,7 +21,7 @@
         <Tab Title="Sistem" Icon="system.png">
             <ShellContent ContentTemplate="{DataTemplate local:SystemPage}" />
         </Tab>
-        <Tab Title="Log" Icon="system.png">
+        <Tab Title="Log" Icon="log.png">
             <ShellContent ContentTemplate="{DataTemplate local:LogPage}" />
         </Tab>
     </TabBar>

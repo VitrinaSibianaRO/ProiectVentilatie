@@ -36,6 +36,15 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- App Icon -->
+		<MauiIcon Include="Resources\AppIcon\appicon.png" />
+		<!-- Images -->
+		<MauiImage Include="Resources\Images\*" />
+		<!-- Splash Screen -->
+		<MauiSplashScreen Include="Resources\Splash\splash.png" Color="#009688" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<EmbeddedResource Include="appsettings.json" />
 	</ItemGroup>
 

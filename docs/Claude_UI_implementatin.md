@@ -1,0 +1,2 @@
+Fetch this design file, read its readme, and implement the relevant aspects of the design. https://api.anthropic.com/v1/design/h/8xykrZGUP1NUXApbso6AmA?open_file=Industrial+Dashboard.html
+Implement: The app that is built in MAUI must have this UI interface, with all the fields, variables, inputs and functionalities fully implemented and to work out of the box with the automation sistem.
