@@ -1,26 +1,101 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
              x:Class="ProiectVentilatie.Mobile.Views.SettingsPage"
+             x:DataType="vm:SettingsViewModel"
              Title="Setari">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="20">
-            <Label Text="Setari Automatizare" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
-            
-            <Label Text="Poti seta aici pragurile. Partea de ViewModel va fi implementata asemanator cu Dashboard." />
-            
-            <Frame>
-                <VerticalStackLayout Spacing="10">
-                    <Label Text="Prag Temperatura (°C)" />
-                    <Slider Minimum="20" Maximum="60" Value="45" />
-                    
-                    <Label Text="Prag Umiditate (%)" />
-                    <Slider Minimum="30" Maximum="100" Value="60" />
+
+            <Label Text="Setari Automatizare"
+                   FontSize="20" FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryColor}" />
+
+            <Label Text="Modificările trimise aici se aplică instant pe ESP32 și se sincronizează automat cu Blynk."
+                   FontSize="12"
+                   TextColor="{StaticResource SecondaryTextColor}" />
+
+            <!-- ═══ LOCK BANNER ═══ -->
+            <Frame Padding="10" CornerRadius="8"
+                   BackgroundColor="#4D1565C0"
+                   BorderColor="#1565C0"
+                   IsVisible="{Binding IsLocked}">
+                <Label Text="🔒 Control blocat (Blynk activ) — așteaptă eliberarea"
+                       FontSize="13" FontAttributes="Bold"
+                       TextColor="#90CAF9" HorizontalOptions="Center" />
+            </Frame>
+
+            <!-- ═══ SLIDERS ═══ -->
+            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
+                   BorderColor="#333333">
+                <VerticalStackLayout Spacing="20">
+
+                    <!-- Prag temperatură -->
+                    <VerticalStackLayout Spacing="5">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Prag Temperatură" FontAttributes="Bold" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding TempThreshold, StringFormat='{0:F1} °C'}"
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontAttributes="Bold" />
+                        </Grid>
+                        <Slider Minimum="1" Maximum="80"
+                                Value="{Binding TempThreshold, Mode=TwoWay}" />
+                    </VerticalStackLayout>
+
+                    <!-- Prag umiditate -->
+                    <VerticalStackLayout Spacing="5">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Prag Umiditate" FontAttributes="Bold" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding HumThreshold, StringFormat='{0:F0} %'}"
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontAttributes="Bold" />
+                        </Grid>
+                        <Slider Minimum="0" Maximum="100"
+                                Value="{Binding HumThreshold, Mode=TwoWay}" />
+                    </VerticalStackLayout>
+
+                    <!-- Interval senzori -->
+                    <VerticalStackLayout Spacing="5">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Interval Citire Senzori" FontAttributes="Bold" />
+                            <Label Grid.Column="1"
+                                   Text="{Binding IntervalSec, StringFormat='{0} sec'}"
+                                   TextColor="{StaticResource PrimaryColor}"
+                                   FontAttributes="Bold" />
+                        </Grid>
+                        <Slider Minimum="10" Maximum="3600"
+                                Value="{Binding IntervalSec, Mode=TwoWay}" />
+                        <Label Text="(min: 10s, max: 1h)"
+                               FontSize="10"
+                               TextColor="{StaticResource SecondaryTextColor}" />
+                    </VerticalStackLayout>
+
                 </VerticalStackLayout>
             </Frame>
 
-            <Button Text="SALVEAZA SETARI" />
+            <!-- ═══ STATUS MESSAGE ═══ -->
+            <Label Text="{Binding StatusMessage}"
+                   TextColor="{Binding StatusColor}"
+                   FontSize="13"
+                   HorizontalOptions="Center" />
+
+            <!-- ═══ SAVE BUTTON ═══ -->
+            <Button Text="SALVEAZĂ SETĂRI"
+                    Command="{Binding SaveCommand}"
+                    HeightRequest="48"
+                    FontSize="14" FontAttributes="Bold" />
+
+            <!-- ═══ RESET DEFAULTS ═══ -->
+            <Button Text="Reset la valori implicite"
+                    Command="{Binding ResetDefaultsCommand}"
+                    BackgroundColor="{StaticResource ErrorColor}"
+                    TextColor="White"
+                    HeightRequest="40"
+                    FontSize="13" />
 
         </VerticalStackLayout>
     </ScrollView>

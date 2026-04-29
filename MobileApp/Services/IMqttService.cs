@@ -31,6 +31,9 @@ public interface IMqttService
     /// <summary>Ultima stare primită (cached din retained).</summary>
     VentilationState? LastState { get; }
 
+    /// <summary>Timestamp local al ultimei state primite (pentru "ago" indicator).</summary>
+    DateTime? LastStateReceivedAt { get; }
+
     /// <summary>Este conectat la broker.</summary>
     bool IsConnected { get; }
 }

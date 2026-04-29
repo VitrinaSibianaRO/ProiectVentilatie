@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             xmlns:models="clr-namespace:ProiectVentilatie.Mobile.Models"
+             x:Class="ProiectVentilatie.Mobile.Views.LogPage"
+             x:DataType="vm:LogViewModel"
+             Title="Log">
+
+    <Grid RowDefinitions="Auto,Auto,Auto,*" Padding="15" RowSpacing="10">
+
+        <Label Grid.Row="0"
+               Text="Log evenimente"
+               FontSize="20" FontAttributes="Bold"
+               TextColor="{StaticResource PrimaryColor}" />
+
+        <!-- Filter + Reload -->
+        <Grid Grid.Row="1" ColumnDefinitions="*,Auto" ColumnSpacing="10">
+            <Picker Grid.Column="0"
+                    Title="Filtru tip"
+                    ItemsSource="{Binding AvailableFilters}"
+                    SelectedItem="{Binding SelectedFilter, Mode=TwoWay}"
+                    HeightRequest="40" />
+            <Button Grid.Column="1"
+                    Text="↻ REÎNCARCĂ"
+                    Command="{Binding ReloadCommand}"
+                    HeightRequest="40" FontSize="12" />
+        </Grid>
+
+        <!-- Status -->
+        <Label Grid.Row="2"
+               Text="{Binding StatusMessage}"
+               FontSize="11"
+               TextColor="{StaticResource SecondaryTextColor}" />
+
+        <!-- Listă evenimente -->
+        <CollectionView Grid.Row="3"
+                        ItemsSource="{Binding Entries}"
+                        EmptyView="Niciun eveniment. Apasă REÎNCARCĂ.">
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:LogEntry">
+                    <Frame Padding="12" Margin="0,4"
+                           BackgroundColor="{StaticResource SurfaceColor}"
+                           BorderColor="#333333"
+                           CornerRadius="8">
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto" ColumnSpacing="10" RowSpacing="3">
+                            <!-- Icon -->
+                            <Label Grid.RowSpan="2"
+                                   Grid.Column="0"
+                                   Text="{Binding Icon}"
+                                   FontSize="22"
+                                   VerticalOptions="Center" />
+
+                            <!-- Header: type + zone -->
+                            <Label Grid.Row="0" Grid.Column="1">
+                                <Label.FormattedText>
+                                    <FormattedString>
+                                        <Span Text="{Binding TypeLabel}" FontAttributes="Bold" />
+                                        <Span Text=" · " TextColor="{StaticResource SecondaryTextColor}" />
+                                        <Span Text="{Binding ZoneLabel}" TextColor="{StaticResource PrimaryColor}" />
+                                    </FormattedString>
+                                </Label.FormattedText>
+                            </Label>
+
+                            <!-- Message + timestamp -->
+                            <VerticalStackLayout Grid.Row="1" Grid.Column="1" Spacing="2">
+                                <Label Text="{Binding Msg}" FontSize="12" />
+                                <Label Text="{Binding TsDisplay}"
+                                       FontSize="10"
+                                       TextColor="{StaticResource SecondaryTextColor}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </Grid>
+</ContentPage>

@@ -1,16 +1,145 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
              x:Class="ProiectVentilatie.Mobile.Views.SystemPage"
+             x:DataType="vm:SystemViewModel"
              Title="Sistem">
 
     <ScrollView>
         <VerticalStackLayout Padding="20" Spacing="20">
-            <Label Text="Sistem" FontSize="20" FontAttributes="Bold" TextColor="{StaticResource PrimaryColor}"/>
-            
-            <Label Text="Optiuni si debug pentru placa ESP32 Carbon v3." />
-            
-            <Button Text="REBOOT ESP32" BackgroundColor="{StaticResource ErrorColor}" TextColor="White"/>
+
+            <Label Text="Sistem"
+                   FontSize="20" FontAttributes="Bold"
+                   TextColor="{StaticResource PrimaryColor}" />
+
+            <!-- ═══ BROKER STATUS ═══ -->
+            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
+                   BorderColor="#333333">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Broker MQTT" FontAttributes="Bold" />
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Host: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding BrokerHost}" FontSize="11" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Port: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding BrokerPort}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Status: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1"
+                               Text="{Binding BrokerStatusText}"
+                               TextColor="{Binding BrokerStatusColor}"
+                               FontAttributes="Bold" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ═══ ESP32 STATUS ═══ -->
+            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
+                   BorderColor="#333333">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="ESP32" FontAttributes="Bold" />
+                    <Label Text="{Binding EspStatusText}"
+                           TextColor="{Binding EspStatusColor}"
+                           FontSize="14" FontAttributes="Bold" />
+                    <Label Text="{Binding LastUpdateAgoText}"
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryTextColor}" />
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Uptime: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding EspUptimeText}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Heap liber: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding EspHeapText}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Erori senzori: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1">
+                            <Label.Text>
+                                <MultiBinding StringFormat="Stânga: {0}, Dreapta: {1}">
+                                    <Binding Path="LeftErrors" />
+                                    <Binding Path="RightErrors" />
+                                </MultiBinding>
+                            </Label.Text>
+                        </Label>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Firmware: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding EspFwBuild, StringFormat='build #{0}'}" />
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <Label Grid.Column="0" Text="Versiune app: " TextColor="{StaticResource SecondaryTextColor}" />
+                        <Label Grid.Column="1" Text="{Binding AppVersionText}" />
+                    </Grid>
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- ═══ ACȚIUNI RAPIDE ═══ -->
+            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                <Button Grid.Column="0" Text="🔄 REFRESH"
+                        Command="{Binding RefreshCommand}"
+                        HeightRequest="44" FontSize="13" />
+                <Button Grid.Column="1" Text="⏻ REBOOT ESP32"
+                        Command="{Binding RebootCommand}"
+                        BackgroundColor="{StaticResource ErrorColor}"
+                        TextColor="White"
+                        HeightRequest="44" FontSize="13" />
+            </Grid>
+
+            <!-- ═══ OTA UPDATE ═══ -->
+            <Frame Padding="15" BackgroundColor="{StaticResource SurfaceColor}"
+                   BorderColor="#333333">
+                <VerticalStackLayout Spacing="10">
+                    <Label Text="🔧 Update Firmware (OTA)" FontAttributes="Bold" FontSize="15" />
+                    <Label Text="Doar URL-uri GitHub Releases sunt acceptate. SHA-256 garantează integritatea."
+                           FontSize="11"
+                           TextColor="{StaticResource SecondaryTextColor}" />
+
+                    <Label Text="URL repo (persistent):" FontSize="12" />
+                    <Entry Placeholder="https://github.com/USER/REPO/releases/download/"
+                           Text="{Binding OtaRepoUrl, Mode=TwoWay}"
+                           FontSize="11" />
+
+                    <Label Text="Versiune (ex: v1.3):" FontSize="12" />
+                    <Entry Placeholder="v1.3"
+                           Text="{Binding OtaVersion, Mode=TwoWay}"
+                           FontSize="12" />
+
+                    <Label Text="Numele fișierului:" FontSize="12" />
+                    <Entry Placeholder="firmware.bin"
+                           Text="{Binding OtaFilename, Mode=TwoWay}"
+                           FontSize="12" />
+
+                    <Label Text="SHA-256 (64 hex chars):" FontSize="12" />
+                    <Entry Placeholder="abc123def456..."
+                           Text="{Binding OtaSha, Mode=TwoWay}"
+                           FontSize="10" />
+
+                    <Label Text="URL final compus:" FontSize="11"
+                           TextColor="{StaticResource SecondaryTextColor}" />
+                    <Label Text="{Binding OtaFinalUrl}"
+                           FontSize="10"
+                           TextColor="{StaticResource PrimaryColor}"
+                           LineBreakMode="WordWrap" />
+
+                    <ProgressBar Progress="{Binding OtaProgress}"
+                                 IsVisible="{Binding OtaInProgress}"
+                                 ProgressColor="{StaticResource PrimaryColor}"
+                                 HeightRequest="6" />
+
+                    <Label Text="{Binding OtaStatusMessage}"
+                           TextColor="{Binding OtaStatusColor}"
+                           FontSize="12" />
+
+                    <Button Text="TRIMITE UPDATE"
+                            Command="{Binding SendOtaUpdateCommand}"
+                            HeightRequest="44"
+                            FontSize="13" FontAttributes="Bold" />
+                </VerticalStackLayout>
+            </Frame>
 
         </VerticalStackLayout>
     </ScrollView>

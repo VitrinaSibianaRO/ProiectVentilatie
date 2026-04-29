@@ -10,7 +10,7 @@ namespace ProiectVentilatie.Mobile.Services;
 /// <summary>
 /// Serviciu MQTT conectat la HiveMQ Cloud.
 /// - Config via DI (IOptions&lt;MqttSettings&gt;)
-/// - Reconnect cu exponential backoff (5s→60s)
+/// - Reconnect cu exponential backoff (configurabil)
 /// - Lifecycle: ConnectAsync/DisconnectAsync (OnSleep/OnResume)
 /// - Subscribe: state (retained), online, event, log
 /// - LastState cached — disponibil instant la connect
@@ -23,9 +23,8 @@ public class MqttService : IMqttService, IDisposable
     private bool _intentionalDisconnect;
     private CancellationTokenSource? _reconnectCts;
 
-    // Backoff reconnect
-    private int _reconnectDelayMs = 5000;
-    private const int MaxReconnectDelayMs = 60000;
+    // Backoff reconnect — citit din settings
+    private int _reconnectDelayMs;
 
     public event Action<VentilationState>? OnStateReceived;
     public event Action<bool>? OnConnectionChanged;
@@ -34,17 +33,19 @@ public class MqttService : IMqttService, IDisposable
     public event Action<string>? OnLogReceived;
 
     public VentilationState? LastState { get; private set; }
+    public DateTime? LastStateReceivedAt { get; private set; }
     public bool IsConnected => _client?.IsConnected() ?? false;
 
     public MqttService(IOptions<MqttSettings> options)
     {
         _settings = options.Value;
+        _reconnectDelayMs = _settings.ReconnectInitialMs;
     }
 
     public async Task ConnectAsync()
     {
         _intentionalDisconnect = false;
-        _reconnectDelayMs = 5000;
+        _reconnectDelayMs = _settings.ReconnectInitialMs;
 
         if (_client != null && _client.IsConnected())
             return;
@@ -78,12 +79,16 @@ public class MqttService : IMqttService, IDisposable
     public async Task SendCommandAsync(object command)
     {
         if (_client == null || !_client.IsConnected())
+        {
+            Console.WriteLine("[MQTT] SendCommand skipped — not connected.");
             return;
+        }
 
         try
         {
             var json = JsonSerializer.Serialize(command);
-            await _client.PublishAsync(_settings.TopicCmd, json, QualityOfService.AtLeastOnceDelivery);
+            await _client.PublishAsync(_settings.CommandTopic, json,
+                QualityOfService.AtLeastOnceDelivery);
         }
         catch (Exception ex)
         {
@@ -100,7 +105,7 @@ public class MqttService : IMqttService, IDisposable
                 Host = _settings.Host,
                 Port = _settings.Port,
                 UseTLS = true,
-                UserName = _settings.UserName,
+                UserName = _settings.Username,
                 Password = _settings.Password,
                 ClientId = $"maui-{Guid.NewGuid():N}".Substring(0, 23),
                 CleanStart = true,
@@ -126,13 +131,14 @@ public class MqttService : IMqttService, IDisposable
 
             await _client.ConnectAsync();
 
-            // Subscribe la toate topic-urile relevante
-            await _client.SubscribeAsync(_settings.TopicState, QualityOfService.AtMostOnceDelivery);
-            await _client.SubscribeAsync(_settings.TopicOnline, QualityOfService.AtLeastOnceDelivery);
-            await _client.SubscribeAsync(_settings.TopicEvent, QualityOfService.AtMostOnceDelivery);
-            await _client.SubscribeAsync(_settings.TopicLog, QualityOfService.AtLeastOnceDelivery);
+            // Subscribe la toate topic-urile relevante.
+            // State + Online sunt retained → primim imediat ultimele valori.
+            await _client.SubscribeAsync(_settings.StateTopic,   QualityOfService.AtMostOnceDelivery);
+            await _client.SubscribeAsync(_settings.OnlineTopic,  QualityOfService.AtLeastOnceDelivery);
+            await _client.SubscribeAsync(_settings.EventTopic,   QualityOfService.AtMostOnceDelivery);
+            await _client.SubscribeAsync(_settings.LogTopic,     QualityOfService.AtLeastOnceDelivery);
 
-            _reconnectDelayMs = 5000; // Reset backoff
+            _reconnectDelayMs = _settings.ReconnectInitialMs; // Reset backoff
             MainThread.BeginInvokeOnMainThread(() => OnConnectionChanged?.Invoke(true));
             Console.WriteLine("[MQTT] Connected + subscribed.");
         }
@@ -156,7 +162,7 @@ public class MqttService : IMqttService, IDisposable
             await Task.Delay(_reconnectDelayMs, token);
 
             // Exponential backoff
-            _reconnectDelayMs = Math.Min(_reconnectDelayMs * 2, MaxReconnectDelayMs);
+            _reconnectDelayMs = Math.Min(_reconnectDelayMs * 2, _settings.ReconnectMaxMs);
 
             if (!token.IsCancellationRequested)
             {
@@ -178,24 +184,25 @@ public class MqttService : IMqttService, IDisposable
 
         try
         {
-            if (topic == _settings.TopicState)
+            if (topic == _settings.StateTopic)
             {
                 var state = JsonSerializer.Deserialize<VentilationState>(payload);
                 if (state != null)
                 {
                     LastState = state;
+                    LastStateReceivedAt = DateTime.Now;
                     MainThread.BeginInvokeOnMainThread(() => OnStateReceived?.Invoke(state));
                 }
             }
-            else if (topic == _settings.TopicOnline)
+            else if (topic == _settings.OnlineTopic)
             {
                 MainThread.BeginInvokeOnMainThread(() => OnOnlineStatusChanged?.Invoke(payload));
             }
-            else if (topic == _settings.TopicEvent)
+            else if (topic == _settings.EventTopic)
             {
                 MainThread.BeginInvokeOnMainThread(() => OnEventReceived?.Invoke(payload));
             }
-            else if (topic == _settings.TopicLog)
+            else if (topic == _settings.LogTopic)
             {
                 MainThread.BeginInvokeOnMainThread(() => OnLogReceived?.Invoke(payload));
             }
