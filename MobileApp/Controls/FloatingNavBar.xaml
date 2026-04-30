@@ -40,9 +40,9 @@
                           HorizontalOptions="Center"
                           Aspect="Uniform">
                         <Path.Stroke>
-                            <Binding Path="IsDashboardActive" Source="{x:Reference self}">
+                            <Binding Path="IsDashboardActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Path.Stroke>
@@ -51,9 +51,9 @@
                     <Label Text="Dashboard" FontSize="11" HorizontalOptions="Center" 
                            Style="{StaticResource LabelRajdhani}">
                         <Label.TextColor>
-                            <Binding Path="IsDashboardActive" Source="{x:Reference self}">
+                            <Binding Path="IsDashboardActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Label.TextColor>
@@ -82,9 +82,9 @@
                           HorizontalOptions="Center"
                           Aspect="Uniform">
                         <Path.Stroke>
-                            <Binding Path="IsDevicesActive" Source="{x:Reference self}">
+                            <Binding Path="IsDevicesActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Path.Stroke>
@@ -93,9 +93,9 @@
                     <Label Text="Devices" FontSize="11" HorizontalOptions="Center" 
                            Style="{StaticResource LabelRajdhani}">
                         <Label.TextColor>
-                            <Binding Path="IsDevicesActive" Source="{x:Reference self}">
+                            <Binding Path="IsDevicesActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Label.TextColor>
@@ -124,9 +124,9 @@
                           HorizontalOptions="Center"
                           Aspect="Uniform">
                         <Path.Stroke>
-                            <Binding Path="IsSettingsActive" Source="{x:Reference self}">
+                            <Binding Path="IsSettingsActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Path.Stroke>
@@ -135,9 +135,9 @@
                     <Label Text="Settings" FontSize="11" HorizontalOptions="Center" 
                            Style="{StaticResource LabelRajdhani}">
                         <Label.TextColor>
-                            <Binding Path="IsSettingsActive" Source="{x:Reference self}">
+                            <Binding Path="IsSettingsActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Label.TextColor>
@@ -166,9 +166,9 @@
                           HorizontalOptions="Center"
                           Aspect="Uniform">
                         <Path.Stroke>
-                            <Binding Path="IsReportsActive" Source="{x:Reference self}">
+                            <Binding Path="IsReportsActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Path.Stroke>
@@ -177,9 +177,9 @@
                     <Label Text="Reports" FontSize="11" HorizontalOptions="Center" 
                            Style="{StaticResource LabelRajdhani}">
                         <Label.TextColor>
-                            <Binding Path="IsReportsActive" Source="{x:Reference self}">
+                            <Binding Path="IsReportsActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Label.TextColor>
@@ -208,9 +208,9 @@
                           HorizontalOptions="Center"
                           Aspect="Uniform">
                         <Path.Stroke>
-                            <Binding Path="IsSystemActive" Source="{x:Reference self}">
+                            <Binding Path="IsSystemActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Path.Stroke>
@@ -219,9 +219,9 @@
                     <Label Text="System" FontSize="11" HorizontalOptions="Center" 
                            Style="{StaticResource LabelRajdhani}">
                         <Label.TextColor>
-                            <Binding Path="IsSystemActive" Source="{x:Reference self}">
+                            <Binding Path="IsSystemActive" Source="{x:Reference self}" ConverterParameter="cyan">
                                 <Binding.Converter>
-                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                    <converters:BoolToColorConverter />
                                 </Binding.Converter>
                             </Binding>
                         </Label.TextColor>
