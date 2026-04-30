@@ -82,7 +82,7 @@
                                      Color="{Binding EspOnlineColor}" CornerRadius="2" />
                             <Label Text="ESP32 Status" FontSize="16" FontAttributes="Bold"
                                    Style="{StaticResource LabelRajdhani}" />
-                            <controls:PulseBadgeView IsActive="{Binding EspOnline}" Margin="6,0,0,0"
+                            <controls:PulseBadgeView IsOnline="{Binding EspOnline}" Margin="6,0,0,0"
                                                      WidthRequest="8" HeightRequest="8" VerticalOptions="Center" />
                         </HorizontalStackLayout>
 

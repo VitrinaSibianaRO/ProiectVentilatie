@@ -23,6 +23,20 @@ public class PulseBadgeView : SKCanvasView
         set => SetValue(BadgeColorProperty, value);
     }
 
+    public static readonly BindableProperty IsOnlineProperty = BindableProperty.Create(
+        nameof(IsOnline), typeof(bool), typeof(PulseBadgeView), true,
+        propertyChanged: (b, o, n) =>
+        {
+            var v = (PulseBadgeView)b;
+            v.BadgeColor = (bool)n ? Colors.LimeGreen : Colors.OrangeRed;
+        });
+
+    public bool IsOnline
+    {
+        get => (bool)GetValue(IsOnlineProperty);
+        set => SetValue(IsOnlineProperty, value);
+    }
+
     protected override void OnHandlerChanged()
     {
         base.OnHandlerChanged();
