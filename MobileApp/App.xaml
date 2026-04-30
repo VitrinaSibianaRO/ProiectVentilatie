@@ -2,46 +2,119 @@
 <Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:local="clr-namespace:ProiectVentilatie.Mobile"
+             xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
              x:Class="ProiectVentilatie.Mobile.App">
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Dark Mode + Turquoise Theme -->
-            <!-- Industrial Cyberpunk Theme -->
-            <Color x:Key="BackgroundColor">#050a14</Color>
-            <Color x:Key="SurfaceColor">#0d1e2e</Color>
-            <Color x:Key="PrimaryColor">#00e6ff</Color> <!-- Neon Cyan -->
-            <Color x:Key="SecondaryColor">#00e87a</Color> <!-- Emerald Green -->
-            <Color x:Key="AccentColor">#ff7a45</Color> <!-- Industrial Orange -->
-            <Color x:Key="TextColor">#FFFFFF</Color>
-            <Color x:Key="SecondaryTextColor">#6688aa</Color>
-            <Color x:Key="ErrorColor">#ff4422</Color>
+            <converters:OpacityConverter x:Key="OpacityConverter" />
+            <converters:StringNotNullConverter x:Key="StringNotNullConverter" />
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
 
+            <!-- Industrial Cyberpunk Design Tokens -->
+            <Color x:Key="BackgroundColor">#050a14</Color>
+            <Color x:Key="SurfaceColor">#00122e</Color>
+            <Color x:Key="PrimaryColor">#00e6ff</Color>
+            <Color x:Key="PrimaryCyan">#00e6ff</Color>
+            <Color x:Key="PrimaryGreen">#00e87a</Color>
+            <Color x:Key="PrimaryOrange">#ff7a45</Color>
+            <Color x:Key="PrimaryRed">#ff4422</Color>
+            <Color x:Key="PrimaryYellow">#ffaa00</Color>
+            <Color x:Key="PrimaryBlue">#00aaff</Color>
+            <Color x:Key="TextColor">#FFFFFF</Color>
+            <Color x:Key="SecondaryTextColor">#66FFFFFF</Color>
+
+            <Color x:Key="CardBgStart">#00122a</Color>
+            <Color x:Key="CardBgEnd">#000a1c</Color>
+            <Color x:Key="BorderCyan">#3300e6ff</Color>
+
+            <LinearGradientBrush x:Key="CardBackground" StartPoint="0,0" EndPoint="1,1">
+                <GradientStop Color="#00122a" Offset="0.1" />
+                <GradientStop Color="#000a1c" Offset="0.9" />
+            </LinearGradientBrush>
+
+            <LinearGradientBrush x:Key="HeroGradient" StartPoint="0,0" EndPoint="0,1">
+                <GradientStop Color="#001028" Offset="0.0" />
+                <GradientStop Color="#000816" Offset="1.0" />
+            </LinearGradientBrush>
+
+            <!-- Base Styles -->
             <Style TargetType="Page">
                 <Setter Property="BackgroundColor" Value="{StaticResource BackgroundColor}" />
+                <Setter Property="Shell.NavBarIsVisible" Value="False" />
             </Style>
 
-            <Style TargetType="Label">
-                <Setter Property="TextColor" Value="{StaticResource TextColor}" />
-                <Setter Property="FontFamily" Value="Rajdhani" />
+            <Style x:Key="LabelShareTech" TargetType="Label">
+                <Setter Property="FontFamily" Value="ShareTechMono" />
+                <Setter Property="TextColor" Value="White" />
             </Style>
-            
-            <Style TargetType="Button">
-                <Setter Property="BackgroundColor" Value="Transparent" />
-                <Setter Property="TextColor" Value="{StaticResource PrimaryColor}" />
-                <Setter Property="BorderColor" Value="{StaticResource PrimaryColor}" />
-                <Setter Property="BorderWidth" Value="1.5" />
+
+            <Style x:Key="LabelRajdhani" TargetType="Label">
+                <Setter Property="FontFamily" Value="Rajdhani" />
+                <Setter Property="TextColor" Value="White" />
+            </Style>
+
+            <!-- Industrial Card Style -->
+            <Style x:Key="IndustrialCard" TargetType="Border">
+                <Setter Property="Background" Value="{StaticResource CardBackground}" />
+                <Setter Property="Stroke" Value="{StaticResource BorderCyan}" />
+                <Setter Property="StrokeThickness" Value="1" />
+                <Setter Property="StrokeShape" Value="RoundRectangle 14" />
+                <Setter Property="Padding" Value="16,14" />
+            </Style>
+
+            <!-- Action Button Style -->
+            <Style x:Key="CyberButton" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="#1A00e6ff" />
+                <Setter Property="TextColor" Value="{StaticResource PrimaryCyan}" />
+                <Setter Property="BorderColor" Value="{StaticResource BorderCyan}" />
+                <Setter Property="BorderWidth" Value="1" />
                 <Setter Property="FontFamily" Value="Rajdhani" />
                 <Setter Property="FontAttributes" Value="Bold" />
-                <Setter Property="CornerRadius" Value="12" />
-                <Setter Property="HeightRequest" Value="44" />
+                <Setter Property="CornerRadius" Value="10" />
+                <Setter Property="VisualStateManager.VisualStateGroups">
+                    <VisualStateGroupList>
+                        <VisualStateGroup x:Name="CommonStates">
+                            <VisualState x:Name="Normal" />
+                            <VisualState x:Name="Pressed">
+                                <VisualState.Setters>
+                                    <Setter Property="Scale" Value="0.95" />
+                                    <Setter Property="BackgroundColor" Value="#3300e6ff" />
+                                </VisualState.Setters>
+                            </VisualState>
+                        </VisualStateGroup>
+                    </VisualStateGroupList>
+                </Setter>
             </Style>
-            
-            <Style TargetType="Frame">
-                <Setter Property="BackgroundColor" Value="{StaticResource SurfaceColor}" />
-                <Setter Property="BorderColor" Value="{StaticResource PrimaryColor}" />
-                <Setter Property="CornerRadius" Value="14" />
-                <Setter Property="HasShadow" Value="False" />
-                <Setter Property="Padding" Value="15" />
+
+            <Style x:Key="CyberButtonOrange" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="#1Aff7a45" />
+                <Setter Property="TextColor" Value="{StaticResource PrimaryOrange}" />
+                <Setter Property="BorderColor" Value="#55ff7a45" />
+                <Setter Property="BorderWidth" Value="1" />
+                <Setter Property="FontFamily" Value="Rajdhani" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="CornerRadius" Value="10" />
+            </Style>
+
+            <Style x:Key="CyberButtonRed" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="#1Aff4422" />
+                <Setter Property="TextColor" Value="{StaticResource PrimaryRed}" />
+                <Setter Property="BorderColor" Value="#55ff4422" />
+                <Setter Property="BorderWidth" Value="1" />
+                <Setter Property="FontFamily" Value="Rajdhani" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="CornerRadius" Value="10" />
+            </Style>
+
+            <Style x:Key="CyberButtonGreen" TargetType="Button">
+                <Setter Property="BackgroundColor" Value="#1A00e87a" />
+                <Setter Property="TextColor" Value="{StaticResource PrimaryGreen}" />
+                <Setter Property="BorderColor" Value="#5500e87a" />
+                <Setter Property="BorderWidth" Value="1" />
+                <Setter Property="FontFamily" Value="Rajdhani" />
+                <Setter Property="FontAttributes" Value="Bold" />
+                <Setter Property="CornerRadius" Value="10" />
             </Style>
         </ResourceDictionary>
     </Application.Resources>

@@ -52,12 +52,14 @@ public static class MauiProgram
         builder.Services.AddTransient<ViewModels.SettingsViewModel>();
         builder.Services.AddTransient<ViewModels.SystemViewModel>();
         builder.Services.AddTransient<ViewModels.LogViewModel>();
+        builder.Services.AddTransient<ViewModels.DevicesViewModel>();
 
         // Views
         builder.Services.AddTransient<Views.DashboardPage>();
         builder.Services.AddTransient<Views.SettingsPage>();
         builder.Services.AddTransient<Views.SystemPage>();
         builder.Services.AddTransient<Views.LogPage>();
+        builder.Services.AddTransient<Views.DevicesPage>();
 
         return builder.Build();
     }

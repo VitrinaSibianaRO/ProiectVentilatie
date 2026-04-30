@@ -26,12 +26,18 @@
 #define DEFAULT_HUM_THRESH      60.0f
 #define DEFAULT_INTERVAL_SEC    300       // 5 minute
 #define DEFAULT_OVERRIDE_TIMEOUT_MIN 120  // override expiră după 2 ore
+#define DEFAULT_TEMP_HYST        2.0f    // °C sub prag pentru oprire releu
+#define DEFAULT_HUM_HYST         5.0f    // % sub prag pentru oprire releu
 
 // ============================================================
 //  LIMITE HARD
 // ============================================================
 #define MIN_INTERVAL_SEC        10
 #define MAX_INTERVAL_SEC        3600
+#define MIN_TEMP_HYST            0.0f
+#define MAX_TEMP_HYST           10.0f
+#define MIN_HUM_HYST             0.0f
+#define MAX_HUM_HYST            20.0f
 #define DHT_MIN_READ_MS         2100      // cooldown minim DHT22
 #define WDT_TIMEOUT_SEC         60
 

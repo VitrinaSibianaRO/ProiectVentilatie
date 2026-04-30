@@ -50,36 +50,68 @@ public class MiniFanView : SKCanvasView
         var info = e.Info;
         canvas.Clear();
 
-        float cx = info.Width / 2f;
-        float cy = info.Height / 2f;
-        float radius = Math.Min(cx, cy) * 0.88f;
+        float width = info.Width;
+        float height = info.Height;
 
-        SKColor accent = IsOn ? SKColor.Parse("#00e6ff") : new SKColor(80, 100, 120);
+        // Match React SVG viewport (36x36)
+        float scaleX = width / 36f;
+        float scaleY = height / 36f;
+        canvas.Scale(scaleX, scaleY);
 
-        // Outer ring
-        using (var ringPaint = new SKPaint { Style = SKPaintStyle.Stroke, Color = accent.WithAlpha(80), StrokeWidth = 2, IsAntialias = true })
-            canvas.DrawCircle(cx, cy, radius, ringPaint);
+        float cx = 18f;
+        float cy = 18f;
 
-        // Blades
+        SKColor cyan = SKColor.Parse("#00e6ff");
+
+        // 1. Outer ring (circle cx="18" cy="18" r="15")
+        using (var ringPaint = new SKPaint 
+        { 
+            Style = SKPaintStyle.Stroke, 
+            Color = cyan.WithAlpha((byte)(IsOn ? 102 : 30)), // 0.4 : 0.12
+            StrokeWidth = 1, 
+            IsAntialias = true 
+        })
+        {
+            using var ringFill = new SKPaint
+            {
+                Style = SKPaintStyle.Fill,
+                Color = SKColor.Parse("#00b4ff").WithAlpha(18), // rgba(0,180,255,0.07)
+                IsAntialias = true
+            };
+            canvas.DrawCircle(cx, cy, 15, ringFill);
+            canvas.DrawCircle(cx, cy, 15, ringPaint);
+        }
+
+        // 2. Blades (rotated 5 times)
         canvas.Save();
         canvas.RotateDegrees(_rotation, cx, cy);
 
-        using var bladePaint = new SKPaint { Style = SKPaintStyle.Fill, IsAntialias = true, Color = accent };
+        using var bladePaint = new SKPaint 
+        { 
+            Style = SKPaintStyle.Fill, 
+            IsAntialias = true, 
+            Color = cyan.WithAlpha((byte)(IsOn ? 204 : 64)) // 0.8 : 0.25
+        };
 
         for (int i = 0; i < 5; i++)
         {
             canvas.Save();
             canvas.RotateDegrees(i * 72f, cx, cy);
-            var bladeRect = new SKRect(cx - radius * 0.18f, cy - radius * 0.88f, cx + radius * 0.18f, cy - radius * 0.12f);
-            canvas.DrawOval(bladeRect, bladePaint);
+            // ellipse cx="18" cy="9" rx="4" ry="8"
+            canvas.DrawOval(18, 9, 4, 8, bladePaint);
             canvas.Restore();
         }
         canvas.Restore();
 
-        // Hub
-        using var hubFill = new SKPaint { Style = SKPaintStyle.Fill, Color = accent, IsAntialias = true };
-        canvas.DrawCircle(cx, cy, radius * 0.22f, hubFill);
-        using var hubRing = new SKPaint { Style = SKPaintStyle.Stroke, Color = new SKColor(0, 8, 20), StrokeWidth = 2, IsAntialias = true };
-        canvas.DrawCircle(cx, cy, radius * 0.22f, hubRing);
+        // 3. Hub (circle cx="18" cy="18" r="5")
+        using (var hubFill = new SKPaint 
+        { 
+            Style = SKPaintStyle.Fill, 
+            Color = (IsOn ? SKColor.Parse("#00d4ee") : SKColor.Parse("#1a4060")).WithAlpha((byte)(IsOn ? 230 : 153)), 
+            IsAntialias = true 
+        })
+        {
+            canvas.DrawCircle(cx, cy, 5, hubFill);
+        }
     }
 }

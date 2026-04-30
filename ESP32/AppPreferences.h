@@ -15,6 +15,8 @@ class AppPreferences {
 public:
     float   tempThresh;
     float   humThresh;
+    float   tempHyst;
+    float   humHyst;
     int     intervalSec;
     bool    overrideLeft;
     bool    overrideRight;
@@ -30,6 +32,8 @@ public:
     void load() {
         tempThresh          = _prefs.getFloat("tempThresh",   DEFAULT_TEMP_THRESH);
         humThresh           = _prefs.getFloat("humThresh",    DEFAULT_HUM_THRESH);
+        tempHyst            = _prefs.getFloat("tempHyst",     DEFAULT_TEMP_HYST);
+        humHyst             = _prefs.getFloat("humHyst",      DEFAULT_HUM_HYST);
         intervalSec         = _prefs.getInt  ("intervalSec",  DEFAULT_INTERVAL_SEC);
         overrideLeft        = _prefs.getBool ("ovrLeft",      false);
         overrideRight       = _prefs.getBool ("ovrRight",     false);
@@ -47,6 +51,16 @@ public:
     void saveHumThresh(float v) {
         humThresh = v;
         _prefs.putFloat("humThresh", v);
+    }
+
+    void saveTempHyst(float v) {
+        tempHyst = constrain(v, MIN_TEMP_HYST, MAX_TEMP_HYST);
+        _prefs.putFloat("tempHyst", tempHyst);
+    }
+
+    void saveHumHyst(float v) {
+        humHyst = constrain(v, MIN_HUM_HYST, MAX_HUM_HYST);
+        _prefs.putFloat("humHyst", humHyst);
     }
 
     void saveIntervalSec(int v) {
@@ -99,6 +113,8 @@ public:
         _prefs.clear();
         tempThresh         = DEFAULT_TEMP_THRESH;
         humThresh          = DEFAULT_HUM_THRESH;
+        tempHyst           = DEFAULT_TEMP_HYST;
+        humHyst            = DEFAULT_HUM_HYST;
         intervalSec        = DEFAULT_INTERVAL_SEC;
         overrideLeft       = false;
         overrideRight      = false;
@@ -108,6 +124,8 @@ public:
         // Re-salvăm explicit ca NVS să fie consistent
         _prefs.putFloat("tempThresh",  tempThresh);
         _prefs.putFloat("humThresh",   humThresh);
+        _prefs.putFloat("tempHyst",    tempHyst);
+        _prefs.putFloat("humHyst",     humHyst);
         _prefs.putInt  ("intervalSec", intervalSec);
         _prefs.putBool ("ovrLeft",     false);
         _prefs.putBool ("ovrRight",    false);

@@ -176,6 +176,8 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
         _mqttPending.threshT  = doc["threshT"]  | 0.0f;
         _mqttPending.threshH  = doc["threshH"]  | 0.0f;
         _mqttPending.interval = doc["interval"] | 0;
+        _mqttPending.hystT    = doc["hystT"]    | -1.0f;
+        _mqttPending.hystH    = doc["hystH"]    | -1.0f;
     }
     else if (strcmp(cmd, "reset") == 0) {
         _mqttPending.resetDefaults = true;
@@ -296,7 +298,7 @@ void MqttBridge::publishStateIfNeeded(const VentilationZone& l, const Ventilatio
 void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZone& r) {
     if (!_prefs) return;
 
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<640> doc;
 
     JsonObject left = doc["left"].to<JsonObject>();
     left["temp"]     = l.getTemp();
@@ -317,6 +319,8 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     cfg["threshH"]    = _prefs->humThresh;
     cfg["interval"]   = _prefs->intervalSec;
     cfg["ovrTimeout"] = _prefs->overrideTimeoutMin;
+    cfg["hystT"]      = _prefs->tempHyst;
+    cfg["hystH"]      = _prefs->humHyst;
 
     // Lock object: {owner:"blynk"|"mqtt", ageMs:N} sau null
     if (_lockOwner != LOCK_NONE) {
@@ -331,7 +335,7 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     doc["uptimeSec"] = (uint32_t)(millis() / 1000);
     doc["heap"]      = (uint32_t)ESP.getFreeHeap();
 
-    char buf[600];
+    char buf[700];
     size_t n = serializeJson(doc, buf, sizeof(buf));
     if (n == 0 || n >= sizeof(buf)) {
         Serial.println("[MQTT] State serialize error.");

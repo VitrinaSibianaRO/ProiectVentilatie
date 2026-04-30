@@ -1,220 +1,229 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
              xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
              x:Class="ProiectVentilatie.Mobile.Views.DashboardPage"
-             x:DataType="vm:DashboardViewModel"
-             Title="Dashboard">
+             x:DataType="vm:DashboardViewModel">
 
-    <ScrollView>
-        <VerticalStackLayout Spacing="0">
+    <ContentPage.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+    </ContentPage.Resources>
 
-            <!-- ═══ VITRINA HERO ═══ -->
-            <Grid HeightRequest="190" BackgroundColor="#000d1f">
+    <Grid RowDefinitions="*" BackgroundColor="{StaticResource BackgroundColor}">
+        <!-- Scanline Effect (Full Page) -->
+        <controls:ScanLineView InputTransparent="True" ZIndex="100" />
 
-                <!-- HexGrid background layer -->
-                <controls:HexGridView />
+        <ScrollView Padding="0,0,0,90">
+            <VerticalStackLayout Spacing="0">
 
-                <!-- ScanLine CRT effect -->
-                <controls:ScanLineView />
+                <!-- HERO SECTION — VitrinaHero animated showcase -->
+                <controls:VitrinaHeroView
+                    HeightRequest="214"
+                    LeftTemp="{Binding LeftTemp}"
+                    LeftHum="{Binding LeftHum}"
+                    LeftRelay="{Binding LeftRelay}"
+                    LeftOverride="{Binding LeftOverride}"
+                    RightTemp="{Binding RightTemp}"
+                    RightHum="{Binding RightHum}"
+                    RightRelay="{Binding RightRelay}"
+                    RightOverride="{Binding RightOverride}"
+                    FwBuild="{Binding FwBuild}"
+                    UptimeSec="{Binding UptimeSec}"
+                    HeapBytes="{Binding HeapBytes}"
+                    IsOnline="{Binding IsOnline}" />
 
-                <!-- Top-right: Refresh button -->
-                <Button Text="↻" Grid.Row="0"
-                        HorizontalOptions="End" VerticalOptions="Start"
-                        Margin="0,10,15,0"
-                        WidthRequest="40" HeightRequest="40"
-                        CornerRadius="20" FontSize="18"
-                        Command="{Binding RefreshCommand}" />
-
-                <!-- Bottom content overlay -->
-                <VerticalStackLayout VerticalOptions="End" Padding="20,0,20,15" Spacing="4">
-                    <Label Text="MAIN VENTILATION SYSTEM"
-                           FontFamily="RajdhaniBold" FontSize="13"
-                           TextColor="{StaticResource SecondaryTextColor}" />
-                    <HorizontalStackLayout Spacing="12">
-                        <controls:PulseBadgeView BadgeColor="{Binding OnlineBadgeColor}"
-                                                  WidthRequest="12" HeightRequest="12"
-                                                  VerticalOptions="Center" />
-                        <Label Text="{Binding OnlineText}"
-                               FontFamily="RajdhaniBold" FontSize="20"
-                               TextColor="{Binding OnlineBadgeColor}" />
-                    </HorizontalStackLayout>
-                    <HorizontalStackLayout Spacing="20">
-                        <Label Text="{Binding UptimeText, StringFormat='UP {0}'}"
-                               FontFamily="ShareTechMono" FontSize="11"
-                               TextColor="{StaticResource SecondaryTextColor}" />
-                        <Label Text="{Binding LastUpdateText}"
-                               FontFamily="ShareTechMono" FontSize="11"
-                               TextColor="{StaticResource SecondaryTextColor}" />
-                    </HorizontalStackLayout>
-                </VerticalStackLayout>
-            </Grid>
-
-            <VerticalStackLayout Padding="15" Spacing="14">
-
-                <!-- ═══ LOCK BANNER ═══ -->
-                <Border Stroke="#ffaa00" StrokeThickness="1"
-                        Padding="12,10" BackgroundColor="#1a1200"
-                        IsVisible="{Binding LockBannerVisible}">
-                    <Border.StrokeShape>
-                        <RoundRectangle CornerRadius="8" />
-                    </Border.StrokeShape>
-                    <HorizontalStackLayout Spacing="10" HorizontalOptions="Center">
-                        <Label Text="🔒" FontSize="16" VerticalOptions="Center" />
+                <!-- LOCK BANNER -->
+                <Border IsVisible="{Binding LockBannerVisible}"
+                        Margin="14,8,14,0"
+                        Padding="12,8"
+                        BackgroundColor="#1Fff7a45"
+                        Stroke="#55ff7a45"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 10">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="⚠" TextColor="{StaticResource PrimaryOrange}" FontSize="14" VerticalOptions="Center" />
                         <Label Text="{Binding LockBannerText}"
-                               FontFamily="RajdhaniBold" FontSize="13"
-                               TextColor="#ffaa00" VerticalOptions="Center" />
+                               TextColor="{StaticResource PrimaryOrange}"
+                               FontSize="13" VerticalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
                     </HorizontalStackLayout>
                 </Border>
 
-                <!-- ═══ ZONE CARDS ═══ -->
-                <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                <!-- SYSTEM STATUS CARD -->
+                <Border Style="{StaticResource IndustrialCard}" Margin="14,10,14,0">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="SYSTEM STATUS" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <HorizontalStackLayout Spacing="8">
+                                <controls:PulseBadgeView IsOnline="{Binding IsOnline}"
+                                                          HeightRequest="10" WidthRequest="10"
+                                                          VerticalOptions="Center" />
+                                <Label Text="{Binding OnlineText}"
+                                       TextColor="{Binding IsOnline, Converter={StaticResource BoolToColorConverter}}"
+                                       FontSize="15" FontAttributes="Bold" CharacterSpacing="1.5"
+                                       Style="{StaticResource LabelRajdhani}" />
+                            </HorizontalStackLayout>
+                            <Label Text="{Binding LastUpdateText}"
+                                   FontSize="10" Opacity="0.45"
+                                   Style="{StaticResource LabelShareTech}" />
+                        </VerticalStackLayout>
 
-                    <!-- ── ZONA STÂNGA ── -->
-                    <Border Grid.Column="0"
-                            Stroke="{StaticResource PrimaryColor}" StrokeThickness="0.8"
-                            BackgroundColor="#060f1e" Padding="12">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="16" />
-                        </Border.StrokeShape>
-                        <VerticalStackLayout Spacing="14">
+                        <VerticalStackLayout Grid.Column="1" HorizontalOptions="End" Spacing="4">
+                            <Label Text="UPTIME" FontSize="9" CharacterSpacing="1.5" Opacity="0.4"
+                                   HorizontalOptions="End" Style="{StaticResource LabelRajdhani}" />
+                            <Label Text="{Binding UptimeText}"
+                                   FontSize="14" FontAttributes="Bold" HorizontalOptions="End"
+                                   Style="{StaticResource LabelShareTech}" />
+                            <Button Text="↻ REFRESH"
+                                    Style="{StaticResource CyberButton}"
+                                    HeightRequest="30" Padding="10,0" FontSize="11"
+                                    Command="{Binding RefreshCommand}" />
+                        </VerticalStackLayout>
+                    </Grid>
+                </Border>
 
-                            <!-- Card header -->
-                            <VerticalStackLayout Spacing="1" HorizontalOptions="Center">
-                                <Label Text="ZONA STÂNGA"
-                                       FontFamily="RajdhaniBold" FontSize="12"
-                                       TextColor="{StaticResource PrimaryColor}"
-                                       HorizontalOptions="Center" />
-                                <BoxView HeightRequest="1" Color="{StaticResource PrimaryColor}" Opacity="0.3" />
-                            </VerticalStackLayout>
+                <!-- ZONE CARDS -->
+                <Grid ColumnDefinitions="*,*" Margin="14,10,14,0" ColumnSpacing="10">
 
-                            <!-- Temperature -->
-                            <Grid ColumnDefinitions="Auto, *" ColumnSpacing="10">
-                                <controls:ThermometerView Temperature="{Binding LeftTemp}"
-                                                           WidthRequest="28" HeightRequest="110" />
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="0">
-                                    <Label Text="{Binding LeftTemp, StringFormat='{0:F1}'}"
-                                           FontFamily="ShareTechMono" FontSize="30"
-                                           TextColor="White" />
-                                    <Label Text="°CELSIUS"
-                                           FontFamily="Rajdhani" FontSize="10"
-                                           TextColor="{StaticResource SecondaryTextColor}" />
+                    <!-- LEFT ZONE -->
+                    <Border Grid.Column="0" Style="{StaticResource IndustrialCard}" Padding="12,12">
+                        <VerticalStackLayout Spacing="10">
+                            <!-- Zone header -->
+                            <HorizontalStackLayout Spacing="6">
+                                <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource PrimaryCyan}" CornerRadius="2" />
+                                <Label Text="ZONA STÂNGA" FontSize="12" FontAttributes="Bold"
+                                       CharacterSpacing="0.5" Style="{StaticResource LabelRajdhani}" />
+                            </HorizontalStackLayout>
+
+                            <!-- Temperature row -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <controls:ThermometerView Grid.Column="0"
+                                    Temperature="{Binding LeftTemp}"
+                                    WidthRequest="20" HeightRequest="56" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="TEMP" FontSize="8" Opacity="0.4"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="{Binding LeftTemp, StringFormat='{0:0.0}°C'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryOrange}"
+                                           Style="{StaticResource LabelShareTech}" />
                                 </VerticalStackLayout>
                             </Grid>
 
-                            <!-- Humidity -->
-                            <Grid ColumnDefinitions="Auto, *" ColumnSpacing="10">
-                                <controls:DropletView Humidity="{Binding LeftHum}"
-                                                       WidthRequest="28" HeightRequest="42" />
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                    <Label Text="{Binding LeftHum, StringFormat='{0:F0}%'}"
-                                           FontFamily="ShareTechMono" FontSize="22"
-                                           TextColor="{StaticResource PrimaryColor}" />
-                                    <Label Text="UMIDITATE"
-                                           FontFamily="Rajdhani" FontSize="10"
-                                           TextColor="{StaticResource SecondaryTextColor}" />
+                            <!-- Humidity row -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <controls:DropletView Grid.Column="0"
+                                    Humidity="{Binding LeftHum}"
+                                    WidthRequest="22" HeightRequest="30" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="HUM" FontSize="8" Opacity="0.4"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="{Binding LeftHum, StringFormat='{0:0.0}%'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           Style="{StaticResource LabelShareTech}" />
                                 </VerticalStackLayout>
                             </Grid>
 
-                            <BoxView HeightRequest="1" Color="{StaticResource PrimaryColor}" Opacity="0.15" />
-
-                            <!-- Fan + Status -->
-                            <Grid ColumnDefinitions="Auto, *" ColumnSpacing="10">
-                                <controls:MiniFanView IsOn="{Binding LeftRelayActive}"
-                                                       WidthRequest="44" HeightRequest="44" />
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="1">
+                            <!-- Fan + relay row -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <controls:MiniFanView Grid.Column="0"
+                                    IsOn="{Binding LeftRelayActive}"
+                                    WidthRequest="32" HeightRequest="32" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="VENTILATOR" FontSize="8" Opacity="0.4"
+                                           Style="{StaticResource LabelRajdhani}" />
                                     <Label Text="{Binding RelayLeftText}"
-                                           FontFamily="RajdhaniBold" FontSize="15"
-                                           TextColor="{StaticResource SecondaryColor}" />
-                                    <Label Text="{Binding OverrideLeftText}"
-                                           FontFamily="Rajdhani" FontSize="10"
-                                           TextColor="{StaticResource SecondaryTextColor}" />
+                                           FontSize="13" FontAttributes="Bold"
+                                           TextColor="{Binding LeftRelay, Converter={StaticResource BoolToColorConverter}}"
+                                           Style="{StaticResource LabelRajdhani}" />
                                 </VerticalStackLayout>
                             </Grid>
 
                             <!-- Override button -->
-                            <Button Text="OVERRIDE"
-                                    Command="{Binding ToggleLeftCommand}"
+                            <Button Text="{Binding OverrideLeftText}"
+                                    Style="{StaticResource CyberButtonOrange}"
+                                    HeightRequest="32" FontSize="11"
                                     IsEnabled="{Binding IsControlEnabled}"
-                                    FontSize="12" HeightRequest="36" CornerRadius="8" />
+                                    Command="{Binding ToggleLeftCommand}" />
                         </VerticalStackLayout>
                     </Border>
 
-                    <!-- ── ZONA DREAPTA ── -->
-                    <Border Grid.Column="1"
-                            Stroke="{StaticResource SecondaryColor}" StrokeThickness="0.8"
-                            BackgroundColor="#060f1e" Padding="12">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="16" />
-                        </Border.StrokeShape>
-                        <VerticalStackLayout Spacing="14">
+                    <!-- RIGHT ZONE -->
+                    <Border Grid.Column="1" Style="{StaticResource IndustrialCard}" Padding="12,12">
+                        <VerticalStackLayout Spacing="10">
+                            <!-- Zone header -->
+                            <HorizontalStackLayout Spacing="6">
+                                <BoxView WidthRequest="3" HeightRequest="14" Color="{StaticResource PrimaryGreen}" CornerRadius="2" />
+                                <Label Text="ZONA DREAPTA" FontSize="12" FontAttributes="Bold"
+                                       CharacterSpacing="0.5" Style="{StaticResource LabelRajdhani}" />
+                            </HorizontalStackLayout>
 
-                            <!-- Card header -->
-                            <VerticalStackLayout Spacing="1" HorizontalOptions="Center">
-                                <Label Text="ZONA DREAPTA"
-                                       FontFamily="RajdhaniBold" FontSize="12"
-                                       TextColor="{StaticResource SecondaryColor}"
-                                       HorizontalOptions="Center" />
-                                <BoxView HeightRequest="1" Color="{StaticResource SecondaryColor}" Opacity="0.3" />
-                            </VerticalStackLayout>
-
-                            <!-- Temperature -->
-                            <Grid ColumnDefinitions="Auto, *" ColumnSpacing="10">
-                                <controls:ThermometerView Temperature="{Binding RightTemp}"
-                                                           WidthRequest="28" HeightRequest="110" />
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="0">
-                                    <Label Text="{Binding RightTemp, StringFormat='{0:F1}'}"
-                                           FontFamily="ShareTechMono" FontSize="30"
-                                           TextColor="White" />
-                                    <Label Text="°CELSIUS"
-                                           FontFamily="Rajdhani" FontSize="10"
-                                           TextColor="{StaticResource SecondaryTextColor}" />
+                            <!-- Temperature row -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <controls:ThermometerView Grid.Column="0"
+                                    Temperature="{Binding RightTemp}"
+                                    WidthRequest="20" HeightRequest="56" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="TEMP" FontSize="8" Opacity="0.4"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="{Binding RightTemp, StringFormat='{0:0.0}°C'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryOrange}"
+                                           Style="{StaticResource LabelShareTech}" />
                                 </VerticalStackLayout>
                             </Grid>
 
-                            <!-- Humidity -->
-                            <Grid ColumnDefinitions="Auto, *" ColumnSpacing="10">
-                                <controls:DropletView Humidity="{Binding RightHum}"
-                                                       WidthRequest="28" HeightRequest="42" />
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center">
-                                    <Label Text="{Binding RightHum, StringFormat='{0:F0}%'}"
-                                           FontFamily="ShareTechMono" FontSize="22"
-                                           TextColor="{StaticResource SecondaryColor}" />
-                                    <Label Text="UMIDITATE"
-                                           FontFamily="Rajdhani" FontSize="10"
-                                           TextColor="{StaticResource SecondaryTextColor}" />
+                            <!-- Humidity row -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <controls:DropletView Grid.Column="0"
+                                    Humidity="{Binding RightHum}"
+                                    WidthRequest="22" HeightRequest="30" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="HUM" FontSize="8" Opacity="0.4"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="{Binding RightHum, StringFormat='{0:0.0}%'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           Style="{StaticResource LabelShareTech}" />
                                 </VerticalStackLayout>
                             </Grid>
 
-                            <BoxView HeightRequest="1" Color="{StaticResource SecondaryColor}" Opacity="0.15" />
-
-                            <!-- Fan + Status -->
-                            <Grid ColumnDefinitions="Auto, *" ColumnSpacing="10">
-                                <controls:MiniFanView IsOn="{Binding RightRelayActive}"
-                                                       WidthRequest="44" HeightRequest="44" />
-                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="1">
+                            <!-- Fan + relay row -->
+                            <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                <controls:MiniFanView Grid.Column="0"
+                                    IsOn="{Binding RightRelayActive}"
+                                    WidthRequest="32" HeightRequest="32" />
+                                <VerticalStackLayout Grid.Column="1" VerticalOptions="Center" Spacing="2">
+                                    <Label Text="VENTILATOR" FontSize="8" Opacity="0.4"
+                                           Style="{StaticResource LabelRajdhani}" />
                                     <Label Text="{Binding RelayRightText}"
-                                           FontFamily="RajdhaniBold" FontSize="15"
-                                           TextColor="{StaticResource SecondaryColor}" />
-                                    <Label Text="{Binding OverrideRightText}"
-                                           FontFamily="Rajdhani" FontSize="10"
-                                           TextColor="{StaticResource SecondaryTextColor}" />
+                                           FontSize="13" FontAttributes="Bold"
+                                           TextColor="{Binding RightRelay, Converter={StaticResource BoolToColorConverter}}"
+                                           Style="{StaticResource LabelRajdhani}" />
                                 </VerticalStackLayout>
                             </Grid>
 
                             <!-- Override button -->
-                            <Button Text="OVERRIDE"
-                                    Command="{Binding ToggleRightCommand}"
+                            <Button Text="{Binding OverrideRightText}"
+                                    Style="{StaticResource CyberButtonOrange}"
+                                    HeightRequest="32" FontSize="11"
                                     IsEnabled="{Binding IsControlEnabled}"
-                                    BorderColor="{StaticResource SecondaryColor}"
-                                    TextColor="{StaticResource SecondaryColor}"
-                                    FontSize="12" HeightRequest="36" CornerRadius="8" />
+                                    Command="{Binding ToggleRightCommand}" />
                         </VerticalStackLayout>
                     </Border>
                 </Grid>
 
+                <!-- Spacer -->
+                <BoxView HeightRequest="8" />
+
             </VerticalStackLayout>
-        </VerticalStackLayout>
-    </ScrollView>
+        </ScrollView>
+
+        <!-- FLOATING NAV BAR -->
+        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Dashboard" />
+    </Grid>
 </ContentPage>

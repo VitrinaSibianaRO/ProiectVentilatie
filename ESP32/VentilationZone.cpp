@@ -63,12 +63,20 @@ void VentilationZone::readSensor() {
     }
 }
 
-void VentilationZone::updateLogic(float threshTemp, float threshHum) {
-    // Logica autonomă locală — singura sursă de adevăr pentru starea releului.
-    // Nu știe nimic de Blynk sau WiFi.
-    bool autoOn = _firstReadDone &&
-                  (_currentTemp >= threshTemp || _currentHum >= threshHum);
-
+void VentilationZone::updateLogic(float threshTemp, float threshHum,
+                                   float hystTemp,  float hystHum) {
+    bool autoOn;
+    if (!_firstReadDone) {
+        autoOn = false;
+    } else if (_relayState) {
+        // Releu ON: rămâne ON cât timp cel puțin o valoare e deasupra (prag − hyst).
+        // Se oprește doar când AMBELE coboară sub banda de histerezis.
+        autoOn = (_currentTemp >= (threshTemp - hystTemp))
+              || (_currentHum  >= (threshHum  - hystHum));
+    } else {
+        // Releu OFF: pornește dacă ORICARE depășește pragul.
+        autoOn = (_currentTemp >= threshTemp) || (_currentHum >= threshHum);
+    }
     _relayState = autoOn || _manualOverride;
     digitalWrite(_relayPin, _relayState ? LOW : HIGH);  // Active-LOW
 }

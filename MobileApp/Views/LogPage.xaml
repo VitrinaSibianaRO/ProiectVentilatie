@@ -1,92 +1,136 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
              xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
              xmlns:models="clr-namespace:ProiectVentilatie.Mobile.Models"
+             xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
              x:Class="ProiectVentilatie.Mobile.Views.LogPage"
-             x:DataType="vm:LogViewModel"
-             Title="Log">
+             x:DataType="vm:LogViewModel">
 
-    <Grid RowDefinitions="Auto,Auto,*" Padding="0">
-        
-        <!-- Toolbar Area -->
-        <Grid ColumnDefinitions="*, Auto" Padding="20,15" BackgroundColor="#001028">
-            <VerticalStackLayout Spacing="2">
-                <Label Text="SYSTEM LOGS // EVENTS" 
-                       FontFamily="RajdhaniBold" FontSize="18" 
-                       TextColor="{StaticResource PrimaryColor}" />
-                <Label Text="{Binding Entries.Count, StringFormat='{0} INTRĂRI ÎN MEMORIE'}" 
-                       FontFamily="Rajdhani" FontSize="11" 
-                       TextColor="{StaticResource SecondaryTextColor}" />
-            </VerticalStackLayout>
-            
-            <Button Grid.Column="1" Text="↓ FETCH" 
-                    Command="{Binding ReloadCommand}" 
-                    FontFamily="RajdhaniBold" FontSize="13" 
-                    HeightRequest="35" Padding="15,0" />
-        </Grid>
+    <ContentPage.Resources>
+        <converters:StringNotNullConverter x:Key="StringNotNullConverter" />
+        <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+    </ContentPage.Resources>
 
-        <!-- Filter Tabs -->
-        <HorizontalStackLayout Grid.Row="1" Spacing="8" Padding="20,10" BackgroundColor="#050a14">
-            <Button Text="TOATE" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" />
-            <Button Text="RELEU" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" BorderColor="{StaticResource PrimaryColor}" />
-            <Button Text="SENZOR" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" BorderColor="{StaticResource ErrorColor}" TextColor="{StaticResource ErrorColor}" />
-            <Button Text="OVERRIDE" FontFamily="RajdhaniBold" FontSize="10" HeightRequest="30" Padding="10,0" BorderColor="{StaticResource AccentColor}" TextColor="{StaticResource AccentColor}" />
-        </HorizontalStackLayout>
+    <Grid RowDefinitions="*" BackgroundColor="{StaticResource BackgroundColor}">
+        <controls:ScanLineView InputTransparent="True" ZIndex="100" />
 
-        <!-- Log List -->
-        <CollectionView Grid.Row="2" ItemsSource="{Binding Entries}" Margin="15,10">
-            <CollectionView.ItemTemplate>
-                <DataTemplate x:DataType="models:LogEntry">
-                    <Border Stroke="{StaticResource PrimaryColor}" StrokeThickness="0.3" 
-                            Margin="0,0,0,10" Padding="12" BackgroundColor="#0a1a2f">
-                        <Border.StrokeShape>
-                            <RoundRectangle CornerRadius="10" />
-                        </Border.StrokeShape>
-                        <Grid ColumnDefinitions="Auto, *">
-                            <!-- Icon Badge -->
-                            <Border WidthRequest="32" HeightRequest="32" VerticalOptions="Center" 
-                                    BackgroundColor="#1a2a3f" StrokeThickness="0">
-                                <Border.StrokeShape>
-                                    <RoundRectangle CornerRadius="8" />
-                                </Border.StrokeShape>
-                                <Label Text="⚡" HorizontalOptions="Center" VerticalOptions="Center" FontSize="16" />
-                            </Border>
+        <VerticalStackLayout Padding="14,20,14,90">
 
-                            <VerticalStackLayout Grid.Column="1" Margin="12,0,0,0" Spacing="2">
-                                <Grid ColumnDefinitions="*, Auto">
-                                    <Label Text="{Binding Type}" FontFamily="RajdhaniBold" FontSize="11" TextColor="{StaticResource PrimaryColor}" />
-                                    <Label Grid.Column="1" Text="{Binding Timestamp, StringFormat='{0:HH:mm:ss}'}" 
-                                           FontFamily="ShareTechMono" FontSize="10" TextColor="{StaticResource SecondaryTextColor}" />
-                                </Grid>
-                                <HorizontalStackLayout Spacing="6">
-                                    <Border BackgroundColor="#1a3a4f" Padding="5,1" StrokeThickness="0">
-                                        <Border.StrokeShape>
-                                            <RoundRectangle CornerRadius="4" />
-                                        </Border.StrokeShape>
-                                        <Label Text="{Binding Zone}" FontFamily="RajdhaniBold" FontSize="9" TextColor="{StaticResource PrimaryColor}" />
-                                    </Border>
-                                    <Label Text="{Binding Message}" FontFamily="Rajdhani" FontSize="13" TextColor="White" LineBreakMode="TailTruncation" />
-                                </HorizontalStackLayout>
-                            </VerticalStackLayout>
-                        </Grid>
-                    </Border>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-            
-            <CollectionView.EmptyView>
-                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10" Padding="40">
-                    <Label Text="📋" FontSize="40" HorizontalOptions="Center" Opacity="0.3" />
-                    <Label Text="NICIUN EVENIMENT DETECTAT" 
-                           FontFamily="RajdhaniBold" FontSize="14" 
-                           TextColor="{StaticResource SecondaryTextColor}" 
-                           HorizontalOptions="Center" />
-                    <Label Text="APASĂ FETCH PENTRU A CITI DIN DISPOZITIV" 
-                           FontFamily="Rajdhani" FontSize="11" 
-                           TextColor="{StaticResource SecondaryTextColor}" Opacity="0.6"
-                           HorizontalOptions="Center" />
+            <!-- HEADER -->
+            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="EVENT ARCHIVE" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+                           Style="{StaticResource LabelRajdhani}" />
+                    <HorizontalStackLayout Spacing="10">
+                        <Label Text="SYSTEM REPORTS" FontSize="22" FontAttributes="Bold"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <Border Padding="8,2" BackgroundColor="#1A00e6ff"
+                                Stroke="#3300e6ff" StrokeShape="RoundRectangle 10"
+                                VerticalOptions="Center">
+                            <Label Text="{Binding EntriesCount}"
+                                   FontSize="12" TextColor="{StaticResource PrimaryCyan}"
+                                   Style="{StaticResource LabelShareTech}" />
+                        </Border>
+                    </HorizontalStackLayout>
                 </VerticalStackLayout>
-            </CollectionView.EmptyView>
-        </CollectionView>
+                <Button Grid.Column="1" Text="↓ FETCH LOG"
+                        Style="{StaticResource CyberButton}"
+                        HeightRequest="36" Padding="12,0" FontSize="12"
+                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                        Command="{Binding ReloadCommand}" />
+            </Grid>
+
+            <!-- FILTER PICKER -->
+            <Border Margin="0,0,0,12" Padding="4,2"
+                    BackgroundColor="#0A00e6ff"
+                    Stroke="#2200e6ff"
+                    StrokeShape="RoundRectangle 10">
+                <Picker SelectedItem="{Binding SelectedFilter}"
+                        ItemsSource="{Binding AvailableFilters}"
+                        TextColor="{StaticResource PrimaryCyan}"
+                        FontFamily="Rajdhani"
+                        FontSize="14"
+                        BackgroundColor="Transparent"
+                        HorizontalOptions="FillAndExpand" />
+            </Border>
+
+            <!-- LOADING INDICATOR -->
+            <ActivityIndicator IsVisible="{Binding IsLoading}"
+                               IsRunning="{Binding IsLoading}"
+                               Color="{StaticResource PrimaryCyan}"
+                               HeightRequest="40" />
+
+            <!-- STATUS MESSAGE -->
+            <Border IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotNullConverter}}"
+                    Padding="12,8" Margin="0,0,0,10"
+                    BackgroundColor="#0AFFFFFF"
+                    Stroke="#1AFFFFFF"
+                    StrokeShape="RoundRectangle 8">
+                <Label Text="{Binding StatusMessage}"
+                       FontSize="12" Opacity="0.7"
+                       Style="{StaticResource LabelShareTech}" />
+            </Border>
+
+            <!-- LOG LIST -->
+            <CollectionView ItemsSource="{Binding Entries}" SelectionMode="None">
+                <CollectionView.EmptyView>
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center"
+                                         Spacing="12" Padding="0,40">
+                        <Label Text="📋" FontSize="48" HorizontalOptions="Center" />
+                        <Label Text="Niciun eveniment de afișat"
+                               FontSize="14" Opacity="0.4" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <Label Text="Apasă FETCH LOG pentru a prelua datele de la ESP32"
+                               FontSize="11" Opacity="0.3" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
+                    </VerticalStackLayout>
+                </CollectionView.EmptyView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate x:DataType="models:LogEntry">
+                        <Border Margin="0,0,0,8" Padding="12,10"
+                                BackgroundColor="#0AFFFFFF"
+                                Stroke="#1AFFFFFF"
+                                StrokeShape="RoundRectangle 10">
+                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
+                                <!-- Icon -->
+                                <Label Grid.Column="0" Text="{Binding Icon}"
+                                       FontSize="18" VerticalOptions="Center" />
+
+                                <!-- Type bar -->
+                                <BoxView Grid.Column="1" WidthRequest="3" HeightRequest="36"
+                                         Color="{StaticResource PrimaryCyan}" CornerRadius="2"
+                                         VerticalOptions="Center" />
+
+                                <!-- Details -->
+                                <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
+                                    <HorizontalStackLayout Spacing="8">
+                                        <Label Text="{Binding TypeLabel}"
+                                               FontSize="13" FontAttributes="Bold"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Text="{Binding ZoneLabel}"
+                                               FontSize="11" TextColor="{StaticResource PrimaryCyan}"
+                                               VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                    </HorizontalStackLayout>
+                                    <Label Text="{Binding Msg}"
+                                           FontSize="11" Opacity="0.6"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </VerticalStackLayout>
+
+                                <!-- Timestamp -->
+                                <Label Grid.Column="3" Text="{Binding TsDisplay}"
+                                       FontSize="10" VerticalOptions="Center"
+                                       Opacity="0.4" Style="{StaticResource LabelShareTech}" />
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+
+        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Reports" />
     </Grid>
 </ContentPage>

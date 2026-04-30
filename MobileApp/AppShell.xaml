@@ -3,58 +3,40 @@
     x:Class="ProiectVentilatie.Mobile.AppShell"
     xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:local="clr-namespace:ProiectVentilatie.Mobile.Views"
+    xmlns:views="clr-namespace:ProiectVentilatie.Mobile.Views"
     Shell.FlyoutBehavior="Disabled"
     Title="Ventilatie Smart"
     BackgroundColor="{StaticResource BackgroundColor}"
     ForegroundColor="{StaticResource TextColor}"
     UnselectedColor="{StaticResource SecondaryTextColor}"
     TabBarBackgroundColor="{StaticResource BackgroundColor}"
-    TabBarTitleColor="{StaticResource PrimaryColor}"
+    TabBarTitleColor="{StaticResource PrimaryCyan}"
     TabBarUnselectedColor="{StaticResource SecondaryTextColor}">
 
-    <Shell.TitleView>
-        <Grid ColumnDefinitions="Auto, *, Auto" Padding="10,0">
-            <Label Text="VENTILATIE"
-                   VerticalOptions="Center"
-                   FontFamily="RajdhaniBold"
-                   FontSize="18"
-                   TextColor="{StaticResource PrimaryColor}" />
-            <Label Grid.Column="1"
-                   Text=" SMART"
-                   VerticalOptions="Center"
-                   FontFamily="Rajdhani"
-                   FontSize="18"
-                   TextColor="{StaticResource TextColor}" />
+    <Shell.Resources>
+        <ResourceDictionary>
+            <Style TargetType="TabBar">
+                <Setter Property="Shell.TabBarIsVisible" Value="False" />
+            </Style>
+        </ResourceDictionary>
+    </Shell.Resources>
 
-            <HorizontalStackLayout Grid.Column="2" Spacing="8" VerticalOptions="Center">
-                <!-- Status dot — culoare actualizată în Dashboard via PulseBadgeView -->
-                <BoxView WidthRequest="8" HeightRequest="8"
-                         CornerRadius="4"
-                         Color="{StaticResource PrimaryColor}"
-                         VerticalOptions="Center" />
-                <Label Text="ESP32"
-                       FontFamily="ShareTechMono"
-                       FontSize="12"
-                       VerticalOptions="Center"
-                       TextColor="{StaticResource PrimaryColor}" />
-            </HorizontalStackLayout>
-        </Grid>
-    </Shell.TitleView>
-
-    <TabBar>
-        <Tab Title="Dashboard" Icon="dashboard.png">
-            <ShellContent ContentTemplate="{DataTemplate local:DashboardPage}" />
+    <FlyoutItem Title="Main" FlyoutDisplayOptions="AsMultipleItems">
+        <Tab Title="Dashboard" Route="DashboardPage">
+            <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" />
         </Tab>
-        <Tab Title="Setari" Icon="settings.png">
-            <ShellContent ContentTemplate="{DataTemplate local:SettingsPage}" />
+        <Tab Title="Devices" Route="DevicesPage">
+            <ShellContent ContentTemplate="{DataTemplate views:DevicesPage}" />
         </Tab>
-        <Tab Title="Sistem" Icon="system.png">
-            <ShellContent ContentTemplate="{DataTemplate local:SystemPage}" />
+        <Tab Title="Settings" Route="SettingsPage">
+            <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>
-        <Tab Title="Log" Icon="log.png">
-            <ShellContent ContentTemplate="{DataTemplate local:LogPage}" />
+        <Tab Title="Reports" Route="ReportsPage">
+            <ShellContent ContentTemplate="{DataTemplate views:LogPage}" />
         </Tab>
-    </TabBar>
+        <Tab Title="System" Route="SystemPage">
+            <ShellContent ContentTemplate="{DataTemplate views:SystemPage}" />
+        </Tab>
+    </FlyoutItem>
 
 </Shell>

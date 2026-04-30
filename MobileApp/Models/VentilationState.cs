@@ -61,6 +61,12 @@ public class ConfigState
 
     [JsonPropertyName("ovrTimeout")]
     public int OvrTimeout { get; set; }
+
+    [JsonPropertyName("hystT")]
+    public float HystT { get; set; } = 2.0f;
+
+    [JsonPropertyName("hystH")]
+    public float HystH { get; set; } = 5.0f;
 }
 
 public class LockState

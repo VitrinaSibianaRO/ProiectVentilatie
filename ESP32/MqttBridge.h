@@ -42,6 +42,8 @@ struct MqttPending {
     float threshT       = 0;
     float threshH       = 0;
     int   interval      = 0;
+    float hystT         = -1.0f;   // -1 = absent în comandă (nu actualizăm)
+    float hystH         = -1.0f;
 
     bool  resetDefaults = false;
     bool  reboot        = false;

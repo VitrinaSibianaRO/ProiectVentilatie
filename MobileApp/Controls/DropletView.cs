@@ -20,48 +20,77 @@ public class DropletView : SKCanvasView
 
         float width = info.Width;
         float height = info.Height;
+        
+        // Match React SVG viewport (40x56)
+        float scaleX = width / 40f;
+        float scaleY = height / 56f;
+        canvas.Scale(scaleX, scaleY);
+
         float pct = (float)Math.Clamp(Humidity / 100.0, 0, 1);
         SKColor color = GetHumidityColor(Humidity);
+        string glow = GetGlowColor(Humidity);
 
-        using var path = new SKPath();
-        path.MoveTo(width / 2, 5);
-        path.QuadTo(width * 0.9f, height * 0.5f, width * 0.9f, height * 0.75f);
-        path.ArcTo(new SKRect(width * 0.1f, height * 0.5f, width * 0.9f, height * 0.95f), 0, 180, false);
-        path.QuadTo(width * 0.1f, height * 0.5f, width / 2, 5);
-        path.Close();
+        // Path from SVG: M20 2C20 2 4 22 4 36C4 46.5 11.2 54 20 54C28.8 54 36 46.5 36 36C36 22 20 2 20 2Z
+        using var path = SKPath.ParseSvgPathData("M20 2C20 2 4 22 4 36C4 46.5 11.2 54 20 54C28.8 54 36 46.5 36 36C36 22 20 2 20 2Z");
 
-        // Background
-        using var bgPaint = new SKPaint
+        // 1. Background (fill="rgba(255,255,255,0.06)" stroke="rgba(255,255,255,0.18)")
+        using var bgFillPaint = new SKPaint
         {
-            Color = new SKColor(255, 255, 255, 15),
+            Color = new SKColor(255, 255, 255, 15), // 0.06
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawPath(path, bgPaint);
+        using var bgStrokePaint = new SKPaint
+        {
+            Color = new SKColor(255, 255, 255, 46), // 0.18
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1.2f,
+            IsAntialias = true
+        };
+        canvas.DrawPath(path, bgFillPaint);
+        canvas.DrawPath(path, bgStrokePaint);
 
-        // Clip and Fill
+        // 2. Fill with Gradient (dg + uid)
         canvas.Save();
         canvas.ClipPath(path);
-        
-        var fillRect = new SKRect(0, height * (1 - pct), width, height);
+
+        float fillY = 56 * (1 - pct);
         using var fillPaint = new SKPaint
         {
-            Color = color,
+            Shader = SKShader.CreateLinearGradient(
+                new SKPoint(20, 0),
+                new SKPoint(20, 56),
+                new SKColor[] { color.WithAlpha(230), color.WithAlpha(140) }, // 0.9 to 0.55
+                null,
+                SKShaderTileMode.Clamp),
             Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawRect(fillRect, fillPaint);
+        canvas.DrawRect(0, fillY, 40, 56, fillPaint);
         canvas.Restore();
 
-        // Border
-        using var borderPaint = new SKPaint
+        // 3. Highlight (ellipse cx="14" cy="24" rx="4" ry="6" transform="rotate(-20,14,24)")
+        canvas.Save();
+        canvas.RotateDegrees(-20, 14, 24);
+        using var highlightPaint = new SKPaint
         {
-            Color = color.WithAlpha(100),
-            Style = SKPaintStyle.Stroke,
-            StrokeWidth = 2,
+            Color = SKColors.White.WithAlpha(25), // 0.1
+            Style = SKPaintStyle.Fill,
             IsAntialias = true
         };
-        canvas.DrawPath(path, borderPaint);
+        canvas.DrawOval(14, 24, 4, 6, highlightPaint);
+        canvas.Restore();
+
+        // 4. Glow Border
+        using var glowPaint = new SKPaint
+        {
+            Color = SKColor.Parse(glow),
+            Style = SKPaintStyle.Stroke,
+            StrokeWidth = 1f,
+            IsAntialias = true,
+            ImageFilter = SKImageFilter.CreateBlur(3, 3)
+        };
+        canvas.DrawPath(path, glowPaint);
     }
 
     private SKColor GetHumidityColor(double h)
@@ -71,5 +100,14 @@ public class DropletView : SKCanvasView
         if (h <= 52) return SKColor.Parse("#00e87a");
         if (h < 65) return SKColor.Parse("#44aaff");
         return SKColor.Parse("#8855ff");
+    }
+
+    private string GetGlowColor(double h)
+    {
+        if (h < 30)  return "rgba(255,153,68,0.4)";
+        if (h < 45)  return "rgba(255,221,68,0.4)";
+        if (h <= 52) return "rgba(0,232,122,0.4)";
+        if (h < 65)  return "rgba(68,170,255,0.4)";
+        return "rgba(136,85,255,0.4)";
     }
 }

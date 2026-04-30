@@ -30,7 +30,8 @@ public:
     void readSensor();
 
     // Calculează și aplică starea releului — logică 100% locală.
-    void updateLogic(float threshTemp, float threshHum);
+    // hystTemp/hystHum: banda de histerezis (releul se oprește la prag−hyst).
+    void updateLogic(float threshTemp, float threshHum, float hystTemp, float hystHum);
 
     // Oprire de urgență (restart, heap critic etc.).
     void emergencyOff();

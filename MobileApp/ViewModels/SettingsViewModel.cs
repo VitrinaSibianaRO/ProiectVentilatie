@@ -20,6 +20,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private float _tempThreshold = 45.0f;
     [ObservableProperty] private float _humThreshold = 60.0f;
     [ObservableProperty] private int _intervalSec = 300;
+    [ObservableProperty] private float _tempHysteresis = 2.0f;
+    [ObservableProperty] private float _humHysteresis = 5.0f;
 
     // ── State UI ─────────────────────────────────────
     [ObservableProperty] private bool _hasChanges;
@@ -54,6 +56,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             TempThreshold = state.Config.ThreshT;
             HumThreshold = state.Config.ThreshH;
             IntervalSec = state.Config.Interval;
+            TempHysteresis = state.Config.HystT;
+            HumHysteresis = state.Config.HystH;
         }
 
         IsLocked = state.Lock?.Owner == "blynk";
@@ -73,9 +77,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    partial void OnTempThresholdChanged(float value) => RecomputeHasChanges();
-    partial void OnHumThresholdChanged(float value) => RecomputeHasChanges();
-    partial void OnIntervalSecChanged(int value) => RecomputeHasChanges();
+    partial void OnTempThresholdChanged(float value)  => RecomputeHasChanges();
+    partial void OnHumThresholdChanged(float value)   => RecomputeHasChanges();
+    partial void OnIntervalSecChanged(int value)       => RecomputeHasChanges();
+    partial void OnTempHysteresisChanged(float value) => RecomputeHasChanges();
+    partial void OnHumHysteresisChanged(float value)  => RecomputeHasChanges();
 
     private void RecomputeHasChanges()
     {
@@ -85,9 +91,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         }
         else
         {
-            HasChanges = Math.Abs(TempThreshold - _lastReceivedConfig.ThreshT) > 0.01f
-                      || Math.Abs(HumThreshold  - _lastReceivedConfig.ThreshH) > 0.01f
-                      || IntervalSec != _lastReceivedConfig.Interval;
+            HasChanges = Math.Abs(TempThreshold   - _lastReceivedConfig.ThreshT) > 0.01f
+                      || Math.Abs(HumThreshold    - _lastReceivedConfig.ThreshH) > 0.01f
+                      || IntervalSec              != _lastReceivedConfig.Interval
+                      || Math.Abs(TempHysteresis  - _lastReceivedConfig.HystT)   > 0.01f
+                      || Math.Abs(HumHysteresis   - _lastReceivedConfig.HystH)   > 0.01f;
         }
         SaveCommand.NotifyCanExecuteChanged();
     }
@@ -121,9 +129,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         await _mqttService.SendCommandAsync(new
         {
             cmd = "setConfig",
-            threshT = TempThreshold,
-            threshH = HumThreshold,
-            interval = IntervalSec
+            threshT  = TempThreshold,
+            threshH  = HumThreshold,
+            interval = IntervalSec,
+            hystT    = TempHysteresis,
+            hystH    = HumHysteresis
         });
         StatusMessage = "Trimis. Aștept confirmare ESP32...";
         StatusColor = Colors.Orange;

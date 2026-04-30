@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
+             x:Class="ProiectVentilatie.Mobile.Views.DevicesPage">
+
+    <Grid RowDefinitions="*" BackgroundColor="{StaticResource BackgroundColor}">
+        <controls:ScanLineView InputTransparent="True" ZIndex="100" />
+
+        <ScrollView Padding="0,0,0,90">
+            <VerticalStackLayout Spacing="16" Padding="14,20">
+
+                <!-- HEADER -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="HARDWARE TOPOLOGY" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+                           Style="{StaticResource LabelRajdhani}" />
+                    <Label Text="CONNECTED DEVICES" FontSize="22" FontAttributes="Bold"
+                           Style="{StaticResource LabelRajdhani}" />
+                </VerticalStackLayout>
+
+                <!-- MASTER CONTROLLER CARD -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout Spacing="10">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryCyan}" CornerRadius="2" />
+                            <Label Text="ESP32 Controller" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <Grid ColumnDefinitions="*,*" RowDefinitions="Auto,Auto,Auto" RowSpacing="12" ColumnSpacing="16">
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="0">
+                                <Label Text="CHIPSET" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="ESP32-WROOM-32" FontSize="13" FontAttributes="Bold"
+                                       Style="{StaticResource LabelShareTech}" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Row="0" Grid.Column="1">
+                                <Label Text="ID DISPOZITIV" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="ESP32_VENT_01" FontSize="13"
+                                       TextColor="{StaticResource PrimaryCyan}"
+                                       Style="{StaticResource LabelShareTech}" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Row="1" Grid.Column="0">
+                                <Label Text="SENZORI" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="2× DHT22" FontSize="13" Style="{StaticResource LabelShareTech}" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Row="1" Grid.Column="1">
+                                <Label Text="ACTUATORI" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="2× RELEU" FontSize="13" Style="{StaticResource LabelShareTech}" />
+                            </VerticalStackLayout>
+
+                            <VerticalStackLayout Grid.Row="2" Grid.Column="0">
+                                <Label Text="PROTOCOL" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="MQTT 3.1.1" FontSize="13" Style="{StaticResource LabelShareTech}" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Row="2" Grid.Column="1">
+                                <Label Text="CONSUM" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="~240 mA" FontSize="13" Style="{StaticResource LabelShareTech}" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- SENSORS CARD -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout Spacing="10">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryOrange}" CornerRadius="2" />
+                            <Label Text="Senzori DHT22" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Left sensor -->
+                        <Border Padding="12,10"
+                                BackgroundColor="#0AFFFFFF"
+                                Stroke="#1AFFFFFF"
+                                StrokeShape="RoundRectangle 10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                    <Label Text="DHT22 STÂNGA" FontSize="11" FontAttributes="Bold"
+                                           CharacterSpacing="0.5" Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="GPIO 19 · 1-Wire" FontSize="10" Opacity="0.5"
+                                           Style="{StaticResource LabelShareTech}" />
+                                    <Label Text="Temp + Umiditate" FontSize="10" Opacity="0.45"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                </VerticalStackLayout>
+                                <Border Grid.Column="1" Padding="8,4"
+                                        BackgroundColor="#1A00e87a"
+                                        Stroke="#4400e87a"
+                                        StrokeShape="RoundRectangle 8"
+                                        VerticalOptions="Center">
+                                    <Label Text="OK" FontSize="11" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryGreen}"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+
+                        <!-- Right sensor -->
+                        <Border Padding="12,10"
+                                BackgroundColor="#0AFFFFFF"
+                                Stroke="#1AFFFFFF"
+                                StrokeShape="RoundRectangle 10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0" Spacing="4">
+                                    <Label Text="DHT22 DREAPTA" FontSize="11" FontAttributes="Bold"
+                                           CharacterSpacing="0.5" Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="GPIO 32 · 1-Wire" FontSize="10" Opacity="0.5"
+                                           Style="{StaticResource LabelShareTech}" />
+                                    <Label Text="Temp + Umiditate" FontSize="10" Opacity="0.45"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                </VerticalStackLayout>
+                                <Border Grid.Column="1" Padding="8,4"
+                                        BackgroundColor="#1A00e87a"
+                                        Stroke="#4400e87a"
+                                        StrokeShape="RoundRectangle 8"
+                                        VerticalOptions="Center">
+                                    <Label Text="OK" FontSize="11" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryGreen}"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                </Border>
+                            </Grid>
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- RELAY CARD -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout Spacing="10">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryGreen}" CornerRadius="2" />
+                            <Label Text="Module Releu" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Relay left -->
+                        <Border Padding="12,10"
+                                BackgroundColor="#0AFFFFFF"
+                                Stroke="#1AFFFFFF"
+                                StrokeShape="RoundRectangle 10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0" Spacing="3">
+                                    <Label Text="RELEU STÂNGA" FontSize="11" FontAttributes="Bold"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="GPIO 26 · 5V · Max 10A/250VAC" FontSize="10" Opacity="0.5"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="1" Text="READY" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryCyan}" VerticalOptions="Center"
+                                       Style="{StaticResource LabelRajdhani}" />
+                            </Grid>
+                        </Border>
+
+                        <!-- Relay right -->
+                        <Border Padding="12,10"
+                                BackgroundColor="#0AFFFFFF"
+                                Stroke="#1AFFFFFF"
+                                StrokeShape="RoundRectangle 10">
+                            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="10">
+                                <VerticalStackLayout Grid.Column="0" Spacing="3">
+                                    <Label Text="RELEU DREAPTA" FontSize="11" FontAttributes="Bold"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="GPIO 27 · 5V · Max 10A/250VAC" FontSize="10" Opacity="0.5"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </VerticalStackLayout>
+                                <Label Grid.Column="1" Text="READY" FontSize="11" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryCyan}" VerticalOptions="Center"
+                                       Style="{StaticResource LabelRajdhani}" />
+                            </Grid>
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- MQTT TOPICS CARD -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout Spacing="10">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryBlue}" CornerRadius="2" />
+                            <Label Text="Topicuri MQTT" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto,Auto"
+                              RowSpacing="8" ColumnSpacing="12">
+                            <Label Grid.Row="0" Grid.Column="0" Text="STATE" FontSize="9" Opacity="0.4"
+                                   VerticalOptions="Center" Style="{StaticResource LabelRajdhani}" />
+                            <Label Grid.Row="0" Grid.Column="1" Text="ventilatie/state"
+                                   FontSize="12" TextColor="{StaticResource PrimaryCyan}"
+                                   Style="{StaticResource LabelShareTech}" />
+
+                            <Label Grid.Row="1" Grid.Column="0" Text="CMD" FontSize="9" Opacity="0.4"
+                                   VerticalOptions="Center" Style="{StaticResource LabelRajdhani}" />
+                            <Label Grid.Row="1" Grid.Column="1" Text="ventilatie/cmd"
+                                   FontSize="12" TextColor="{StaticResource PrimaryOrange}"
+                                   Style="{StaticResource LabelShareTech}" />
+
+                            <Label Grid.Row="2" Grid.Column="0" Text="LOG" FontSize="9" Opacity="0.4"
+                                   VerticalOptions="Center" Style="{StaticResource LabelRajdhani}" />
+                            <Label Grid.Row="2" Grid.Column="1" Text="ventilatie/log"
+                                   FontSize="12" TextColor="{StaticResource PrimaryGreen}"
+                                   Style="{StaticResource LabelShareTech}" />
+
+                            <Label Grid.Row="3" Grid.Column="0" Text="LWT" FontSize="9" Opacity="0.4"
+                                   VerticalOptions="Center" Style="{StaticResource LabelRajdhani}" />
+                            <Label Grid.Row="3" Grid.Column="1" Text="ventilatie/online"
+                                   FontSize="12" Opacity="0.6"
+                                   Style="{StaticResource LabelShareTech}" />
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Devices" />
+    </Grid>
+</ContentPage>

@@ -172,14 +172,16 @@ void processZones() {
                 prefs.saveIntervalSec(mp.interval);
                 timerRebuildNeeded = true;
             }
+            if (mp.hystT >= 0.0f) prefs.saveTempHyst(mp.hystT);
+            if (mp.hystH >= 0.0f) prefs.saveHumHyst(mp.hystH);
             // Sync Blynk UI cu valorile noi
             if (Blynk.connected()) {
                 Blynk.virtualWrite(VP_THRESH_TEMP, prefs.tempThresh);
                 Blynk.virtualWrite(VP_THRESH_HUM,  prefs.humThresh);
                 Blynk.virtualWrite(VP_INTERVAL,    prefs.intervalSec);
             }
-            Serial.printf("[MQTT] Config: T≥%.1f H≥%.1f Int:%d\n",
-                prefs.tempThresh, prefs.humThresh, prefs.intervalSec);
+            Serial.printf("[MQTT] Config: T≥%.1f (hyst %.1f) H≥%.1f (hyst %.1f) Int:%d\n",
+                prefs.tempThresh, prefs.tempHyst, prefs.humThresh, prefs.humHyst, prefs.intervalSec);
         }
 
         if (mp.resetDefaults) {
@@ -343,8 +345,8 @@ void processZones() {
     rightZone.readSensor();
 
     // 4. Aplică logica de decizie locală — SINGURA sursă de adevăr.
-    leftZone.updateLogic(prefs.tempThresh, prefs.humThresh);
-    rightZone.updateLogic(prefs.tempThresh, prefs.humThresh);
+    leftZone.updateLogic (prefs.tempThresh, prefs.humThresh, prefs.tempHyst, prefs.humHyst);
+    rightZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst, prefs.humHyst);
 
     Serial.printf("  [STANGA]  T:%.1f°C  H:%.1f%%  Releu:%s  Override:%s\n",
         leftZone.getTemp(), leftZone.getHum(),
