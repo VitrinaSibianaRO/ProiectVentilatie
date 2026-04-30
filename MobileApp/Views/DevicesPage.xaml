@@ -223,6 +223,6 @@
             </VerticalStackLayout>
         </ScrollView>
 
-        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Devices" />
+        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Devices" ZIndex="1000" />
     </Grid>
 </ContentPage>

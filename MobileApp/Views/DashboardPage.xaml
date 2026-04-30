@@ -224,6 +224,6 @@
         </ScrollView>
 
         <!-- FLOATING NAV BAR -->
-        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Dashboard" />
+        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Dashboard" ZIndex="1000" />
     </Grid>
 </ContentPage>

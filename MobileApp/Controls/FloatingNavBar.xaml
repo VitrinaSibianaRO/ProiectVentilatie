@@ -1,7 +1,8 @@
 <ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
-             x:Class="ProiectVentilatie.Mobile.Controls.FloatingNavBar">
+             x:Class="ProiectVentilatie.Mobile.Controls.FloatingNavBar"
+             x:Name="self">
     
     <Border Margin="14,0,14,12"
             Padding="0,4"
@@ -19,48 +20,58 @@
 
         <Grid ColumnDefinitions="*,*,*,*,*">
             <!-- Dashboard -->
-            <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center">
+            <VerticalStackLayout Grid.Column="0" Spacing="4" VerticalOptions="Center" BackgroundColor="Transparent">
                 <VerticalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateCommand}" CommandParameter="Dashboard" />
+                    <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Dashboard" />
                 </VerticalStackLayout.GestureRecognizers>
-                <Image Source="dashboard_tab_icon.png" HeightRequest="24" WidthRequest="24" Opacity="{Binding IsDashboardActive, Converter={StaticResource OpacityConverter}}" />
-                <Label Text="Dashboard" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" Opacity="{Binding IsDashboardActive, Converter={StaticResource OpacityConverter}}" />
+                <Image Source="dashboard_tab_icon.png" HeightRequest="24" WidthRequest="24" 
+                       Opacity="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <Label Text="Dashboard" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
+                       Opacity="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
             </VerticalStackLayout>
 
             <!-- Devices -->
-            <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center">
+            <VerticalStackLayout Grid.Column="1" Spacing="4" VerticalOptions="Center" BackgroundColor="Transparent">
                 <VerticalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateCommand}" CommandParameter="Devices" />
+                    <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Devices" />
                 </VerticalStackLayout.GestureRecognizers>
-                <Image Source="devices_tab_icon.png" HeightRequest="24" WidthRequest="24" Opacity="{Binding IsDevicesActive, Converter={StaticResource OpacityConverter}}" />
-                <Label Text="Devices" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" Opacity="{Binding IsDevicesActive, Converter={StaticResource OpacityConverter}}" />
+                <Image Source="devices_tab_icon.png" HeightRequest="24" WidthRequest="24" 
+                       Opacity="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <Label Text="Devices" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
+                       Opacity="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
             </VerticalStackLayout>
 
             <!-- Settings -->
-            <VerticalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center">
+            <VerticalStackLayout Grid.Column="2" Spacing="4" VerticalOptions="Center" BackgroundColor="Transparent">
                 <VerticalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateCommand}" CommandParameter="Settings" />
+                    <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Settings" />
                 </VerticalStackLayout.GestureRecognizers>
-                <Image Source="settings_tab_icon.png" HeightRequest="24" WidthRequest="24" Opacity="{Binding IsSettingsActive, Converter={StaticResource OpacityConverter}}" />
-                <Label Text="Settings" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" Opacity="{Binding IsSettingsActive, Converter={StaticResource OpacityConverter}}" />
+                <Image Source="settings_tab_icon.png" HeightRequest="24" WidthRequest="24" 
+                       Opacity="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <Label Text="Settings" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
+                       Opacity="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
             </VerticalStackLayout>
 
             <!-- Reports -->
-            <VerticalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center">
+            <VerticalStackLayout Grid.Column="3" Spacing="4" VerticalOptions="Center" BackgroundColor="Transparent">
                 <VerticalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateCommand}" CommandParameter="Reports" />
+                    <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Reports" />
                 </VerticalStackLayout.GestureRecognizers>
-                <Image Source="reports_tab_icon.png" HeightRequest="24" WidthRequest="24" Opacity="{Binding IsReportsActive, Converter={StaticResource OpacityConverter}}" />
-                <Label Text="Reports" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" Opacity="{Binding IsReportsActive, Converter={StaticResource OpacityConverter}}" />
+                <Image Source="reports_tab_icon.png" HeightRequest="24" WidthRequest="24" 
+                       Opacity="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <Label Text="Reports" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
+                       Opacity="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
             </VerticalStackLayout>
 
             <!-- System -->
-            <VerticalStackLayout Grid.Column="4" Spacing="4" VerticalOptions="Center">
+            <VerticalStackLayout Grid.Column="4" Spacing="4" VerticalOptions="Center" BackgroundColor="Transparent">
                 <VerticalStackLayout.GestureRecognizers>
-                    <TapGestureRecognizer Command="{Binding NavigateCommand}" CommandParameter="System" />
+                    <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="System" />
                 </VerticalStackLayout.GestureRecognizers>
-                <Image Source="system_tab_icon.png" HeightRequest="24" WidthRequest="24" Opacity="{Binding IsSystemActive, Converter={StaticResource OpacityConverter}}" />
-                <Label Text="System" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" Opacity="{Binding IsSystemActive, Converter={StaticResource OpacityConverter}}" />
+                <Image Source="system_tab_icon.png" HeightRequest="24" WidthRequest="24" 
+                       Opacity="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <Label Text="System" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
+                       Opacity="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
             </VerticalStackLayout>
         </Grid>
     </Border>

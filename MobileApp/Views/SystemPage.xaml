@@ -274,6 +274,6 @@
             </VerticalStackLayout>
         </ScrollView>
 
-        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="System" />
+        <controls:FloatingNavBar ZIndex="1000" VerticalOptions="End" CurrentPage="System" />
     </Grid>
 </ContentPage>
