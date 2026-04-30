@@ -6,6 +6,8 @@
     xmlns:views="clr-namespace:ProiectVentilatie.Mobile.Views"
     Shell.FlyoutBehavior="Disabled"
     Shell.TabBarIsVisible="False"
+    Shell.NavBarIsVisible="False"
+    Shell.PresentationMode="NotAnimated"
     Title="Ventilatie Smart"
     BackgroundColor="{StaticResource BackgroundColor}">
 

@@ -32,12 +32,12 @@ bool VentilationZone::getManualOverride() const {
     return _manualOverride;
 }
 
-void VentilationZone::readSensor() {
+void VentilationZone::readSensor(bool force) {
     unsigned long nowMs = millis();
 
-    // Respectăm cooldown-ul minim al DHT22 (2100ms).
-    // Metoda este sigură de apelat oricând — returnează silențios dacă e prea devreme.
-    if (nowMs - _lastReadMs < DHT_MIN_READ_MS) return;
+    // Respectăm cooldown-ul minim al DHT22 (2100ms), exceptând cazul force=true
+    // (folosit la cmd:refresh pentru a obține valori instant la cerere utilizator).
+    if (!force && nowMs - _lastReadMs < DHT_MIN_READ_MS) return;
 
     float rawT = _dht.readTemperature();
     float rawH = _dht.readHumidity();

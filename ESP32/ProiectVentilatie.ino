@@ -124,14 +124,16 @@ void processZones() {
     // 0. Procesare pending MQTT commands (Faza 2).
     //    Callback-ul MQTT setează doar flags; aici le aplicăm.
     bool mqttPendingProcessed = false;
+    bool forceSensorRead = false;
     if (mqtt.hasPendingCommands()) {
         mqttPendingProcessed = true;
         MqttPending& mp = mqtt.getPending();
 
         if (mp.refresh) {
             mp.refresh = false;
+            forceSensorRead = true;
             mqtt.requestPublishNow();
-            Serial.println("[MQTT] cmd:refresh → push state.");
+            Serial.println("[MQTT] cmd:refresh → force read + push state.");
         }
 
         if (mp.setOverrideL) {
@@ -348,8 +350,9 @@ void processZones() {
     }
 
     // 3. Citeşte senzorii (cooldown intern în VentilationZone).
-    leftZone.readSensor();
-    rightZone.readSensor();
+    //    cmd:refresh de la MAUI bypass-uiește cooldown-ul pentru valori instant.
+    leftZone.readSensor(forceSensorRead);
+    rightZone.readSensor(forceSensorRead);
 
     // 4. Aplică logica de decizie locală — SINGURA sursă de adevăr.
     leftZone.updateLogic (prefs.tempThresh, prefs.humThresh, prefs.tempHyst, prefs.humHyst);

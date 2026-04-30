@@ -26,8 +26,8 @@ public:
     void setManualOverride(bool state);
     bool getManualOverride() const;
 
-    // Încearcă o citire. Respectă cooldown-ul intern de 2100ms.
-    void readSensor();
+    // Încearcă o citire. Respectă cooldown-ul intern de 2100ms (exceptând force=true).
+    void readSensor(bool force = false);
 
     // Calculează și aplică starea releului — logică 100% locală.
     // hystTemp/hystHum: banda de histerezis (releul se oprește la prag−hyst).
