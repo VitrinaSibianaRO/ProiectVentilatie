@@ -5,6 +5,7 @@
 /APK/
 /VS/
 /VS-handoff.zip
+/waydroid_script/
 
 # .NET / MAUI specific
 bin/
