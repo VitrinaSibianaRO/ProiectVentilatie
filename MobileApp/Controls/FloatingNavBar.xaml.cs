@@ -27,24 +27,22 @@ public partial class FloatingNavBar : ContentView
     private async Task NavigateToPage(string page)
     {
         System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Navigating to: {page}");
-        if (CurrentPage == page) 
+        if (CurrentPage == page)
         {
             System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Already on {page}, ignoring.");
             return;
         }
-        
-        // MAUI Shell navigation
-        MainThread.BeginInvokeOnMainThread(async () => 
+
+        var route = page == "Reports" ? "//ReportsPage" : $"//{page}Page";
+        try
         {
-            try 
-            {
-                await Shell.Current.GoToAsync($"///{page}Page");
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Navigation error: {ex.Message}");
-            }
-        });
+            await Shell.Current.GoToAsync(route);
+            System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Navigated OK to {route}");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Navigation error to {route}: {ex}");
+        }
     }
 
     private void UpdateVisualState()
