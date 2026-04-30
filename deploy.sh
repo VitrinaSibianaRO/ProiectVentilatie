@@ -161,15 +161,14 @@ if [ "$DEVICE" = "waydroid" ]; then
     waydroid app install "$APK_PATH"
     echo "   > Instalare reusita pe Waydroid."
 else
-    # -r (reinstall), -d (allow downgrade)
-    if adb -s "$DEVICE" install -r -d "$APK_PATH" >/dev/null 2>&1; then
-        echo "   > Instalare reusita."
-    else
-        echo "   > Conflict detectat. Dezinstalare si reinstalare..."
-        adb -s "$DEVICE" uninstall "$PACKAGE_NAME" >/dev/null 2>&1 || true
-        adb -s "$DEVICE" install "$APK_PATH" >/dev/null 2>&1
-        echo "   > Reinstalare reusita."
-    fi
+    # Dezinstalam intotdeauna pentru a forta refresh-ul iconitei in launcher
+    echo "   > Dezinstalare versiune veche..."
+    adb -s "$DEVICE" uninstall "$PACKAGE_NAME" >/dev/null 2>&1 || true
+    adb -s "$DEVICE" install -d "$APK_PATH" >/dev/null 2>&1
+    # Forteaza re-scan al launcher-ului ca sa apara noua iconita
+    adb -s "$DEVICE" shell pm clear com.android.launcher3 >/dev/null 2>&1 || true
+    adb -s "$DEVICE" shell pm clear com.google.android.apps.nexuslauncher >/dev/null 2>&1 || true
+    echo "   > Instalare reusita."
 fi
 
 # 7. Lansare

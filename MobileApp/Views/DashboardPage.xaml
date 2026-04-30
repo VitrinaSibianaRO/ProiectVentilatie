@@ -11,11 +11,11 @@
         <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="*" BackgroundColor="{StaticResource BackgroundColor}">
+    <Grid RowDefinitions="*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
         <!-- Scanline Effect (Full Page) -->
-        <controls:ScanLineView InputTransparent="True" ZIndex="100" />
+        <controls:ScanLineView Grid.Row="0" Grid.RowSpan="2" InputTransparent="True" ZIndex="100" />
 
-        <ScrollView Padding="0,0,0,90">
+        <ScrollView Grid.Row="0" Padding="0,0,0,12">
             <VerticalStackLayout Spacing="0">
 
                 <!-- HERO SECTION — VitrinaHero animated showcase -->
@@ -224,6 +224,6 @@
         </ScrollView>
 
         <!-- FLOATING NAV BAR -->
-        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Dashboard" ZIndex="1000" />
+        <controls:FloatingNavBar Grid.Row="1" CurrentPage="Dashboard" />
     </Grid>
 </ContentPage>
