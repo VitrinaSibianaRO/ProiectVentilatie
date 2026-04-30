@@ -20,6 +20,7 @@ public partial class FloatingNavBar : ContentView
     public FloatingNavBar()
     {
         InitializeComponent();
+        BindingContext = this;
         NavigateCommand = new Command<string>(async (page) => await NavigateToPage(page));
     }
 
