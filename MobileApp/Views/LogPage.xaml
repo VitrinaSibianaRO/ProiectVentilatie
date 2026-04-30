@@ -17,7 +17,7 @@
     </ContentPage.Resources>
 
     <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
-        <controls:ScanLineView Grid.Row="0" Grid.RowSpan="6" InputTransparent="True" ZIndex="100" />
+        <controls:ScanLineView Grid.Row="0" Grid.RowSpan="5" InputTransparent="True" ZIndex="100" />
 
         <!-- HEADER -->
         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="14,20,14,0">

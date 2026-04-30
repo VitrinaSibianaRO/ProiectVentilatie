@@ -14,7 +14,7 @@
     </ContentPage.Resources>
 
     <Grid RowDefinitions="*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
-        <controls:ScanLineView Grid.Row="0" Grid.RowSpan="2" InputTransparent="True" ZIndex="100" />
+        <controls:ScanLineView Grid.Row="0" InputTransparent="True" ZIndex="100" />
 
         <ScrollView Grid.Row="0" Padding="0,0,0,12">
             <VerticalStackLayout Spacing="16" Padding="14,20">
