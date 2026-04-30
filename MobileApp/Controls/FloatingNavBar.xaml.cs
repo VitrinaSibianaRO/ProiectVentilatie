@@ -25,10 +25,25 @@ public partial class FloatingNavBar : ContentView
 
     private async Task NavigateToPage(string page)
     {
-        if (CurrentPage == page) return;
+        System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Navigating to: {page}");
+        if (CurrentPage == page) 
+        {
+            System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Already on {page}, ignoring.");
+            return;
+        }
         
         // MAUI Shell navigation
-        await Shell.Current.GoToAsync($"///{page}Page");
+        MainThread.BeginInvokeOnMainThread(async () => 
+        {
+            try 
+            {
+                await Shell.Current.GoToAsync($"///{page}Page");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[FloatingNavBar] Navigation error: {ex.Message}");
+            }
+        });
     }
 
     private void UpdateVisualState()
