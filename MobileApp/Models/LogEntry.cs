@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using Microsoft.Maui.Graphics;
 
 namespace ProiectVentilatie.Mobile.Models;
 
@@ -22,14 +23,17 @@ public class LogEntry
 
     // ── Display helpers (computate la deserializare) ──
 
-    /// <summary>Icon emoji corespunzător tipului.</summary>
-    public string Icon => Type switch
+    /// <summary>Icon emoji corespunzător tipului (design: ⚡ ⚠ ⏱).</summary>
+    public string IconText => Type switch
     {
-        "sensor_err"       => "⚠️",
-        "relay_change"     => "🔌",
-        "override_expired" => "⏱️",
+        "relay_change"     => "⚡",
+        "sensor_err"       => "⚠",
+        "override_expired" => "⏱",
         _                  => "📝"
     };
+
+    /// <summary>Icon emoji corespunzător tipului.</summary>
+    public string Icon => IconText;
 
     /// <summary>Etichetă tip lizibilă.</summary>
     public string TypeLabel => Type switch
@@ -48,16 +52,32 @@ public class LogEntry
         _       => "—"
     };
 
-    /// <summary>Timestamp formatat pentru afișare locală.</summary>
+    /// <summary>Culoare accent per tip eveniment.</summary>
+    public Color AccentColor => Type switch
+    {
+        "relay_change"     => Color.FromArgb("#00e6ff"),
+        "sensor_err"       => Color.FromArgb("#ff6644"),
+        "override_expired" => Color.FromArgb("#ffaa44"),
+        _                  => Color.FromArgb("#888888")
+    };
+
+    /// <summary>Culoare background translucidă (10% accent) pentru rândul de log.</summary>
+    public Color RowBackgroundColor => Type switch
+    {
+        "relay_change"     => Color.FromArgb("#1A00e6ff"),
+        "sensor_err"       => Color.FromArgb("#1Aff6644"),
+        "override_expired" => Color.FromArgb("#1Affaa44"),
+        _                  => Color.FromArgb("#0AFFFFFF")
+    };
+
+    /// <summary>Timestamp formatat pentru afișare locală (dd.MM HH:mm:ss).</summary>
     public string TsDisplay
     {
         get
         {
             if (string.IsNullOrEmpty(Ts)) return "—";
-            // Dacă e ISO 8601 → parse + local
             if (DateTime.TryParse(Ts, out var dt))
-                return dt.ToLocalTime().ToString("dd MMM HH:mm:ss");
-            // Fallback (uptime:NNNs)
+                return dt.ToLocalTime().ToString("dd.MM HH:mm:ss");
             return Ts;
         }
     }

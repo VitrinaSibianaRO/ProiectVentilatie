@@ -11,126 +11,182 @@
     <ContentPage.Resources>
         <converters:StringNotNullConverter x:Key="StringNotNullConverter" />
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:FilterTabBgConverter x:Key="FilterTabBgConverter" />
+        <converters:FilterTabStrokeConverter x:Key="FilterTabStrokeConverter" />
+        <converters:FilterTabTextConverter x:Key="FilterTabTextConverter" />
     </ContentPage.Resources>
 
-    <Grid RowDefinitions="*" BackgroundColor="{StaticResource BackgroundColor}">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
         <controls:ScanLineView InputTransparent="True" ZIndex="100" />
 
-        <VerticalStackLayout Padding="14,20,14,90">
-
-            <!-- HEADER -->
-            <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,12">
-                <VerticalStackLayout Spacing="4">
-                    <Label Text="EVENT ARCHIVE" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+        <!-- HEADER -->
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Padding="14,20,14,0">
+            <VerticalStackLayout Spacing="4">
+                <Label Text="EVENT ARCHIVE" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+                       Style="{StaticResource LabelRajdhani}" />
+                <HorizontalStackLayout Spacing="10">
+                    <Label Text="SYSTEM REPORTS" FontSize="22" FontAttributes="Bold"
                            Style="{StaticResource LabelRajdhani}" />
-                    <HorizontalStackLayout Spacing="10">
-                        <Label Text="SYSTEM REPORTS" FontSize="22" FontAttributes="Bold"
-                               Style="{StaticResource LabelRajdhani}" />
-                        <Border Padding="8,2" BackgroundColor="#1A00e6ff"
-                                Stroke="#3300e6ff" StrokeShape="RoundRectangle 10"
-                                VerticalOptions="Center">
-                            <Label Text="{Binding EntriesCount}"
-                                   FontSize="12" TextColor="{StaticResource PrimaryCyan}"
-                                   Style="{StaticResource LabelShareTech}" />
-                        </Border>
-                    </HorizontalStackLayout>
+                    <Border Padding="8,2" BackgroundColor="#1A00e6ff"
+                            Stroke="#3300e6ff" StrokeShape="RoundRectangle 10"
+                            VerticalOptions="Center">
+                        <Label Text="{Binding EntriesCount}"
+                               FontSize="12" TextColor="{StaticResource PrimaryCyan}"
+                               Style="{StaticResource LabelShareTech}" />
+                    </Border>
+                </HorizontalStackLayout>
+            </VerticalStackLayout>
+            <Button Grid.Column="1" Text="↓ FETCH LOG"
+                    Style="{StaticResource CyberButton}"
+                    HeightRequest="36" Padding="12,0" FontSize="12"
+                    IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
+                    Command="{Binding ReloadCommand}" />
+        </Grid>
+
+        <!-- FILTER TABS -->
+        <HorizontalStackLayout Grid.Row="1" Spacing="6" Padding="14,10,14,0">
+            <!-- Toate -->
+            <Border Padding="14,6"
+                    BackgroundColor="{Binding SelectedFilter, Converter={StaticResource FilterTabBgConverter}, ConverterParameter='Toate'}"
+                    Stroke="{Binding SelectedFilter, Converter={StaticResource FilterTabStrokeConverter}, ConverterParameter='Toate'}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 6">
+                <Label Text="Toate" FontSize="12" FontAttributes="Bold"
+                       TextColor="{Binding SelectedFilter, Converter={StaticResource FilterTabTextConverter}, ConverterParameter='Toate'}"
+                       Style="{StaticResource LabelRajdhani}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SetFilterCommand}" CommandParameter="Toate" />
+                </Border.GestureRecognizers>
+            </Border>
+            <!-- Releu -->
+            <Border Padding="14,6"
+                    BackgroundColor="{Binding SelectedFilter, Converter={StaticResource FilterTabBgConverter}, ConverterParameter='Releu'}"
+                    Stroke="{Binding SelectedFilter, Converter={StaticResource FilterTabStrokeConverter}, ConverterParameter='Releu'}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 6">
+                <Label Text="⚡ Releu" FontSize="12" FontAttributes="Bold"
+                       TextColor="{Binding SelectedFilter, Converter={StaticResource FilterTabTextConverter}, ConverterParameter='Releu'}"
+                       Style="{StaticResource LabelRajdhani}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SetFilterCommand}" CommandParameter="Releu" />
+                </Border.GestureRecognizers>
+            </Border>
+            <!-- Senzor -->
+            <Border Padding="14,6"
+                    BackgroundColor="{Binding SelectedFilter, Converter={StaticResource FilterTabBgConverter}, ConverterParameter='Senzor'}"
+                    Stroke="{Binding SelectedFilter, Converter={StaticResource FilterTabStrokeConverter}, ConverterParameter='Senzor'}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 6">
+                <Label Text="⚠ Senzor" FontSize="12" FontAttributes="Bold"
+                       TextColor="{Binding SelectedFilter, Converter={StaticResource FilterTabTextConverter}, ConverterParameter='Senzor'}"
+                       Style="{StaticResource LabelRajdhani}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SetFilterCommand}" CommandParameter="Senzor" />
+                </Border.GestureRecognizers>
+            </Border>
+            <!-- Override -->
+            <Border Padding="14,6"
+                    BackgroundColor="{Binding SelectedFilter, Converter={StaticResource FilterTabBgConverter}, ConverterParameter='Override'}"
+                    Stroke="{Binding SelectedFilter, Converter={StaticResource FilterTabStrokeConverter}, ConverterParameter='Override'}"
+                    StrokeThickness="1"
+                    StrokeShape="RoundRectangle 6">
+                <Label Text="⏱ Override" FontSize="12" FontAttributes="Bold"
+                       TextColor="{Binding SelectedFilter, Converter={StaticResource FilterTabTextConverter}, ConverterParameter='Override'}"
+                       Style="{StaticResource LabelRajdhani}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding SetFilterCommand}" CommandParameter="Override" />
+                </Border.GestureRecognizers>
+            </Border>
+        </HorizontalStackLayout>
+
+        <!-- LOADING INDICATOR -->
+        <ActivityIndicator Grid.Row="2"
+                           IsVisible="{Binding IsLoading}"
+                           IsRunning="{Binding IsLoading}"
+                           Color="{StaticResource PrimaryCyan}"
+                           HeightRequest="36" Margin="14,6" />
+
+        <!-- STATUS MESSAGE -->
+        <Border Grid.Row="3"
+                IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotNullConverter}}"
+                Padding="12,7" Margin="14,6,14,0"
+                BackgroundColor="#0AFFFFFF"
+                Stroke="#1AFFFFFF"
+                StrokeShape="RoundRectangle 8">
+            <Label Text="{Binding StatusMessage}"
+                   FontSize="12" Opacity="0.7"
+                   Style="{StaticResource LabelShareTech}" />
+        </Border>
+
+        <!-- LOG LIST -->
+        <CollectionView Grid.Row="4"
+                        ItemsSource="{Binding Entries}"
+                        SelectionMode="None"
+                        Margin="14,8,14,0">
+            <CollectionView.EmptyView>
+                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center"
+                                     Spacing="12" Padding="0,40">
+                    <Label Text="📋" FontSize="48" HorizontalOptions="Center" />
+                    <Label Text="Niciun eveniment de afișat"
+                           FontSize="14" Opacity="0.4" HorizontalOptions="Center"
+                           Style="{StaticResource LabelRajdhani}" />
+                    <Label Text="Apasă FETCH LOG pentru a prelua datele de la ESP32"
+                           FontSize="11" Opacity="0.3" HorizontalOptions="Center"
+                           Style="{StaticResource LabelRajdhani}" />
                 </VerticalStackLayout>
-                <Button Grid.Column="1" Text="↓ FETCH LOG"
-                        Style="{StaticResource CyberButton}"
-                        HeightRequest="36" Padding="12,0" FontSize="12"
-                        IsEnabled="{Binding IsLoading, Converter={StaticResource InverseBoolConverter}}"
-                        Command="{Binding ReloadCommand}" />
-            </Grid>
+            </CollectionView.EmptyView>
+            <CollectionView.ItemTemplate>
+                <DataTemplate x:DataType="models:LogEntry">
+                    <!-- Entry card with type-specific background -->
+                    <Border Margin="0,0,0,6" Padding="0"
+                            BackgroundColor="{Binding RowBackgroundColor}"
+                            Stroke="{Binding AccentColor}"
+                            StrokeThickness="0.5"
+                            StrokeShape="RoundRectangle 8">
+                        <Grid ColumnDefinitions="44,*" ColumnSpacing="0">
+                            <!-- Icon box (accent color background) -->
+                            <Border Grid.Column="0"
+                                    BackgroundColor="{Binding AccentColor}"
+                                    Opacity="0.18"
+                                    StrokeThickness="0"
+                                    StrokeShape="RoundRectangle 8,0,0,8"
+                                    WidthRequest="44" />
+                            <Label Grid.Column="0"
+                                   Text="{Binding IconText}"
+                                   FontSize="18"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
 
-            <!-- FILTER PICKER -->
-            <Border Margin="0,0,0,12" Padding="4,2"
-                    BackgroundColor="#0A00e6ff"
-                    Stroke="#2200e6ff"
-                    StrokeShape="RoundRectangle 10">
-                <Picker SelectedItem="{Binding SelectedFilter}"
-                        ItemsSource="{Binding AvailableFilters}"
-                        TextColor="{StaticResource PrimaryCyan}"
-                        FontFamily="Rajdhani"
-                        FontSize="14"
-                        BackgroundColor="Transparent"
-                        HorizontalOptions="FillAndExpand" />
-            </Border>
-
-            <!-- LOADING INDICATOR -->
-            <ActivityIndicator IsVisible="{Binding IsLoading}"
-                               IsRunning="{Binding IsLoading}"
-                               Color="{StaticResource PrimaryCyan}"
-                               HeightRequest="40" />
-
-            <!-- STATUS MESSAGE -->
-            <Border IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotNullConverter}}"
-                    Padding="12,8" Margin="0,0,0,10"
-                    BackgroundColor="#0AFFFFFF"
-                    Stroke="#1AFFFFFF"
-                    StrokeShape="RoundRectangle 8">
-                <Label Text="{Binding StatusMessage}"
-                       FontSize="12" Opacity="0.7"
-                       Style="{StaticResource LabelShareTech}" />
-            </Border>
-
-            <!-- LOG LIST -->
-            <CollectionView ItemsSource="{Binding Entries}" SelectionMode="None">
-                <CollectionView.EmptyView>
-                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center"
-                                         Spacing="12" Padding="0,40">
-                        <Label Text="📋" FontSize="48" HorizontalOptions="Center" />
-                        <Label Text="Niciun eveniment de afișat"
-                               FontSize="14" Opacity="0.4" HorizontalOptions="Center"
-                               Style="{StaticResource LabelRajdhani}" />
-                        <Label Text="Apasă FETCH LOG pentru a prelua datele de la ESP32"
-                               FontSize="11" Opacity="0.3" HorizontalOptions="Center"
-                               Style="{StaticResource LabelRajdhani}" />
-                    </VerticalStackLayout>
-                </CollectionView.EmptyView>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate x:DataType="models:LogEntry">
-                        <Border Margin="0,0,0,8" Padding="12,10"
-                                BackgroundColor="#0AFFFFFF"
-                                Stroke="#1AFFFFFF"
-                                StrokeShape="RoundRectangle 10">
-                            <Grid ColumnDefinitions="Auto,Auto,*,Auto" ColumnSpacing="10">
-                                <!-- Icon -->
-                                <Label Grid.Column="0" Text="{Binding Icon}"
-                                       FontSize="18" VerticalOptions="Center" />
-
-                                <!-- Type bar -->
-                                <BoxView Grid.Column="1" WidthRequest="3" HeightRequest="36"
-                                         Color="{StaticResource PrimaryCyan}" CornerRadius="2"
-                                         VerticalOptions="Center" />
-
-                                <!-- Details -->
-                                <VerticalStackLayout Grid.Column="2" Spacing="2" VerticalOptions="Center">
-                                    <HorizontalStackLayout Spacing="8">
-                                        <Label Text="{Binding TypeLabel}"
-                                               FontSize="13" FontAttributes="Bold"
-                                               Style="{StaticResource LabelRajdhani}" />
-                                        <Label Text="{Binding ZoneLabel}"
-                                               FontSize="11" TextColor="{StaticResource PrimaryCyan}"
-                                               VerticalOptions="Center"
-                                               Style="{StaticResource LabelRajdhani}" />
-                                    </HorizontalStackLayout>
-                                    <Label Text="{Binding Msg}"
-                                           FontSize="11" Opacity="0.6"
+                            <!-- Details -->
+                            <VerticalStackLayout Grid.Column="1" Spacing="3" Padding="10,8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Grid.Column="0"
+                                           Text="{Binding TypeLabel}"
+                                           FontSize="12" FontAttributes="Bold"
+                                           TextColor="{Binding AccentColor}"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding TsDisplay}"
+                                           FontSize="10" Opacity="0.45"
+                                           VerticalOptions="Center"
                                            Style="{StaticResource LabelShareTech}" />
-                                </VerticalStackLayout>
+                                </Grid>
+                                <HorizontalStackLayout Spacing="8">
+                                    <Label Text="{Binding ZoneLabel}"
+                                           FontSize="10"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="{Binding Msg}"
+                                           FontSize="11" Opacity="0.8"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </HorizontalStackLayout>
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
 
-                                <!-- Timestamp -->
-                                <Label Grid.Column="3" Text="{Binding TsDisplay}"
-                                       FontSize="10" VerticalOptions="Center"
-                                       Opacity="0.4" Style="{StaticResource LabelShareTech}" />
-                            </Grid>
-                        </Border>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
-
-        </VerticalStackLayout>
-
-        <controls:FloatingNavBar VerticalOptions="End" CurrentPage="Reports" />
+        <controls:FloatingNavBar Grid.Row="5" VerticalOptions="End" CurrentPage="Reports" />
     </Grid>
 </ContentPage>

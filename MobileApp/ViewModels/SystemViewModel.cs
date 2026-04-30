@@ -227,6 +227,20 @@ public partial class SystemViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
+    private async Task ResetDefaultsAsync()
+    {
+        var page = Application.Current?.Windows[0]?.Page;
+        if (page == null) return;
+        var confirm = await page.DisplayAlertAsync(
+            "Reset la valori implicite",
+            "Se vor restaura pragurile și intervalele la valorile default (T≥45°C, H≥60%, Interval=300s). Continui?",
+            "Da, reset",
+            "Anulează");
+        if (!confirm) return;
+        await _mqttService.SendCommandAsync(new { cmd = "reset" });
+    }
+
+    [RelayCommand]
     private async Task RebootAsync()
     {
         var page = Application.Current?.Windows[0]?.Page;

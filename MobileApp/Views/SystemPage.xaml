@@ -113,6 +113,12 @@
                                     <Label Grid.Column="1" Text="{Binding EspHeapText}"
                                            FontSize="12" Style="{StaticResource LabelShareTech}" />
                                 </Grid>
+                                <Label Text="⚠  Heap critic — sistem instabil"
+                                       IsVisible="{Binding IsHeapCritical}"
+                                       TextColor="{StaticResource PrimaryRed}"
+                                       FontSize="11" FontAttributes="Bold"
+                                       Margin="0,4,0,0"
+                                       Style="{StaticResource LabelRajdhani}" />
                             </VerticalStackLayout>
                         </Grid>
 
@@ -166,6 +172,10 @@
                                     Style="{StaticResource CyberButtonOrange}"
                                     HeightRequest="40" FontSize="12"
                                     Command="{Binding RebootCommand}" />
+                            <Button Grid.Column="1" Text="↺  RESET DEFAULT"
+                                    Style="{StaticResource CyberButtonRed}"
+                                    HeightRequest="40" FontSize="12"
+                                    Command="{Binding ResetDefaultsCommand}" />
                         </Grid>
                     </VerticalStackLayout>
                 </Border>

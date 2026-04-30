@@ -18,7 +18,7 @@ public partial class LogViewModel : ObservableObject, IDisposable
     public ObservableCollection<LogEntry> Entries { get; } = new();
     public ObservableCollection<string> AvailableFilters { get; } = new()
     {
-        "Toate", "sensor_err", "relay_change", "override_expired"
+        "Toate", "Releu", "Senzor", "Override"
     };
 
     [ObservableProperty] private bool _isLoading;
@@ -59,15 +59,24 @@ public partial class LogViewModel : ObservableObject, IDisposable
 
     partial void OnSelectedFilterChanged(string value) => ApplyFilter();
 
+    [RelayCommand]
+    private void SetFilter(string filter) => SelectedFilter = filter;
+
     private void ApplyFilter()
     {
-        Entries.Clear();
-        IEnumerable<LogEntry> filtered = _allEntries;
-        if (SelectedFilter != "Toate")
+        var typeKey = SelectedFilter switch
         {
-            filtered = _allEntries.Where(e => e.Type == SelectedFilter);
-        }
-        // Cele mai noi sus
+            "Releu"    => "relay_change",
+            "Senzor"   => "sensor_err",
+            "Override" => "override_expired",
+            _          => (string?)null
+        };
+
+        Entries.Clear();
+        var filtered = typeKey == null
+            ? _allEntries
+            : _allEntries.Where(e => e.Type == typeKey);
+
         foreach (var entry in filtered.Reverse())
             Entries.Add(entry);
         EntriesCount = Entries.Count;
