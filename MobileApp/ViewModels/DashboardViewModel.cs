@@ -8,7 +8,7 @@ namespace ProiectVentilatie.Mobile.ViewModels;
 public partial class DashboardViewModel : ObservableObject, IDisposable
 {
     private readonly IMqttService _mqttService;
-    private readonly IDispatcherTimer _agoTimer;
+    private IDispatcherTimer? _agoTimer;
     private DateTime _lastUpdateTime;
 
     // ── Senzori ──────────────────────────────────────
@@ -62,18 +62,37 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _mqttService.OnOnlineStatusChanged += UpdateOnlineStatus;
 
         // Timer periodic 10s pentru actualizare "ago" text
-        _agoTimer = Application.Current!.Dispatcher.CreateTimer();
-        _agoTimer.Interval = TimeSpan.FromSeconds(10);
-        _agoTimer.Tick += (s, e) => UpdateAgoText();
-        _agoTimer.Start();
+        try
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null)
+            {
+                _agoTimer = dispatcher.CreateTimer();
+                _agoTimer.Interval = TimeSpan.FromSeconds(10);
+                _agoTimer.Tick += (s, e) => UpdateAgoText();
+                _agoTimer.Start();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] Timer init failed: {ex}");
+        }
 
         _ = ConnectAsync();
     }
 
     private async Task ConnectAsync()
     {
-        ConnectionStatus = "Conectare...";
-        await _mqttService.ConnectAsync();
+        try
+        {
+            ConnectionStatus = "Conectare...";
+            await _mqttService.ConnectAsync();
+        }
+        catch (Exception ex)
+        {
+            ConnectionStatus = "Eroare conexiune";
+            System.Diagnostics.Debug.WriteLine($"[Dashboard] ConnectAsync failed: {ex}");
+        }
     }
 
     private void UpdateConnection(bool isConnected)
@@ -190,7 +209,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _agoTimer.Stop();
+        _agoTimer?.Stop();
         _mqttService.OnStateReceived -= UpdateState;
         _mqttService.OnConnectionChanged -= UpdateConnection;
         _mqttService.OnOnlineStatusChanged -= UpdateOnlineStatus;

@@ -48,14 +48,14 @@
 #define VP_HUM_LEFT V2
 #define VP_TEMP_RIGHT V3
 #define VP_HUM_RIGHT V4
-#define VP_RELAY_LEFT V5  // read-only în Blynk (afișare stare)
-#define VP_RELAY_RIGHT V6 // read-only în Blynk (afișare stare)
+#define VP_RELAY_LEFT V5  // RW: toggle override stânga + display stare releu
+#define VP_RELAY_RIGHT V6 // RW: toggle override dreapta + display stare releu
 #define VP_THRESH_TEMP V7
 #define VP_THRESH_HUM V8
 #define VP_INTERVAL V9
 #define VP_RESET_DEFAULTS V10
-#define VP_OVERRIDE_LEFT V11  // override manual stânga (1=ON, 0=OFF, 2=clear)
-#define VP_OVERRIDE_RIGHT V12 // override manual dreapta
+#define VP_HYST_TEMP V11  // hysteresis temperatură (Marja temp)
+#define VP_HYST_HUM V12   // hysteresis umiditate (Marja hum)
 #define VP_FREE_HEAP V21
 #define VP_RESTART V20
 #define VP_LOCK_OWNER V22 // 0=none, 1=blynk, 2=mqtt

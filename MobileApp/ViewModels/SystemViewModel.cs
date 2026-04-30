@@ -17,7 +17,7 @@ public partial class SystemViewModel : ObservableObject, IDisposable
 {
     private readonly IMqttService _mqttService;
     private readonly MqttSettings _mqttSettings;
-    private readonly IDispatcherTimer _agoTimer;
+    private IDispatcherTimer? _agoTimer;
 
     // Preference keys
     private const string PrefOtaRepoUrl    = "OtaRepoUrl";
@@ -89,10 +89,21 @@ public partial class SystemViewModel : ObservableObject, IDisposable
         UpdateOtaFinalUrl();
 
         // Timer ago
-        _agoTimer = Application.Current!.Dispatcher.CreateTimer();
-        _agoTimer.Interval = TimeSpan.FromSeconds(15);
-        _agoTimer.Tick += (s, e) => UpdateAgoText();
-        _agoTimer.Start();
+        try
+        {
+            var dispatcher = Application.Current?.Dispatcher;
+            if (dispatcher != null)
+            {
+                _agoTimer = dispatcher.CreateTimer();
+                _agoTimer.Interval = TimeSpan.FromSeconds(15);
+                _agoTimer.Tick += (s, e) => UpdateAgoText();
+                _agoTimer.Start();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"[System] Timer init failed: {ex}");
+        }
         UpdateAgoText();
     }
 
@@ -288,7 +299,7 @@ public partial class SystemViewModel : ObservableObject, IDisposable
 
     public void Dispose()
     {
-        _agoTimer.Stop();
+        _agoTimer?.Stop();
         _mqttService.OnStateReceived -= OnStateReceived;
         _mqttService.OnConnectionChanged -= OnConnectionChanged;
         _mqttService.OnOnlineStatusChanged -= OnOnlineStatusChanged;

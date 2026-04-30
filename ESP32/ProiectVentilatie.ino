@@ -104,15 +104,13 @@ void rebuildMainTimer() {
     Serial.printf("[Timer] Interval setat la %d secunde.\n", prefs.intervalSec);
 }
 
-// Sincronizează starea curentă a releelor, overrides şi lock spre Blynk.
-// Apelată după orice schimbare locală, nu la comandă din cloud.
+// Sincronizează starea curentă a releelor + lock spre Blynk.
+// V5/V6 reflectă starea releului (auto sau override). Toggle-ul Blynk e bidirecțional.
 void pushRelayState() {
     if (!Blynk.connected()) return;
-    Blynk.virtualWrite(VP_RELAY_LEFT,    leftZone.getRelayState()  ? 1 : 0);
-    Blynk.virtualWrite(VP_RELAY_RIGHT,   rightZone.getRelayState() ? 1 : 0);
-    Blynk.virtualWrite(VP_OVERRIDE_LEFT,  leftZone.getManualOverride()  ? 1 : 0);
-    Blynk.virtualWrite(VP_OVERRIDE_RIGHT, rightZone.getManualOverride() ? 1 : 0);
-    Blynk.virtualWrite(VP_LOCK_OWNER,    (int)mqtt.getLockOwner());
+    Blynk.virtualWrite(VP_RELAY_LEFT,  leftZone.getRelayState()  ? 1 : 0);
+    Blynk.virtualWrite(VP_RELAY_RIGHT, rightZone.getRelayState() ? 1 : 0);
+    Blynk.virtualWrite(VP_LOCK_OWNER,  (int)mqtt.getLockOwner());
 }
 
 // ============================================================
@@ -125,7 +123,9 @@ void processZones() {
 
     // 0. Procesare pending MQTT commands (Faza 2).
     //    Callback-ul MQTT setează doar flags; aici le aplicăm.
+    bool mqttPendingProcessed = false;
     if (mqtt.hasPendingCommands()) {
+        mqttPendingProcessed = true;
         MqttPending& mp = mqtt.getPending();
 
         if (mp.refresh) {
@@ -179,6 +179,8 @@ void processZones() {
                 Blynk.virtualWrite(VP_THRESH_TEMP, prefs.tempThresh);
                 Blynk.virtualWrite(VP_THRESH_HUM,  prefs.humThresh);
                 Blynk.virtualWrite(VP_INTERVAL,    prefs.intervalSec);
+                Blynk.virtualWrite(VP_HYST_TEMP,   prefs.tempHyst);
+                Blynk.virtualWrite(VP_HYST_HUM,    prefs.humHyst);
             }
             Serial.printf("[MQTT] Config: T≥%.1f (hyst %.1f) H≥%.1f (hyst %.1f) Int:%d\n",
                 prefs.tempThresh, prefs.tempHyst, prefs.humThresh, prefs.humHyst, prefs.intervalSec);
@@ -194,10 +196,13 @@ void processZones() {
                 Blynk.virtualWrite(VP_THRESH_TEMP,     prefs.tempThresh);
                 Blynk.virtualWrite(VP_THRESH_HUM,      prefs.humThresh);
                 Blynk.virtualWrite(VP_INTERVAL,        prefs.intervalSec);
-                Blynk.virtualWrite(VP_OVERRIDE_LEFT,   0);
-                Blynk.virtualWrite(VP_OVERRIDE_RIGHT,  0);
+                Blynk.virtualWrite(VP_HYST_TEMP,       prefs.tempHyst);
+                Blynk.virtualWrite(VP_HYST_HUM,        prefs.humHyst);
                 Blynk.virtualWrite(VP_RESET_DEFAULTS,  0);
             }
+            // Forțează retrimiterea senzorilor (FIX: Android nu mai vede valori după reset)
+            lastSentTempL = -999.0f; lastSentHumL = -999.0f;
+            lastSentTempR = -999.0f; lastSentHumR = -999.0f;
             Serial.println("[MQTT] cmd:reset → defaults restaurate.");
         }
 
@@ -286,10 +291,13 @@ void processZones() {
             Blynk.virtualWrite(VP_THRESH_TEMP,     prefs.tempThresh);
             Blynk.virtualWrite(VP_THRESH_HUM,      prefs.humThresh);
             Blynk.virtualWrite(VP_INTERVAL,        prefs.intervalSec);
-            Blynk.virtualWrite(VP_OVERRIDE_LEFT,   0);
-            Blynk.virtualWrite(VP_OVERRIDE_RIGHT,  0);
+            Blynk.virtualWrite(VP_HYST_TEMP,       prefs.tempHyst);
+            Blynk.virtualWrite(VP_HYST_HUM,        prefs.humHyst);
             Blynk.virtualWrite(VP_RESET_DEFAULTS,  0);
         }
+        // Forțează retrimiterea senzorilor (FIX: Android nu mai vede valori după reset)
+        lastSentTempL = -999.0f; lastSentHumL = -999.0f;
+        lastSentTempR = -999.0f; lastSentHumR = -999.0f;
     }
 
     if (pending.overrideLeftClear) {
@@ -328,8 +336,7 @@ void processZones() {
         leftZone.setManualOverride(prefs.overrideLeft);
         rightZone.setManualOverride(prefs.overrideRight);
         if (Blynk.connected()) {
-            Blynk.virtualWrite(VP_OVERRIDE_LEFT,  0);
-            Blynk.virtualWrite(VP_OVERRIDE_RIGHT, 0);
+            // V5/V6 vor fi sincronizate cu starea reală a releului în pushRelayState()
             Blynk.logEvent("override_expired", "Override manual a expirat automat.");
         }
         // Event log — override expired (Faza 3)
@@ -347,6 +354,13 @@ void processZones() {
     // 4. Aplică logica de decizie locală — SINGURA sursă de adevăr.
     leftZone.updateLogic (prefs.tempThresh, prefs.humThresh, prefs.tempHyst, prefs.humHyst);
     rightZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst, prefs.humHyst);
+
+    // FIX: dacă a fost procesat un pending Blynk/MQTT în acest ciclu, republicăm state
+    // după readSensor + updateLogic, astfel ca MAUI/Blynk să vadă valorile actuale ale senzorilor
+    // (nu cele cached pre-reset). Lock-ul a fost deja eliberat mai sus.
+    if (mqttPendingProcessed || blynkPendingProcessed) {
+        mqtt.requestPublishNow();
+    }
 
     Serial.printf("  [STANGA]  T:%.1f°C  H:%.1f%%  Releu:%s  Override:%s\n",
         leftZone.getTemp(), leftZone.getHum(),
@@ -444,9 +458,14 @@ void checkMemory() {
 // ============================================================
 
 BLYNK_CONNECTED() {
-    // Sincronizăm DOAR parametrii de configurare din cloud.
-    // V5, V6 (starea releelor) NU sunt sincronizate — ESP32 le impune.
-    Blynk.syncVirtual(VP_THRESH_TEMP, VP_THRESH_HUM, VP_INTERVAL, VP_RESET_DEFAULTS);
+    // Sincronizăm parametrii de configurare din cloud (sliderele care permit user input).
+    // V5, V6 NU se sincronizează — ESP32 publică starea releelor curentă.
+    Blynk.syncVirtual(VP_THRESH_TEMP, VP_THRESH_HUM, VP_INTERVAL,
+                      VP_HYST_TEMP, VP_HYST_HUM, VP_RESET_DEFAULTS);
+    // Trimite valorile curente hyst spre Blynk (în caz că NVS le-a salvat și sliderele Blynk
+    // le ignoră la primul boot)
+    Blynk.virtualWrite(VP_HYST_TEMP, prefs.tempHyst);
+    Blynk.virtualWrite(VP_HYST_HUM,  prefs.humHyst);
     // Trimitem imediat starea curentă a releelor spre UI
     pushRelayState();
     // Lock owner reset + firmware build number (Faza 2)
@@ -498,37 +517,69 @@ BLYNK_WRITE(VP_INTERVAL) {
     Serial.printf("[Blynk] Interval solicitat: %d sec\n", v);
 }
 
-// Override stânga: 1 = forţat ON, 0 = forţat OFF, 2 = clear (revenire la auto)
-BLYNK_WRITE(VP_OVERRIDE_LEFT) {
+// V5 = toggle override stânga (0/1). 1 = override ON, 0 = revenire auto.
+BLYNK_WRITE(VP_RELAY_LEFT) {
     if (mqtt.getLockOwner() == LOCK_MQTT) {
-        Blynk.virtualWrite(VP_OVERRIDE_LEFT, leftZone.getManualOverride() ? 1 : 0);
+        Blynk.virtualWrite(VP_RELAY_LEFT, leftZone.getRelayState() ? 1 : 0);
         return;
     }
     mqtt.setLockOwner(LOCK_BLYNK);
     mqtt.requestPublishNow();
     int v = param.asInt();
-    if (v == 2) {
-        pending.overrideLeftClear = true;
-    } else {
+    if (v == 1) {
         pending.overrideLeftSet = true;
-        pending.overrideLeftVal = (v == 1);
+        pending.overrideLeftVal = true;
+    } else {
+        pending.overrideLeftClear = true;
+    }
+    Serial.printf("[Blynk] V5 toggle override stânga: %s\n", v == 1 ? "ON" : "auto");
+}
+
+// V6 = toggle override dreapta
+BLYNK_WRITE(VP_RELAY_RIGHT) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_RELAY_RIGHT, rightZone.getRelayState() ? 1 : 0);
+        return;
+    }
+    mqtt.setLockOwner(LOCK_BLYNK);
+    mqtt.requestPublishNow();
+    int v = param.asInt();
+    if (v == 1) {
+        pending.overrideRightSet = true;
+        pending.overrideRightVal = true;
+    } else {
+        pending.overrideRightClear = true;
+    }
+    Serial.printf("[Blynk] V6 toggle override dreapta: %s\n", v == 1 ? "ON" : "auto");
+}
+
+// V11 = hysteresis temperatură (Marja temp)
+BLYNK_WRITE(VP_HYST_TEMP) {
+    if (mqtt.getLockOwner() == LOCK_MQTT) {
+        Blynk.virtualWrite(VP_HYST_TEMP, prefs.tempHyst);
+        return;
+    }
+    float v = param.asFloat();
+    if (v >= MIN_TEMP_HYST && v <= MAX_TEMP_HYST) {
+        mqtt.setLockOwner(LOCK_BLYNK);
+        mqtt.requestPublishNow();
+        prefs.saveTempHyst(v);
+        Serial.printf("[Blynk] Hysteresis temp: %.1f°C\n", v);
     }
 }
 
-// Override dreapta: aceeaşi convenţie
-BLYNK_WRITE(VP_OVERRIDE_RIGHT) {
+// V12 = hysteresis umiditate (Marja hum)
+BLYNK_WRITE(VP_HYST_HUM) {
     if (mqtt.getLockOwner() == LOCK_MQTT) {
-        Blynk.virtualWrite(VP_OVERRIDE_RIGHT, rightZone.getManualOverride() ? 1 : 0);
+        Blynk.virtualWrite(VP_HYST_HUM, prefs.humHyst);
         return;
     }
-    mqtt.setLockOwner(LOCK_BLYNK);
-    mqtt.requestPublishNow();
-    int v = param.asInt();
-    if (v == 2) {
-        pending.overrideRightClear = true;
-    } else {
-        pending.overrideRightSet = true;
-        pending.overrideRightVal = (v == 1);
+    float v = param.asFloat();
+    if (v >= MIN_HUM_HYST && v <= MAX_HUM_HYST) {
+        mqtt.setLockOwner(LOCK_BLYNK);
+        mqtt.requestPublishNow();
+        prefs.saveHumHyst(v);
+        Serial.printf("[Blynk] Hysteresis hum: %.1f%%\n", v);
     }
 }
 
