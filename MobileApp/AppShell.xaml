@@ -5,38 +5,26 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
     xmlns:views="clr-namespace:ProiectVentilatie.Mobile.Views"
     Shell.FlyoutBehavior="Disabled"
+    Shell.TabBarIsVisible="False"
     Title="Ventilatie Smart"
-    BackgroundColor="{StaticResource BackgroundColor}"
-    ForegroundColor="{StaticResource TextColor}"
-    UnselectedColor="{StaticResource SecondaryTextColor}"
-    TabBarBackgroundColor="{StaticResource BackgroundColor}"
-    TabBarTitleColor="{StaticResource PrimaryCyan}"
-    TabBarUnselectedColor="{StaticResource SecondaryTextColor}">
+    BackgroundColor="{StaticResource BackgroundColor}">
 
-    <Shell.Resources>
-        <ResourceDictionary>
-            <Style TargetType="TabBar">
-                <Setter Property="Shell.TabBarIsVisible" Value="False" />
-            </Style>
-        </ResourceDictionary>
-    </Shell.Resources>
-
-    <FlyoutItem Title="Main" FlyoutDisplayOptions="AsMultipleItems">
-        <Tab Title="Dashboard" Route="DashboardPage">
+    <TabBar>
+        <Tab Route="DashboardPage">
             <ShellContent ContentTemplate="{DataTemplate views:DashboardPage}" />
         </Tab>
-        <Tab Title="Devices" Route="DevicesPage">
+        <Tab Route="DevicesPage">
             <ShellContent ContentTemplate="{DataTemplate views:DevicesPage}" />
         </Tab>
-        <Tab Title="Settings" Route="SettingsPage">
+        <Tab Route="SettingsPage">
             <ShellContent ContentTemplate="{DataTemplate views:SettingsPage}" />
         </Tab>
-        <Tab Title="Reports" Route="ReportsPage">
+        <Tab Route="ReportsPage">
             <ShellContent ContentTemplate="{DataTemplate views:LogPage}" />
         </Tab>
-        <Tab Title="System" Route="SystemPage">
+        <Tab Route="SystemPage">
             <ShellContent ContentTemplate="{DataTemplate views:SystemPage}" />
         </Tab>
-    </FlyoutItem>
+    </TabBar>
 
 </Shell>
