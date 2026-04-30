@@ -6,6 +6,18 @@
 
     <ContentView.Resources>
         <converters:BoolToColorConverter x:Key="NavBoolToColor" />
+        <Style x:Key="NavTapButton" TargetType="Button">
+            <Setter Property="BackgroundColor" Value="Transparent" />
+            <Setter Property="BorderWidth" Value="0" />
+            <Setter Property="BorderColor" Value="Transparent" />
+            <Setter Property="TextColor" Value="Transparent" />
+            <Setter Property="CornerRadius" Value="0" />
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="Margin" Value="0" />
+            <Setter Property="HeightRequest" Value="-1" />
+            <Setter Property="MinimumHeightRequest" Value="0" />
+            <Setter Property="MinimumWidthRequest" Value="0" />
+        </Style>
     </ContentView.Resources>
 
     <Border Margin="14,0,14,14"
@@ -24,138 +36,113 @@
 
         <Grid ColumnDefinitions="*,*,*,*,*">
             <!-- Dashboard -->
-            <Grid Grid.Column="0" BackgroundColor="#01000000" RowDefinitions="3,*">
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer NumberOfTapsRequired="1"
-                                          Command="{Binding NavigateCommand, Source={x:Reference self}}"
-                                          CommandParameter="Dashboard" />
-                </Grid.GestureRecognizers>
-                <BoxView Grid.Row="0"
-                         HeightRequest="3" WidthRequest="22"
-                         Color="{StaticResource PrimaryCyan}"
-                         CornerRadius="0,0,2,2"
-                         HorizontalOptions="Center" VerticalOptions="Start"
-                         IsVisible="{Binding IsDashboardActive, Source={x:Reference self}}" />
-                <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
-                    <Path Data="M3,3 H10 V10 H3 Z M14,3 H21 V10 H14 Z M3,14 H10 V21 H3 Z M14,14 H21 V21 H14 Z"
-                          Fill="Transparent"
-                          StrokeThickness="2"
-                          HeightRequest="22" WidthRequest="22"
-                          HorizontalOptions="Center"
-                          Aspect="Uniform"
-                          Stroke="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                    <Label Text="Dashboard" FontSize="10" HorizontalOptions="Center"
-                           Style="{StaticResource LabelRajdhani}"
-                           TextColor="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                </VerticalStackLayout>
+            <Grid Grid.Column="0">
+                <Grid InputTransparent="True" RowDefinitions="3,*">
+                    <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
+                             Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
+                             HorizontalOptions="Center" VerticalOptions="Start"
+                             IsVisible="{Binding IsDashboardActive, Source={x:Reference self}}" />
+                    <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
+                        <Path Data="M3,3 H10 V10 H3 Z M14,3 H21 V10 H14 Z M3,14 H10 V21 H3 Z M14,14 H21 V21 H14 Z"
+                              Fill="Transparent" StrokeThickness="2"
+                              HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
+                              Stroke="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                        <Label Text="Dashboard" FontSize="10" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}"
+                               TextColor="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                    </VerticalStackLayout>
+                </Grid>
+                <Button Style="{StaticResource NavTapButton}"
+                        Command="{Binding NavigateCommand, Source={x:Reference self}}"
+                        CommandParameter="Dashboard" />
             </Grid>
 
             <!-- Devices -->
-            <Grid Grid.Column="1" BackgroundColor="#01000000" RowDefinitions="3,*">
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer NumberOfTapsRequired="1"
-                                          Command="{Binding NavigateCommand, Source={x:Reference self}}"
-                                          CommandParameter="Devices" />
-                </Grid.GestureRecognizers>
-                <BoxView Grid.Row="0"
-                         HeightRequest="3" WidthRequest="22"
-                         Color="{StaticResource PrimaryCyan}"
-                         CornerRadius="0,0,2,2"
-                         HorizontalOptions="Center" VerticalOptions="Start"
-                         IsVisible="{Binding IsDevicesActive, Source={x:Reference self}}" />
-                <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
-                    <Path Data="M2,4 H22 V16 H2 Z M8,16 L6,20 H18 L16,16 M10,20 V22 H14"
-                          Fill="Transparent"
-                          StrokeThickness="2"
-                          HeightRequest="22" WidthRequest="22"
-                          HorizontalOptions="Center"
-                          Aspect="Uniform"
-                          Stroke="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                    <Label Text="Devices" FontSize="10" HorizontalOptions="Center"
-                           Style="{StaticResource LabelRajdhani}"
-                           TextColor="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                </VerticalStackLayout>
+            <Grid Grid.Column="1">
+                <Grid InputTransparent="True" RowDefinitions="3,*">
+                    <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
+                             Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
+                             HorizontalOptions="Center" VerticalOptions="Start"
+                             IsVisible="{Binding IsDevicesActive, Source={x:Reference self}}" />
+                    <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
+                        <Path Data="M2,4 H22 V16 H2 Z M8,16 L6,20 H18 L16,16 M10,20 V22 H14"
+                              Fill="Transparent" StrokeThickness="2"
+                              HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
+                              Stroke="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                        <Label Text="Devices" FontSize="10" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}"
+                               TextColor="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                    </VerticalStackLayout>
+                </Grid>
+                <Button Style="{StaticResource NavTapButton}"
+                        Command="{Binding NavigateCommand, Source={x:Reference self}}"
+                        CommandParameter="Devices" />
             </Grid>
 
             <!-- Settings -->
-            <Grid Grid.Column="2" BackgroundColor="#01000000" RowDefinitions="3,*">
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer NumberOfTapsRequired="1"
-                                          Command="{Binding NavigateCommand, Source={x:Reference self}}"
-                                          CommandParameter="Settings" />
-                </Grid.GestureRecognizers>
-                <BoxView Grid.Row="0"
-                         HeightRequest="3" WidthRequest="22"
-                         Color="{StaticResource PrimaryCyan}"
-                         CornerRadius="0,0,2,2"
-                         HorizontalOptions="Center" VerticalOptions="Start"
-                         IsVisible="{Binding IsSettingsActive, Source={x:Reference self}}" />
-                <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
-                    <Path Data="M12,8 A4,4 0 1,1 12,16 A4,4 0 1,1 12,8 M12,2 V5 M12,19 V22 M2,12 H5 M19,12 H22 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M4.9,19.1 L7,17 M17,7 L19.1,4.9"
-                          Fill="Transparent"
-                          StrokeThickness="2"
-                          HeightRequest="22" WidthRequest="22"
-                          HorizontalOptions="Center"
-                          Aspect="Uniform"
-                          Stroke="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                    <Label Text="Settings" FontSize="10" HorizontalOptions="Center"
-                           Style="{StaticResource LabelRajdhani}"
-                           TextColor="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                </VerticalStackLayout>
+            <Grid Grid.Column="2">
+                <Grid InputTransparent="True" RowDefinitions="3,*">
+                    <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
+                             Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
+                             HorizontalOptions="Center" VerticalOptions="Start"
+                             IsVisible="{Binding IsSettingsActive, Source={x:Reference self}}" />
+                    <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
+                        <Path Data="M12,8 A4,4 0 1,1 12,16 A4,4 0 1,1 12,8 M12,2 V5 M12,19 V22 M2,12 H5 M19,12 H22 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M4.9,19.1 L7,17 M17,7 L19.1,4.9"
+                              Fill="Transparent" StrokeThickness="2"
+                              HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
+                              Stroke="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                        <Label Text="Settings" FontSize="10" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}"
+                               TextColor="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                    </VerticalStackLayout>
+                </Grid>
+                <Button Style="{StaticResource NavTapButton}"
+                        Command="{Binding NavigateCommand, Source={x:Reference self}}"
+                        CommandParameter="Settings" />
             </Grid>
 
             <!-- Reports -->
-            <Grid Grid.Column="3" BackgroundColor="#01000000" RowDefinitions="3,*">
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer NumberOfTapsRequired="1"
-                                          Command="{Binding NavigateCommand, Source={x:Reference self}}"
-                                          CommandParameter="Reports" />
-                </Grid.GestureRecognizers>
-                <BoxView Grid.Row="0"
-                         HeightRequest="3" WidthRequest="22"
-                         Color="{StaticResource PrimaryCyan}"
-                         CornerRadius="0,0,2,2"
-                         HorizontalOptions="Center" VerticalOptions="Start"
-                         IsVisible="{Binding IsReportsActive, Source={x:Reference self}}" />
-                <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
-                    <Path Data="M6,2 H14 L19,7 V22 H6 Z M14,2 V7 H19 M9,12 H16 M9,16 H16"
-                          Fill="Transparent"
-                          StrokeThickness="2"
-                          HeightRequest="22" WidthRequest="22"
-                          HorizontalOptions="Center"
-                          Aspect="Uniform"
-                          Stroke="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                    <Label Text="Reports" FontSize="10" HorizontalOptions="Center"
-                           Style="{StaticResource LabelRajdhani}"
-                           TextColor="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                </VerticalStackLayout>
+            <Grid Grid.Column="3">
+                <Grid InputTransparent="True" RowDefinitions="3,*">
+                    <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
+                             Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
+                             HorizontalOptions="Center" VerticalOptions="Start"
+                             IsVisible="{Binding IsReportsActive, Source={x:Reference self}}" />
+                    <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
+                        <Path Data="M6,2 H14 L19,7 V22 H6 Z M14,2 V7 H19 M9,12 H16 M9,16 H16"
+                              Fill="Transparent" StrokeThickness="2"
+                              HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
+                              Stroke="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                        <Label Text="Reports" FontSize="10" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}"
+                               TextColor="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                    </VerticalStackLayout>
+                </Grid>
+                <Button Style="{StaticResource NavTapButton}"
+                        Command="{Binding NavigateCommand, Source={x:Reference self}}"
+                        CommandParameter="Reports" />
             </Grid>
 
             <!-- System -->
-            <Grid Grid.Column="4" BackgroundColor="#01000000" RowDefinitions="3,*">
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer NumberOfTapsRequired="1"
-                                          Command="{Binding NavigateCommand, Source={x:Reference self}}"
-                                          CommandParameter="System" />
-                </Grid.GestureRecognizers>
-                <BoxView Grid.Row="0"
-                         HeightRequest="3" WidthRequest="22"
-                         Color="{StaticResource PrimaryCyan}"
-                         CornerRadius="0,0,2,2"
-                         HorizontalOptions="Center" VerticalOptions="Start"
-                         IsVisible="{Binding IsSystemActive, Source={x:Reference self}}" />
-                <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
-                    <Path Data="M4,4 H10 L12,7 H20 V20 H4 Z M4,11 H20 M4,15 H20"
-                          Fill="Transparent"
-                          StrokeThickness="2"
-                          HeightRequest="22" WidthRequest="22"
-                          HorizontalOptions="Center"
-                          Aspect="Uniform"
-                          Stroke="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                    <Label Text="System" FontSize="10" HorizontalOptions="Center"
-                           Style="{StaticResource LabelRajdhani}"
-                           TextColor="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                </VerticalStackLayout>
+            <Grid Grid.Column="4">
+                <Grid InputTransparent="True" RowDefinitions="3,*">
+                    <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
+                             Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
+                             HorizontalOptions="Center" VerticalOptions="Start"
+                             IsVisible="{Binding IsSystemActive, Source={x:Reference self}}" />
+                    <VerticalStackLayout Grid.Row="1" Spacing="3" VerticalOptions="Center">
+                        <Path Data="M4,4 H10 L12,7 H20 V20 H4 Z M4,11 H20 M4,15 H20"
+                              Fill="Transparent" StrokeThickness="2"
+                              HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
+                              Stroke="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                        <Label Text="System" FontSize="10" HorizontalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}"
+                               TextColor="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                    </VerticalStackLayout>
+                </Grid>
+                <Button Style="{StaticResource NavTapButton}"
+                        Command="{Binding NavigateCommand, Source={x:Reference self}}"
+                        CommandParameter="System" />
             </Grid>
         </Grid>
     </Border>
