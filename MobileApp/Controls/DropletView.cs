@@ -28,7 +28,7 @@ public class DropletView : SKCanvasView
 
         float pct = (float)Math.Clamp(Humidity / 100.0, 0, 1);
         SKColor color = GetHumidityColor(Humidity);
-        string glow = GetGlowColor(Humidity);
+        SKColor glow = GetGlowColor(Humidity);
 
         // Path from SVG: M20 2C20 2 4 22 4 36C4 46.5 11.2 54 20 54C28.8 54 36 46.5 36 36C36 22 20 2 20 2Z
         using var path = SKPath.ParseSvgPathData("M20 2C20 2 4 22 4 36C4 46.5 11.2 54 20 54C28.8 54 36 46.5 36 36C36 22 20 2 20 2Z");
@@ -84,7 +84,7 @@ public class DropletView : SKCanvasView
         // 4. Glow Border
         using var glowPaint = new SKPaint
         {
-            Color = SKColor.Parse(glow),
+            Color = glow,
             Style = SKPaintStyle.Stroke,
             StrokeWidth = 1f,
             IsAntialias = true,
@@ -102,12 +102,12 @@ public class DropletView : SKCanvasView
         return SKColor.Parse("#8855ff");
     }
 
-    private string GetGlowColor(double h)
+    private SKColor GetGlowColor(double h)
     {
-        if (h < 30)  return "rgba(255,153,68,0.4)";
-        if (h < 45)  return "rgba(255,221,68,0.4)";
-        if (h <= 52) return "rgba(0,232,122,0.4)";
-        if (h < 65)  return "rgba(68,170,255,0.4)";
-        return "rgba(136,85,255,0.4)";
+        if (h < 30)  return SKColor.Parse("#ff9944").WithAlpha(102); // 0.4
+        if (h < 45)  return SKColor.Parse("#ffdd44").WithAlpha(102);
+        if (h <= 52) return SKColor.Parse("#00e87a").WithAlpha(102);
+        if (h < 65)  return SKColor.Parse("#44aaff").WithAlpha(102);
+        return SKColor.Parse("#8855ff").WithAlpha(102);
     }
 }

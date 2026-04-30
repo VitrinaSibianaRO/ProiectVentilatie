@@ -28,7 +28,7 @@ public class ThermometerView : SKCanvasView
 
         float pct = (float)Math.Clamp(Temperature / 60.0, 0, 1);
         SKColor color = GetTemperatureColor(Temperature);
-        string glow = GetGlowColor(Temperature);
+        SKColor glow = GetGlowColor(Temperature);
 
         // 1. Tube Background (rect x="10" y="6" width="8" height="52")
         using var tubeBgPaint = new SKPaint
@@ -86,7 +86,7 @@ public class ThermometerView : SKCanvasView
         // Glow effect
         using var bulbGlowPaint = new SKPaint
         {
-            Color = SKColor.Parse(glow),
+            Color = glow,
             Style = SKPaintStyle.Fill,
             IsAntialias = true,
             ImageFilter = SKImageFilter.CreateBlur(5, 5)
@@ -129,12 +129,12 @@ public class ThermometerView : SKCanvasView
         return SKColor.Parse("#ff4422");
     }
 
-    private string GetGlowColor(double temp)
+    private SKColor GetGlowColor(double temp)
     {
-        if (temp <= 18) return "rgba(0,170,255,0.4)";
-        if (temp < 25)  return "rgba(0,220,200,0.4)";
-        if (temp <= 33) return "rgba(0,232,122,0.4)";
-        if (temp < 38)  return "rgba(255,187,0,0.4)";
-        return "rgba(255,68,34,0.4)";
+        if (temp <= 18) return SKColor.Parse("#00aaff").WithAlpha(102);
+        if (temp < 25)  return SKColor.Parse("#00ddcc").WithAlpha(102);
+        if (temp <= 33) return SKColor.Parse("#00e87a").WithAlpha(102);
+        if (temp < 38)  return SKColor.Parse("#ffbb00").WithAlpha(102);
+        return SKColor.Parse("#ff4422").WithAlpha(102);
     }
 }
