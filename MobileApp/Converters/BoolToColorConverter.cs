@@ -17,9 +17,10 @@ public class BoolToColorConverter : IValueConverter
 
         return mode switch
         {
-            "orange" => isTrue ? Color.FromArgb("#ff7a45") : Color.FromArgb("#44FFFFFF"),
-            "red"    => isTrue ? Color.FromArgb("#ff4422") : Color.FromArgb("#44FFFFFF"),
-            _        => isTrue ? Color.FromArgb("#00e87a") : Color.FromArgb("#44FFFFFF"),
+            "orange" => isTrue ? Color.FromArgb("#ff7a45") : Color.FromArgb("#66FFFFFF"),
+            "red"    => isTrue ? Color.FromArgb("#ff4422") : Color.FromArgb("#66FFFFFF"),
+            "cyan"   => isTrue ? Color.FromArgb("#00e6ff") : Color.FromArgb("#66FFFFFF"),
+            _        => isTrue ? Color.FromArgb("#00e87a") : Color.FromArgb("#66FFFFFF"),
         };
     }
 

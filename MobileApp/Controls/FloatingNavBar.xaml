@@ -5,14 +5,14 @@
              x:Name="self">
     
     <Border Margin="14,0,14,12"
-            Padding="0,4"
+            Padding="0"
             Stroke="#2E00e6ff"
             StrokeThickness="1"
-            StrokeShape="RoundRectangle 20"
-            HeightRequest="70"
+            StrokeShape="RoundRectangle 22"
+            HeightRequest="80"
             VerticalOptions="End">
         <Border.Background>
-            <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
                 <GradientStop Color="#FB00122c" Offset="0.0" />
                 <GradientStop Color="#FB000a1c" Offset="1.0" />
             </LinearGradientBrush>
@@ -24,11 +24,40 @@
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Dashboard" />
                 </Grid.GestureRecognizers>
-                <VerticalStackLayout Spacing="4" VerticalOptions="Center" InputTransparent="True">
-                    <Image Source="dashboard_tab_icon.png" HeightRequest="24" WidthRequest="24" 
-                           Opacity="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
-                    <Label Text="Dashboard" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
-                           Opacity="{Binding IsDashboardActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <VerticalStackLayout Spacing="2" VerticalOptions="Fill" InputTransparent="True">
+                    <BoxView HeightRequest="3" WidthRequest="12" 
+                             Color="{StaticResource PrimaryCyan}" 
+                             CornerRadius="1.5"
+                             HorizontalOptions="Center"
+                             Margin="0,4,0,4"
+                             IsVisible="{Binding IsDashboardActive, Source={x:Reference self}}" />
+                    
+                    <!-- Dashboard Vector Icon (2x2 squares) -->
+                    <Path Data="M2,2 H8 V8 H2 Z M12,2 H18 V8 H12 Z M2,12 H8 V18 H2 Z M12,12 H18 V18 H12 Z"
+                          Fill="Transparent"
+                          StrokeThickness="2"
+                          HeightRequest="24" WidthRequest="24"
+                          HorizontalOptions="Center"
+                          Aspect="Uniform">
+                        <Path.Stroke>
+                            <Binding Path="IsDashboardActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Path.Stroke>
+                    </Path>
+                    
+                    <Label Text="Dashboard" FontSize="11" HorizontalOptions="Center" 
+                           Style="{StaticResource LabelRajdhani}">
+                        <Label.TextColor>
+                            <Binding Path="IsDashboardActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Label.TextColor>
+                    </Label>
                 </VerticalStackLayout>
             </Grid>
 
@@ -37,11 +66,40 @@
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Devices" />
                 </Grid.GestureRecognizers>
-                <VerticalStackLayout Spacing="4" VerticalOptions="Center" InputTransparent="True">
-                    <Image Source="devices_tab_icon.png" HeightRequest="24" WidthRequest="24" 
-                           Opacity="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
-                    <Label Text="Devices" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
-                           Opacity="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <VerticalStackLayout Spacing="2" VerticalOptions="Fill" InputTransparent="True">
+                    <BoxView HeightRequest="3" WidthRequest="12" 
+                             Color="{StaticResource PrimaryCyan}" 
+                             CornerRadius="1.5"
+                             HorizontalOptions="Center"
+                             Margin="0,4,0,4"
+                             IsVisible="{Binding IsDevicesActive, Source={x:Reference self}}" />
+                    
+                    <!-- Devices Vector Icon (Monitor) -->
+                    <Path Data="M2,4 H22 V16 H2 Z M8,16 L6,20 H18 L16,16 M10,20 V22 H14"
+                          Fill="Transparent"
+                          StrokeThickness="2"
+                          HeightRequest="24" WidthRequest="24"
+                          HorizontalOptions="Center"
+                          Aspect="Uniform">
+                        <Path.Stroke>
+                            <Binding Path="IsDevicesActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Path.Stroke>
+                    </Path>
+
+                    <Label Text="Devices" FontSize="11" HorizontalOptions="Center" 
+                           Style="{StaticResource LabelRajdhani}">
+                        <Label.TextColor>
+                            <Binding Path="IsDevicesActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Label.TextColor>
+                    </Label>
                 </VerticalStackLayout>
             </Grid>
 
@@ -50,11 +108,40 @@
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Settings" />
                 </Grid.GestureRecognizers>
-                <VerticalStackLayout Spacing="4" VerticalOptions="Center" InputTransparent="True">
-                    <Image Source="settings_tab_icon.png" HeightRequest="24" WidthRequest="24" 
-                           Opacity="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
-                    <Label Text="Settings" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
-                           Opacity="{Binding IsSettingsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <VerticalStackLayout Spacing="2" VerticalOptions="Fill" InputTransparent="True">
+                    <BoxView HeightRequest="3" WidthRequest="12" 
+                             Color="{StaticResource PrimaryCyan}" 
+                             CornerRadius="1.5"
+                             HorizontalOptions="Center"
+                             Margin="0,4,0,4"
+                             IsVisible="{Binding IsSettingsActive, Source={x:Reference self}}" />
+                    
+                    <!-- Settings Vector Icon (Sun/Gear) -->
+                    <Path Data="M12,8 A4,4 0 1,1 12,16 A4,4 0 1,1 12,8 M12,2 V5 M12,19 V22 M2,12 H5 M19,12 H22 M4.9,4.9 L7,7 M17,17 L19.1,19.1 M4.9,19.1 L7,17 M17,7 L19.1,4.9"
+                          Fill="Transparent"
+                          StrokeThickness="2"
+                          HeightRequest="24" WidthRequest="24"
+                          HorizontalOptions="Center"
+                          Aspect="Uniform">
+                        <Path.Stroke>
+                            <Binding Path="IsSettingsActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Path.Stroke>
+                    </Path>
+
+                    <Label Text="Settings" FontSize="11" HorizontalOptions="Center" 
+                           Style="{StaticResource LabelRajdhani}">
+                        <Label.TextColor>
+                            <Binding Path="IsSettingsActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Label.TextColor>
+                    </Label>
                 </VerticalStackLayout>
             </Grid>
 
@@ -63,11 +150,40 @@
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="Reports" />
                 </Grid.GestureRecognizers>
-                <VerticalStackLayout Spacing="4" VerticalOptions="Center" InputTransparent="True">
-                    <Image Source="reports_tab_icon.png" HeightRequest="24" WidthRequest="24" 
-                           Opacity="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
-                    <Label Text="Reports" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
-                           Opacity="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <VerticalStackLayout Spacing="2" VerticalOptions="Fill" InputTransparent="True">
+                    <BoxView HeightRequest="3" WidthRequest="12" 
+                             Color="{StaticResource PrimaryCyan}" 
+                             CornerRadius="1.5"
+                             HorizontalOptions="Center"
+                             Margin="0,4,0,4"
+                             IsVisible="{Binding IsReportsActive, Source={x:Reference self}}" />
+                    
+                    <!-- Reports Vector Icon (Document) -->
+                    <Path Data="M6,2 H14 L19,7 V22 H6 Z M14,2 V7 H19 M9,12 H16 M9,16 H16"
+                          Fill="Transparent"
+                          StrokeThickness="2"
+                          HeightRequest="24" WidthRequest="24"
+                          HorizontalOptions="Center"
+                          Aspect="Uniform">
+                        <Path.Stroke>
+                            <Binding Path="IsReportsActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Path.Stroke>
+                    </Path>
+
+                    <Label Text="Reports" FontSize="11" HorizontalOptions="Center" 
+                           Style="{StaticResource LabelRajdhani}">
+                        <Label.TextColor>
+                            <Binding Path="IsReportsActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Label.TextColor>
+                    </Label>
                 </VerticalStackLayout>
             </Grid>
 
@@ -76,11 +192,40 @@
                 <Grid.GestureRecognizers>
                     <TapGestureRecognizer Command="{Binding NavigateCommand, Source={x:Reference self}}" CommandParameter="System" />
                 </Grid.GestureRecognizers>
-                <VerticalStackLayout Spacing="4" VerticalOptions="Center" InputTransparent="True">
-                    <Image Source="system_tab_icon.png" HeightRequest="24" WidthRequest="24" 
-                           Opacity="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
-                    <Label Text="System" FontSize="10" HorizontalOptions="Center" Style="{StaticResource LabelRajdhani}" 
-                           Opacity="{Binding IsSystemActive, Source={x:Reference self}, Converter={StaticResource OpacityConverter}}" />
+                <VerticalStackLayout Spacing="2" VerticalOptions="Fill" InputTransparent="True">
+                    <BoxView HeightRequest="3" WidthRequest="12" 
+                             Color="{StaticResource PrimaryCyan}" 
+                             CornerRadius="1.5"
+                             HorizontalOptions="Center"
+                             Margin="0,4,0,4"
+                             IsVisible="{Binding IsSystemActive, Source={x:Reference self}}" />
+                    
+                    <!-- System Vector Icon (Folder/Server) -->
+                    <Path Data="M4,4 H10 L12,7 H20 V20 H4 Z M4,11 H20 M4,15 H20"
+                          Fill="Transparent"
+                          StrokeThickness="2"
+                          HeightRequest="24" WidthRequest="24"
+                          HorizontalOptions="Center"
+                          Aspect="Uniform">
+                        <Path.Stroke>
+                            <Binding Path="IsSystemActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Path.Stroke>
+                    </Path>
+
+                    <Label Text="System" FontSize="11" HorizontalOptions="Center" 
+                           Style="{StaticResource LabelRajdhani}">
+                        <Label.TextColor>
+                            <Binding Path="IsSystemActive" Source="{x:Reference self}">
+                                <Binding.Converter>
+                                    <converters:BoolToColorConverter ConverterParameter="cyan" />
+                                </Binding.Converter>
+                            </Binding>
+                        </Label.TextColor>
+                    </Label>
                 </VerticalStackLayout>
             </Grid>
         </Grid>
