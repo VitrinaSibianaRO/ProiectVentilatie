@@ -17,6 +17,7 @@ obj/
 # Visual Studio
 .vs/
 .vscode/
+.idea/
 
 # Ignore keystores if you want to keep them private (but we need it for GH Actions)
 # *.keystore

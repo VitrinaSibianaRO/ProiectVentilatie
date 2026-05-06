@@ -1,0 +1,29 @@
+// WatchdogManager.h — Wrapper esp_task_wdt pentru watchdog hardware.
+// Resetează automat ESP32 dacă feed() nu este apelat in timeoutSec secunde.
+#pragma once
+#include <esp_task_wdt.h>
+
+class WatchdogManager {
+public:
+    // Apelat o singura data in setup(). panic=true → reset la timeout (nu doar log).
+    // esp-idf v5+ (arduino core 3.x) foloseste struct in loc de 2 argumente.
+    static void begin(uint32_t timeoutSec, bool panic = true) {
+        const esp_task_wdt_config_t wdt_cfg = {
+            .timeout_ms    = timeoutSec * 1000,
+            .idle_core_mask = 0,
+            .trigger_panic = panic
+        };
+        esp_task_wdt_init(&wdt_cfg);
+        esp_task_wdt_add(nullptr);   // subscrie task-ul curent (loopTask)
+    }
+
+    // Apelat la inceputul fiecarei iteratii loop(). Resetează timer-ul WDT.
+    static void feed() {
+        esp_task_wdt_reset();
+    }
+
+    // Apelat optional la sfarsitul unui task lung (ex. OTA chunk writing).
+    static void feedNow() {
+        esp_task_wdt_reset();
+    }
+};
