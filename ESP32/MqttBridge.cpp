@@ -28,10 +28,19 @@ MqttBridge::MqttBridge()
       _lockSetAtMs(0),
       _lastDiagMs(0),
       _lastSlaveErrors(0),
-      _lastSlaveOnline(false)
+      _lastSlaveOnline(false),
+      _stateBuf(nullptr),
+      _diagBuf(nullptr)
 {
     _lastRelayState[0] = false;
     _lastRelayState[1] = false;
+
+    // Alocare PSRAM cu fallback pe heap intern — o singura data la constructie.
+    _stateBuf = (char*)ps_malloc(PSRAM_STAT_BUF_SIZE);
+    if (!_stateBuf) _stateBuf = new char[PSRAM_STAT_BUF_SIZE];
+
+    _diagBuf  = (char*)ps_malloc(PSRAM_DIAG_BUF_SIZE);
+    if (!_diagBuf) _diagBuf = new char[PSRAM_DIAG_BUF_SIZE];
 }
 
 void MqttBridge::begin(AppPreferences* prefs) {
@@ -397,14 +406,13 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     doc["uptimeSec"] = (uint32_t)(millis() / 1000);
     doc["heap"]      = (uint32_t)ESP.getFreeHeap();
 
-    char buf[800];
-    size_t n = serializeJson(doc, buf, sizeof(buf));
-    if (n == 0 || n >= sizeof(buf)) {
+    size_t n = serializeJson(doc, _stateBuf, PSRAM_STAT_BUF_SIZE);
+    if (n == 0 || n >= PSRAM_STAT_BUF_SIZE) {
         Serial.println("[MQTT] State serialize error.");
         return;
     }
 
-    bool ok = _client.publish(TOPIC_STATE, (const uint8_t*)buf, n, true);
+    bool ok = _client.publish(TOPIC_STATE, (const uint8_t*)_stateBuf, n, true);
     if (!ok) {
         Serial.println("[MQTT] State publish FAILED.");
     } else {
@@ -442,7 +450,6 @@ void MqttBridge::_publishDiag() {
     doc["slaveErr"]    = _lastSlaveErrors;
     doc["slaveOnline"] = _lastSlaveOnline;
 
-    char buf[384];
-    size_t n = serializeJson(doc, buf, sizeof(buf));
-    _client.publish(TOPIC_DIAG, (const uint8_t*)buf, n, false);
+    size_t n = serializeJson(doc, _diagBuf, PSRAM_DIAG_BUF_SIZE);
+    _client.publish(TOPIC_DIAG, (const uint8_t*)_diagBuf, n, false);
 }

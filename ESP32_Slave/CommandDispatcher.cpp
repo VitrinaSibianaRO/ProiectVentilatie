@@ -1,5 +1,7 @@
 // CommandDispatcher.cpp — Implementare handlere comenzi UART Slave.
 #include "CommandDispatcher.h"
+#include "SharedSensorData.h"
+#include "SensorTask.h"
 
 void CommandDispatcher::tick() {
     char cmd[UART_BUFFER_SIZE];
@@ -49,15 +51,21 @@ void CommandDispatcher::tick() {
 //  GET_SENSOR
 // ============================================================
 void CommandDispatcher::_handleGetSensor() {
-    float t = 0.0f, h = 0.0f;
-    const bool ok = _sensor.read(t, h);
+    // Citire non-blocanta din SharedSensorData (actualizata de SensorTask pe Core 0).
+    // Timp raspuns: <1ms (vs 0-80ms blocant anterior pe I2C).
+    SharedSensorData snap{};
+    const bool snapOk = sensorDataRead(snap);
+    const bool ok = snapOk && snap.valid;
+
+    const float t = ok ? snap.temp : 0.0f;
+    const float h = ok ? snap.hum  : 0.0f;
 
     JsonDocument doc;
-    doc["temp"]   = ok ? t : 0.0f;
-    doc["hum"]    = ok ? h : 0.0f;
-    doc["ts"]     = (uint32_t)(millis() / 1000UL);
+    doc["temp"]   = t;
+    doc["hum"]    = h;
+    doc["ts"]     = ok ? (snap.lastReadMs / 1000UL) : 0UL;
     doc["ok"]     = ok;
-    doc["errors"] = _sensor.getConsecutiveErrors();
+    doc["errors"] = snapOk ? snap.consecutiveErrors : -1;
     doc["uptime"] = (millis() - _bootMs) / 1000UL;
 
     _uart.sendJson(doc);

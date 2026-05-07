@@ -52,6 +52,20 @@ constexpr uint32_t LOG_BAUD = 115200UL;  // USB Serial pentru debug
 #endif
 
 // ============================================================
+//  PSRAM (ESP32-PICO-V3-02 — 2MB SPI PSRAM)
+// ============================================================
+constexpr size_t   OTA_CHUNK_BUF_SIZE    = 1024;   // OtaReceiver::_chunkBuf in PSRAM
+
+// ============================================================
+//  FREERTOS DUAL-CORE
+// ============================================================
+// SensorTask ruleaza pe Core 0 (Core 1 = loopTask: UART + LED + WDT).
+constexpr size_t   SENSOR_TASK_STACK     = 4096;
+constexpr uint8_t  SENSOR_TASK_PRIORITY  = 2;
+// Perioada citire senzor (ms) — 30s; trezire anticipata posibila prin forceRead().
+constexpr uint32_t SENSOR_READ_PERIOD_MS = 30000;
+
+// ============================================================
 //  TIMING
 // ============================================================
 constexpr uint32_t LOOP_TICK_MS      = 10;

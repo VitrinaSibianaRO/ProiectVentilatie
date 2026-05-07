@@ -168,27 +168,25 @@ public:
 
         if (now - _linkDownSince > RESET_AFTER_MS) {
             if (!_macSet) {
-                Serial.println("[Eth] Link DOWN >10min, dar MAC nesetat — full restart");
-                delay(100);
-                ESP.restart();
-            }
-            Serial.println("[Eth] Link DOWN >10min — resetting W5500");
-            // Hardware reset W5500
-            pinMode(rstPin, OUTPUT);
-            digitalWrite(rstPin, LOW);
-            delay(50);
-            digitalWrite(rstPin, HIGH);
-            delay(200);
+                Serial.println("[Eth] Link DOWN >10min, MAC nesetat. Rulam fara retea.");
+            } else {
+                Serial.println("[Eth] Link DOWN >10min — resetting W5500");
+                // Hardware reset W5500
+                pinMode(rstPin, OUTPUT);
+                digitalWrite(rstPin, LOW);
+                delay(50);
+                digitalWrite(rstPin, HIGH);
+                delay(200);
 
-            // Re-init Ethernet cu MAC-ul cached (DHCP retry)
-            if (Ethernet.begin(_cachedMac, ETH_DHCP_TIMEOUT_MS) == 0) {
-                Serial.println("[Eth] DHCP retry esuat dupa reset W5500 — full restart");
-                delay(100);
-                ESP.restart();
+                // Re-init Ethernet cu MAC-ul cached (DHCP retry)
+                if (Ethernet.begin(_cachedMac, ETH_DHCP_TIMEOUT_MS) == 0) {
+                    Serial.println("[Eth] DHCP retry esuat dupa reset W5500. Rulam offline in continuare.");
+                } else {
+                    Serial.print("[Eth] Recuperat dupa reset, IP: ");
+                    Serial.println(Ethernet.localIP());
+                    _linkDownSince = 0;
+                }
             }
-            Serial.print("[Eth] Recuperat dupa reset, IP: ");
-            Serial.println(Ethernet.localIP());
-            _linkDownSince = 0;
         }
     }
 

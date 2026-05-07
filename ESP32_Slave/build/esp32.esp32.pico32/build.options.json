@@ -1,0 +1,9 @@
+{
+  "additionalFiles": "../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..,../..",
+  "compiler.optimization_flags": "-Os",
+  "customBuildProperties": "build.extra_flags=-DBOARD_HAS_PSRAM -DCONFIG_ARDUINO_LOOP_STACK_SIZE=16384 -DLOG_LEVEL=2,build.partitions=/mnt/81d17934-0657-41a6-8caf-5075bc128310/dev/ProiectVentilatie/ESP32_Slave/partitions.csv",
+  "fqbn": "esp32:esp32:pico32:PartitionScheme=custom",
+  "hardwareFolders": "/home/ovidiu/.arduino15/packages/esp32/hardware/esp32/3.3.8,/home/ovidiu/.arduino15/packages/esp32/hardware/esp32/3.3.8",
+  "otherLibrariesFolders": "/home/ovidiu/Arduino/libraries",
+  "sketchLocation": "/mnt/81d17934-0657-41a6-8caf-5075bc128310/dev/ProiectVentilatie/ESP32_Slave"
+}

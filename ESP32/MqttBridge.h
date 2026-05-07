@@ -139,6 +139,11 @@ private:
     int           _lastSlaveErrors;
     bool          _lastSlaveOnline;
 
+    // Buffere PSRAM — alocate in constructor cu fallback pe heap intern.
+    // Evita stack frames mari (800B/384B) in functii apelate frecvent.
+    char* _stateBuf;   // PSRAM_STAT_BUF_SIZE = 800
+    char* _diagBuf;    // PSRAM_DIAG_BUF_SIZE = 384
+
     bool _connect();
     void _publishStateNow(const VentilationZone& l, const VentilationZone& r,
                           bool slaveOnline, int slaveErrors,

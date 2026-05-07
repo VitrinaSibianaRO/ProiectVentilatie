@@ -12,8 +12,12 @@
 class OtaReceiver {
 public:
     explicit OtaReceiver(HardwareSerial& serial)
-        : _serial(serial), _active(false), _written(0), _expectedSize(0) {
+        : _serial(serial), _active(false), _written(0), _expectedSize(0),
+          _chunkBuf(nullptr) {
         _expectedSha[0] = '\0';
+        // Alocare PSRAM pentru chunk buffer — evita 1KB pe stack in writeChunk().
+        _chunkBuf = (uint8_t*)ps_malloc(OTA_CHUNK_BUF_SIZE);
+        if (!_chunkBuf) _chunkBuf = new uint8_t[OTA_CHUNK_BUF_SIZE];
     }
 
     OtaReceiver(const OtaReceiver&) = delete;
@@ -56,11 +60,10 @@ public:
             return false;
         }
 
-        uint8_t buf[1024];
-        // setTimeout pentru readBytes (defaul Stream e 1000ms)
+        // _chunkBuf este in PSRAM (alocat in constructor, evita 1KB pe stack).
         const auto savedTimeout = _serial.getTimeout();
         _serial.setTimeout(OTA_CHUNK_TIMEOUT_MS);
-        const size_t got = _serial.readBytes(buf, length);
+        const size_t got = _serial.readBytes(_chunkBuf, length);
         _serial.setTimeout(savedTimeout);
 
         if (got != length) {
@@ -69,7 +72,7 @@ public:
         }
         WatchdogManager::feedNow();
 
-        const size_t written = Update.write(buf, length);
+        const size_t written = Update.write(_chunkBuf, length);
         if (written != length) {
             LOG_ERROR("Update.write short: %u/%u", written, length);
             return false;
@@ -118,4 +121,5 @@ private:
     uint32_t        _written;
     uint32_t        _expectedSize;
     char            _expectedSha[65];
+    uint8_t*        _chunkBuf;   // PSRAM, alocat in constructor
 };

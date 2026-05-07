@@ -12,7 +12,7 @@ set -e
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 PORT="${1:-}"
-FQBN="esp32:esp32:pico32:PSRAM=enabled,FlashSize=8M,PartitionScheme=default,CPUFreq=240"
+FQBN="esp32:esp32:esp32:PSRAM=enabled,FlashSize=8M,PartitionScheme=custom,CPUFreq=240"
 
 echo "------------------------------------------------"
 echo "ESP32 firmware build"

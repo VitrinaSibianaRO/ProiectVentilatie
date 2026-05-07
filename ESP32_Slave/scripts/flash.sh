@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# flash.sh — Flash firmware ESP32_Slave pe placa via arduino-cli.
+# flash.sh — Flash firmware ESP32_Slave (Carbon V3, ESP32-PICO-V3-02).
 # Folosire: bash scripts/flash.sh [/dev/ttyUSB1]
 # Default port: /dev/ttyUSB1 (Slave). Master e de obicei /dev/ttyUSB0.
+#
+# Ruleaza intai build.sh — flash.sh foloseste binarele din ESP32_Slave/build/.
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+OUTPUT_DIR="$PROJECT_DIR/build"
 FQBN="esp32:esp32:esp32"
-PARTITION_SCHEME="min_spiffs"
-FLASH_SIZE="4M"
 PORT="${1:-/dev/ttyUSB1}"
 
 if [[ ! -e "$PORT" ]]; then
@@ -16,12 +17,18 @@ if [[ ! -e "$PORT" ]]; then
     exit 1
 fi
 
-echo "📤 Flash → $PORT"
+if [[ ! -d "$OUTPUT_DIR" ]] || [[ -z "$(ls "$OUTPUT_DIR"/*.bin 2>/dev/null)" ]]; then
+    echo "⚠️  Nu exista build compilat. Ruleaza mai intai:"
+    echo "   bash scripts/build.sh"
+    exit 1
+fi
+
+echo "📤 Flash Slave → $PORT"
 arduino-cli upload \
     --fqbn "$FQBN" \
-    --board-options "PartitionScheme=$PARTITION_SCHEME,FlashSize=$FLASH_SIZE" \
+    --board-options "PartitionScheme=custom" \
     --port "$PORT" \
     --verify \
-    "$PROJECT_DIR"
+    --input-dir "$OUTPUT_DIR"
 
-echo "✅ Flashed OK → $PORT"
+echo "✅ Flashed Slave OK → $PORT"

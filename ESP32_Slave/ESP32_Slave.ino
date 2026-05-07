@@ -7,11 +7,15 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <esp_ota_ops.h>
+#include <freertos/FreeRTOS.h>
+#include <freertos/semphr.h>
 
 #include "Config.h"
 #include "Logger.h"
 #include "WatchdogManager.h"
 #include "Sht30Sensor.h"
+#include "SharedSensorData.h"
+#include "SensorTask.h"
 #include "SystemLED.h"
 #include "SlaveResilience.h"
 #include "LedController.h"
@@ -31,6 +35,13 @@ namespace {
     CommandDispatcher g_dispatcher(g_sensor, g_uart, g_led, g_ledCtrl, g_ota);
 }
 
+// ============================================================
+//  FREERTOS SHARED SENSOR DATA (Core 0 ↔ Core 1)
+// ============================================================
+SemaphoreHandle_t g_sensorMutex = nullptr;
+SharedSensorData* g_sensorData  = nullptr;
+SemaphoreHandle_t g_forceReadSem = nullptr;
+
 void setup() {
     // 1. USB Serial pentru debug
     Logger::begin(LOG_BAUD);
@@ -48,6 +59,7 @@ void setup() {
     g_led.setStatus(SystemLED::Status::Booting);
 
     // 4. I2C bus pentru SHT30 (bus scurt ~10cm, perechi twisted pair nu necesare)
+    //    Wire e folosit EXCLUSIV de SensorTask pe Core 0 dupa start() — nu e thread-safe.
     Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
     Wire.setClock(I2C_FREQ_HZ);
 
@@ -60,15 +72,33 @@ void setup() {
         LOG_INFO("SHT30 OK la 0x%02X", SHT30_ADDR);
     }
 
-    // 5. LED PWM controller
+    // 5. PSRAM + FreeRTOS primitives pentru shared sensor data (Core 0 ↔ Core 1)
+    g_sensorData = (SharedSensorData*)ps_malloc(sizeof(SharedSensorData));
+    if (!g_sensorData) g_sensorData = new SharedSensorData();
+    memset(g_sensorData, 0, sizeof(SharedSensorData));
+
+    g_sensorMutex = xSemaphoreCreateMutex();
+    if (!g_sensorMutex) {
+        LOG_ERROR("[FATAL] sensorMutex create failed");
+        delay(500);
+        ESP.restart();
+    }
+
+    LOG_INFO("[PSRAM] g_sensorData @ %p (%s)", g_sensorData,
+             esp_ptr_in_psram(g_sensorData) ? "PSRAM" : "heap");
+
+    // 6. Pornire SensorTask pe Core 0 (citire SHT30 la fiecare 30s)
+    SensorTask::start(g_sensor);
+
+    // 7. LED PWM controller
     g_ledCtrl.begin();
 
-    // 6. UART2 catre Master (TX=17, RX=16 pe Carbon V3)
+    // 8. UART2 catre Master (TX=17, RX=16 pe Carbon V3)
     g_uart.begin(SLAVE_UART_BAUD, SLAVE_UART_RX_PIN, SLAVE_UART_TX_PIN);
     LOG_INFO("UART2 ready: baud=%u TX=%d RX=%d",
              SLAVE_UART_BAUD, SLAVE_UART_TX_PIN, SLAVE_UART_RX_PIN);
 
-    // 7. Watchdog hardware 60s
+    // 9. Watchdog hardware 60s (loopTask pe Core 1; SensorTask se inregistreaza singur)
     WatchdogManager::begin(WDT_TIMEOUT_SEC);
 
     g_led.setStatus(SystemLED::Status::Ready);
