@@ -27,6 +27,7 @@
 #define W5500_SCK_PIN 14
 #define W5500_CS_PIN 15
 #define W5500_RST_PIN 33
+#define W5500_SPI_FREQ_HZ 1000000UL // 1 MHz diagnostic — creste la 4 MHz dupa detectie stabila
 
 // UART2 catre Slave
 #define SLAVE_UART_TX_PIN 19

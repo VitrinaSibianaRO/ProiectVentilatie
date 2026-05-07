@@ -10,6 +10,7 @@
 #include <Wire.h>
 #include <WiFi.h>           // doar pentru WiFi.mode(WIFI_OFF)
 #include <Ethernet.h>
+#include <utility/w5100.h>
 #include <esp_task_wdt.h>
 #include <esp_ota_ops.h>
 #include <esp_heap_caps.h>
@@ -25,6 +26,7 @@
 #include "SlaveUartClient.h"
 #include "SharedState.h"
 #include "SlaveCommTask.h"
+#include "DiagnosticLogger.h"
 #include "VentilationZone.h"
 #include "MqttBridge.h"
 #include "OtaUpdater.h"
@@ -346,35 +348,108 @@ void processZones() {
 // ============================================================
 static unsigned long _lastHotPlugCheckMs = 0;
 
-bool initNetwork(bool isHotPlug) {
-    if (isHotPlug) {
-        Serial.println("[Eth] W5500 detected (hot-plug)! Initializing network...");
+const char* ethernetHardwareName(EthernetHardwareStatus status) {
+    switch (status) {
+        case EthernetW5100: return "W5100";
+        case EthernetW5200: return "W5200";
+        case EthernetW5500: return "W5500";
+        default:            return "NO_HARDWARE";
     }
+}
 
-    // Reset hardware W5500 pentru stare curata
+uint8_t readW5500VersionRegister() {
+    SPI.beginTransaction(SPISettings(W5500_SPI_FREQ_HZ, MSBFIRST, SPI_MODE0));
+    digitalWrite(W5500_CS_PIN, LOW);
+    SPI.transfer(0x00); // VERSIONR address high byte
+    SPI.transfer(0x39); // VERSIONR address low byte
+    SPI.transfer(0x00); // Common register block, read, variable data length
+    uint8_t version = SPI.transfer(0x00);
+    digitalWrite(W5500_CS_PIN, HIGH);
+    SPI.endTransaction();
+    return version;
+}
+
+bool initNetwork(bool isHotPlug) {
+    // 1. CS trebuie sa stea inactiv inainte de reset si inainte de SPI.begin().
+    // Pe boot/reboot rapid, un CS flotant poate lasa W5500 intr-o stare SPI invalida.
+    pinMode(W5500_CS_PIN, OUTPUT);
+    digitalWrite(W5500_CS_PIN, HIGH);
+    delay(5);
+
+    // 2. Reset hardware W5500 obligatoriu la fiecare incercare
+    // Este critic pentru recuperare dupa crash/reboot rapid.
     pinMode(W5500_RST_PIN, OUTPUT);
     digitalWrite(W5500_RST_PIN, LOW);
     delay(50);
     digitalWrite(W5500_RST_PIN, HIGH);
-    delay(200);
+    delay(650);   // W5500 PHY/PLL init necesita 400-560ms
+    digitalWrite(W5500_CS_PIN, HIGH);
 
-    // Remapam SPI pe pinii HSPI disponibili pe Carbon V3 (GPIO18/23 nu exista pe placa!)
-    SPI.begin(W5500_SCK_PIN, W5500_MISO_PIN, W5500_MOSI_PIN, W5500_CS_PIN);
+    // 3. Initializare magistrala SPI - O SINGURA DATA
+    // Apeluri multiple de SPI.begin pe ESP32 pot corupe matricea GPIO.
+    static bool _spiInitialized = false;
+    if (!_spiInitialized) {
+        SPI.begin(W5500_SCK_PIN, W5500_MISO_PIN, W5500_MOSI_PIN, W5500_CS_PIN);
+        SPI.setFrequency(W5500_SPI_FREQ_HZ);
+        _spiInitialized = true;
+        Serial.printf("[Eth] SPI Bus initialized (HSPI) @ %lu Hz\n", (unsigned long)W5500_SPI_FREQ_HZ);
+    }
+
+    // 4. Spunem librariei Ethernet ce pin folosim pentru CS
     Ethernet.init(W5500_CS_PIN);
 
-    if (Ethernet.hardwareStatus() == EthernetNoHardware) {
-        if (!isHotPlug) {
-            Serial.println("[Eth] W5500 hardware not found! Running in NO-NETWORK mode.");
+    // 5. Proba SPI directa: W5500 VERSIONR trebuie sa fie 0x04.
+    // Daca aici vezi 0x00/0xFF, problema e electrica/pinout/reset, nu DHCP/MQTT.
+    uint8_t rawVersion = readW5500VersionRegister();
+    Serial.printf("[Eth] W5500 VERSIONR raw=0x%02X (expected 0x04)\n", rawVersion);
+
+    // 6. Verificam prezenta chipului pe magistrala (3 incercari cu re-reset).
+    // Ethernet.hardwareStatus() raporteaza doar dupa W5100.init(); nu declanseaza detectia singur.
+    bool hwFound = false;
+    for (int attempt = 1; attempt <= 3 && !hwFound; attempt++) {
+        if (W5100.init() != 0) {
+            EthernetHardwareStatus status = Ethernet.hardwareStatus();
+            Serial.printf("[Eth] Hardware detected by Ethernet lib: %s\n", ethernetHardwareName(status));
+            hwFound = (status != EthernetNoHardware);
+            break;
         }
+        if (attempt < 3) {
+            Serial.printf("[Eth] W5500 not detected (attempt %d/3), re-resetting...\n", attempt);
+            digitalWrite(W5500_RST_PIN, LOW);  delay(50);
+            digitalWrite(W5500_RST_PIN, HIGH); delay(500);
+            digitalWrite(W5500_CS_PIN, HIGH);
+            Ethernet.init(W5500_CS_PIN);
+            rawVersion = readW5500VersionRegister();
+            Serial.printf("[Eth] W5500 VERSIONR raw=0x%02X (expected 0x04)\n", rawVersion);
+        }
+    }
+    if (!hwFound) {
+        if (!isHotPlug) Serial.println("[Eth] W5500 hardware NOT FOUND after 3 attempts! Running in NO-NETWORK mode.");
         return false;
+    }
+
+    if (isHotPlug) {
+        Serial.println("[Eth] W5500 detected (hot-plug)! Initializing network...");
     }
 
     byte mac[6];
     getEthernetMac(mac);
-    EthLinkMonitor::setMac(mac);   // cache pentru recovery la link-down
+    EthLinkMonitor::setMac(mac); 
     Serial.printf("[Eth] MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
+    // 7. Daca PHY-ul nu vede link, nu blocam boot-ul 15s in DHCP/NTP.
+    // Lasam hot-plug check sa reincerce init-ul complet dupa conectarea cablului.
+    EthernetLinkStatus link = Ethernet.linkStatus();
+    Serial.printf("[Eth] Link status before DHCP: %s\n",
+        link == LinkON ? "ON" : (link == LinkOFF ? "OFF" : "UNKNOWN"));
+    if (link != LinkON) {
+        Serial.println("[Eth] W5500 hardware OK, but Ethernet link is DOWN. Skipping DHCP/NTP/MQTT for now.");
+        statusLed.setColor(200, 80, 0);
+        return false;
+    }
+
+    // 8. Incercam DHCP
     if (Ethernet.begin(mac, ETH_DHCP_TIMEOUT_MS) == 0) {
         Serial.println("[Eth] DHCP FAILED. Continuing in OFFLINE mode (LinkMonitor will retry).");
         statusLed.setColor(200, 0, 0);
@@ -388,11 +463,10 @@ bool initNetwork(bool isHotPlug) {
         }
     }
 
-    // NTP + MQTT (necesită Ethernet funcțional, sau vor face retry intern)
     TimeSync::begin();
     mqtt.begin(&prefs);
 
-    return true; // Hardware is present
+    return true; 
 }
 
 void checkEthernetHotPlug() {
@@ -400,11 +474,8 @@ void checkEthernetHotPlug() {
     if (now - _lastHotPlugCheckMs < ETH_HOTPLUG_CHECK_MS) return;
     _lastHotPlugCheckMs = now;
 
-    // Interogare SPI — rapida, non-blocanta (<1ms)
-    // SPI a fost deja initializat in setup() chiar daca a dat fail initial.
-    if (Ethernet.hardwareStatus() == EthernetNoHardware) return;
-
-    // W5500 tocmai a aparut pe magistrala!
+    // Incercam direct initializarea completa (care include reset si init)
+    // Daca hardware-ul nu e acolo, initNetwork va returna rapid false.
     g_ethAvailable = initNetwork(true);
 }
 
@@ -538,10 +609,13 @@ void setup() {
         .idle_core_mask = 0,
         .trigger_panic  = true
     };
-    // Folosim reconfigure in loc de init — evită eroarea "TWDT already initialized"
-    esp_err_t wdtErr = esp_task_wdt_init(&wdtConfig);
+    // Incercam intai reconfigure: Arduino core initializeaza deja TWDT pe unele versiuni.
+    esp_err_t wdtErr = esp_task_wdt_reconfigure(&wdtConfig);
     if (wdtErr == ESP_ERR_INVALID_STATE) {
-        esp_task_wdt_reconfigure(&wdtConfig);
+        wdtErr = esp_task_wdt_init(&wdtConfig);
+    }
+    if (wdtErr != ESP_OK && wdtErr != ESP_ERR_INVALID_STATE) {
+        Serial.printf("[WDT] configure failed: %s\n", esp_err_to_name(wdtErr));
     }
     esp_task_wdt_add(NULL);
 
@@ -592,4 +666,7 @@ void loop() {
     if (g_ethAvailable && mqtt.hasPendingCommands()) {
         processZones();
     }
+
+    // Diagnostic logging
+    DiagnosticLogger::printPeriodicLog();
 }
