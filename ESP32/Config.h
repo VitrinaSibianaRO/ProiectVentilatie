@@ -31,6 +31,7 @@
 #define SLAVE_UART_TX_PIN        17
 #define SLAVE_UART_RX_PIN        16
 #define SLAVE_UART_BAUD          115200UL
+#define OTA_UART_BAUD            460800UL   // baud inalt pentru OTA Slave
 #define SLAVE_REQ_TIMEOUT_MS     1000
 #define SLAVE_REBOOT_TIMEOUT_MS  500
 #define SLAVE_RETRY_PER_FETCH    2

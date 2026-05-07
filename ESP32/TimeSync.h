@@ -87,7 +87,7 @@ public:
             return true;
         }
         // Fallback: "uptime:NNNNs"
-        snprintf(buf, bufLen, "uptime:%us", epochSec);
+        snprintf(buf, bufLen, "uptime:%us", (unsigned int)epochSec);
         return false;
     }
 

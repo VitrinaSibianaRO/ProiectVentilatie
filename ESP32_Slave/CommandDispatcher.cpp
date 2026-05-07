@@ -167,7 +167,8 @@ void CommandDispatcher::_handleOtaChunk(const char* args) {
     } else {
         _uart.sendLine("ERR_CHUNK");
         _ota.abort();
-        _led.setStatus(SystemLED::Status::SensorFail);
+        // Revenim la Ready — OTA a esuat dar Slave e operational
+        _led.setStatus(SystemLED::Status::Ready);
     }
 }
 
@@ -178,7 +179,8 @@ void CommandDispatcher::_handleOtaEnd() {
     // _ota.end() reseteaza ESP32 la succes — nu mai ajungem la sendLine("OK")
     if (!_ota.end()) {
         _uart.sendLine("ERR_END");
-        _led.setStatus(SystemLED::Status::SensorFail);
+        // OTA failed → revenim la Ready, firmware-ul vechi e activ
+        _led.setStatus(SystemLED::Status::Ready);
     }
     // la succes ESP.restart() e deja apelat in OtaReceiver::end()
 }
@@ -219,18 +221,13 @@ void CommandDispatcher::_handleUnknown(const char* cmd) {
 
 // ============================================================
 //  IDLE STATUS UPDATE
+//  Self-restart la idle e gestionat de SlaveResilience::check() —
+//  aici doar actualizam LED-ul vizual cand depasim IDLE_WARN_MS.
 // ============================================================
 void CommandDispatcher::_updateIdleStatus() {
     if (_lastRequestMs == 0) return;
 
     const uint32_t idleMs = millis() - _lastRequestMs;
-
-    if (idleMs > SELF_RESTART_IDLE_MS) {
-        LOG_WARN("Idle 30min — self-restart");
-        delay(100);
-        ESP.restart();
-    }
-
     if (idleMs > IDLE_WARN_MS) {
         if (_led.getStatus() != SystemLED::Status::Idle &&
             _led.getStatus() != SystemLED::Status::SensorFail) {

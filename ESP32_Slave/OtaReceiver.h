@@ -57,15 +57,15 @@ public:
         }
 
         uint8_t buf[1024];
-        uint32_t got = 0;
-        const uint32_t start = millis();
-        while (got < length) {
-            if (_serial.available()) {
-                buf[got++] = (uint8_t)_serial.read();
-            } else if (millis() - start > OTA_CHUNK_TIMEOUT_MS) {
-                LOG_ERROR("OTA chunk read timeout at %u/%u", got, length);
-                return false;
-            }
+        // setTimeout pentru readBytes (defaul Stream e 1000ms)
+        const auto savedTimeout = _serial.getTimeout();
+        _serial.setTimeout(OTA_CHUNK_TIMEOUT_MS);
+        const size_t got = _serial.readBytes(buf, length);
+        _serial.setTimeout(savedTimeout);
+
+        if (got != length) {
+            LOG_ERROR("OTA chunk read short: %u/%u", (unsigned)got, length);
+            return false;
         }
         WatchdogManager::feedNow();
 

@@ -26,7 +26,9 @@ MqttBridge::MqttBridge()
       _lockOwner(LOCK_NONE),
       _publishNow(false),
       _lockSetAtMs(0),
-      _lastDiagMs(0)
+      _lastDiagMs(0),
+      _lastSlaveErrors(0),
+      _lastSlaveOnline(false)
 {
     _lastRelayState[0] = false;
     _lastRelayState[1] = false;
@@ -83,6 +85,14 @@ void MqttBridge::loop() {
 }
 
 bool MqttBridge::_connect() {
+    // TLS handshake consuma ~30KB heap. Skip daca avem prea putin
+    // (evita aluneci in OOM crash mid-handshake).
+    const uint32_t freeHeap = ESP.getFreeHeap();
+    if (freeHeap < 50000UL) {
+        Serial.printf("[MQTT] Heap %u < 50KB, skip TLS connect\n", freeHeap);
+        return false;
+    }
+
     Serial.print("[MQTT] Connecting to HiveMQ via Ethernet... ");
 
     char clientId[32];
@@ -126,7 +136,7 @@ void MqttBridge::_staticCallback(char* topic, byte* payload, unsigned int length
 void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length) {
     if (strcmp(topic, TOPIC_CMD) != 0) return;
 
-    StaticJsonDocument<256> doc;
+    JsonDocument doc;
     DeserializationError err = deserializeJson(doc, payload, length);
     if (err) {
         Serial.printf("[MQTT] JSON parse error: %s\n", err.c_str());
@@ -153,6 +163,7 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
         int value = doc["value"] | -1;
         if (value < 0 || value > 2) {
             Serial.println("[MQTT] setOverride: value invalid.");
+            _lockOwner = LOCK_NONE;   // revert lock pe validation fail
             return;
         }
         if (strcmp(zone, "left") == 0) {
@@ -163,6 +174,7 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
             _mqttPending.overrideRVal = value;
         } else {
             Serial.printf("[MQTT] setOverride: zone '%s' necunoscută.\n", zone);
+            _lockOwner = LOCK_NONE;
         }
     }
     else if (strcmp(cmd, "setConfig") == 0) {
@@ -192,6 +204,7 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
         int pct = doc["percent"] | -1;
         if (pct < 0 || pct > 100) {
             Serial.println("[MQTT] setLed: percent out of range.");
+            _lockOwner = LOCK_NONE;
             return;
         }
         _mqttPending.setLedNow = true;
@@ -206,12 +219,28 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
         _mqttPending.ledMaxI    = doc["maxI"] | 80;
         _mqttPending.ledSchedEn = doc["enabled"] | false;
     }
+    // updateSlave — OTA Slave (Master proxy)
+    else if (strcmp(cmd, "updateSlave") == 0) {
+        const char* otaUrl = doc["url"] | "";
+        const char* otaSha = doc["sha"] | "";
+        if (strlen(otaUrl) < 10 || strlen(otaSha) != 64) {
+            Serial.println("[MQTT] updateSlave: url sau sha invalid.");
+            _lockOwner = LOCK_NONE;
+            return;
+        }
+        strncpy(_mqttPending.slaveOtaUrl, otaUrl, sizeof(_mqttPending.slaveOtaUrl) - 1);
+        _mqttPending.slaveOtaUrl[sizeof(_mqttPending.slaveOtaUrl) - 1] = '\0';
+        strncpy(_mqttPending.slaveOtaSha, otaSha, sizeof(_mqttPending.slaveOtaSha) - 1);
+        _mqttPending.slaveOtaSha[sizeof(_mqttPending.slaveOtaSha) - 1] = '\0';
+        _mqttPending.updateSlave = true;
+    }
     // update — OTA Master
     else if (strcmp(cmd, "update") == 0) {
         const char* otaUrl = doc["url"] | "";
         const char* otaSha = doc["sha"] | "";
         if (strlen(otaUrl) < 10 || strlen(otaSha) != 64) {
             Serial.println("[MQTT] update: url sau sha invalid.");
+            _lockOwner = LOCK_NONE;
             return;
         }
         strncpy(_mqttPending.otaUrl, otaUrl, sizeof(_mqttPending.otaUrl) - 1);
@@ -248,7 +277,7 @@ void MqttBridge::requestPublishNow() {
 void MqttBridge::publishCmdRejected(const char* reason, const char* by) {
     if (!connected()) return;
 
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
     doc["event"]  = "cmd_rejected";
     doc["reason"] = reason;
     doc["by"]     = by;
@@ -272,7 +301,8 @@ bool MqttBridge::hasPendingCommands() const {
         || _mqttPending.getLog
         || _mqttPending.setLedNow
         || _mqttPending.setLedSched
-        || _mqttPending.update;
+        || _mqttPending.update
+        || _mqttPending.updateSlave;
 }
 
 MqttPending& MqttBridge::getPending() {
@@ -287,6 +317,10 @@ void MqttBridge::publishStateIfNeeded(const VentilationZone& l, const Ventilatio
                                        bool slaveOnline, int slaveErrors,
                                        unsigned long slaveLastSuccessMs,
                                        uint8_t ledIntensity, bool ledSchedEnabled) {
+    // Cache pentru /diag (publish independent)
+    _lastSlaveErrors = slaveErrors;
+    _lastSlaveOnline = slaveOnline;
+
     if (!connected()) return;
 
     unsigned long now = millis();
@@ -315,7 +349,7 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
                                    uint8_t ledIntensity, bool ledSchedEnabled) {
     if (!_prefs) return;
 
-    StaticJsonDocument<896> doc;
+    JsonDocument doc;
 
     JsonObject left = doc["left"].to<JsonObject>();
     left["temp"]     = l.getTemp();
@@ -356,9 +390,8 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
         JsonObject lock = doc["lock"].to<JsonObject>();
         lock["owner"] = "mqtt";
         lock["ageMs"] = (uint32_t)(millis() - _lockSetAtMs);
-    } else {
-        doc["lock"] = (const char*)nullptr;
     }
+    // else: doc["lock"] ramane absent (omitted din JSON)
 
     doc["fw"]        = (int)FW_BUILD_NUMBER;
     doc["uptimeSec"] = (uint32_t)(millis() / 1000);
@@ -399,12 +432,17 @@ void MqttBridge::publishLog(const char* jsonBuf, size_t len) {
 }
 
 void MqttBridge::_publishDiag() {
-    StaticJsonDocument<256> doc;
-    doc["uptimeSec"] = (uint32_t)(millis() / 1000);
-    doc["heap"]      = ESP.getFreeHeap();
-    doc["ethLink"]   = (Ethernet.linkStatus() == LinkON);
-    
-    char buf[256];
+    JsonDocument doc;
+    doc["uptimeSec"]   = (uint32_t)(millis() / 1000);
+    doc["heap"]        = ESP.getFreeHeap();
+    doc["minHeap"]     = ESP.getMinFreeHeap();
+    doc["ethLink"]     = (Ethernet.linkStatus() == LinkON);
+    doc["mqttOk"]      = _client.connected();
+    doc["fw"]          = (int)FW_BUILD_NUMBER;
+    doc["slaveErr"]    = _lastSlaveErrors;
+    doc["slaveOnline"] = _lastSlaveOnline;
+
+    char buf[384];
     size_t n = serializeJson(doc, buf, sizeof(buf));
     _client.publish(TOPIC_DIAG, (const uint8_t*)buf, n, false);
 }

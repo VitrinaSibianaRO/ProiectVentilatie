@@ -50,4 +50,9 @@ public:
 private:
     // Verifică dacă URL-ul e pe whitelist
     static bool _isUrlAllowed(const char* url);
+
+    // Internal cu counter redirects pentru a evita loop infinit.
+    static OtaResult _start(const char* url, const char* expectedSha256,
+                            OtaProgressCallback progressCb,
+                            int redirectDepth);
 };

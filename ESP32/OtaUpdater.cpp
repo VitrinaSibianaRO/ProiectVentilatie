@@ -23,7 +23,18 @@ bool OtaUpdater::_isUrlAllowed(const char* url) {
 
 OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
                              OtaProgressCallback progressCb) {
-    Serial.printf("[OTA] Start: %s\n", url);
+    return _start(url, expectedSha256, progressCb, 0);
+}
+
+OtaResult OtaUpdater::_start(const char* url, const char* expectedSha256,
+                              OtaProgressCallback progressCb, int redirectDepth) {
+    Serial.printf("[OTA] Start (depth=%d): %s\n", redirectDepth, url);
+
+    // 0. Limit redirects (GitHub releases face tipic 2 hop-uri)
+    if (redirectDepth > 5) {
+        Serial.println("[OTA] Too many redirects (>5).");
+        return OTA_ERR_HTTP;
+    }
 
     // 1. Whitelist check
     if (!_isUrlAllowed(url)) {
@@ -85,8 +96,9 @@ OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
         if (location.length() > 0) {
             Serial.printf("[OTA] Redirect to: %s\n", location.c_str());
             httpClient.stop();
-            // Recursive call with redirected URL (one level max)
-            return start(location.c_str(), expectedSha256, progressCb);
+            // Recursive call cu counter incrementat (max 5 hops)
+            return _start(location.c_str(), expectedSha256, progressCb,
+                          redirectDepth + 1);
         }
     }
 

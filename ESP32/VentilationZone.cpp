@@ -19,7 +19,8 @@ VentilationZone::VentilationZone(Sht30Sensor* localSensor, int relayPin, const c
       _firstReadDone(false),
       _relayState(false),
       _failsafe(false),
-      _consecutiveErrors(0) {}
+      _consecutiveErrors(0),
+      _stuckCount(0) {}
 
 // Constructor REMOTE — zona cu senzor pe Slave (fără local sensor)
 VentilationZone::VentilationZone(int relayPin, const char* name)
@@ -33,7 +34,8 @@ VentilationZone::VentilationZone(int relayPin, const char* name)
       _firstReadDone(false),
       _relayState(false),
       _failsafe(false),
-      _consecutiveErrors(0) {}
+      _consecutiveErrors(0),
+      _stuckCount(0) {}
 
 void VentilationZone::begin() {
     // Ordinea corectă: mai întâi modul pinului, abia apoi scriem starea.
@@ -106,7 +108,22 @@ void VentilationZone::updateLogic(float threshTemp, float threshHum,
         autoOn = (_currentTemp >= threshTemp) || (_currentHum >= threshHum);
     }
     _relayState = autoOn || _manualOverride;
-    digitalWrite(_relayPin, _relayState ? LOW : HIGH);  // Active-LOW
+    const int wantLevel = _relayState ? LOW : HIGH;     // Active-LOW
+    digitalWrite(_relayPin, wantLevel);
+
+    // Stuck relay detection — citim pinul inapoi (output mode permite digitalRead).
+    // Pe ESP32 functioneaza fara pinMode INPUT (open-drain config-uiri ok).
+    delayMicroseconds(50);
+    const int actual = digitalRead(_relayPin);
+    if (actual != wantLevel) {
+        _stuckCount++;
+        if (_stuckCount == 3) {   // raporteaza la pragul 3 (evita false-positive)
+            Serial.printf("[%s] RELAY STUCK: want=%d actual=%d (count=%d)\n",
+                          _name, wantLevel, actual, _stuckCount);
+        }
+    } else if (_stuckCount > 0) {
+        _stuckCount = 0;
+    }
 }
 
 void VentilationZone::emergencyOff() {

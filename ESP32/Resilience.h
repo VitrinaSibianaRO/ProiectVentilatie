@@ -138,10 +138,18 @@ namespace I2CRecovery {
 
 // ============================================================
 //  ETHERNET LINK MONITOR — reset W5500 după 10min link-down
+//  MAC cached la setup() prin setMac() — supravietuieste reset-ului.
 // ============================================================
 class EthLinkMonitor {
 public:
     static constexpr unsigned long RESET_AFTER_MS = 600000UL;  // 10 min
+
+    // Apelat o singura data in setup() dupa getEthernetMac().
+    // Cache local pentru re-init la link recovery.
+    static void setMac(const byte mac[6]) {
+        memcpy(_cachedMac, mac, 6);
+        _macSet = true;
+    }
 
     static void check(uint8_t rstPin) {
         bool linkUp = (Ethernet.linkStatus() == LinkON);
@@ -159,6 +167,11 @@ public:
         }
 
         if (now - _linkDownSince > RESET_AFTER_MS) {
+            if (!_macSet) {
+                Serial.println("[Eth] Link DOWN >10min, dar MAC nesetat — full restart");
+                delay(100);
+                ESP.restart();
+            }
             Serial.println("[Eth] Link DOWN >10min — resetting W5500");
             // Hardware reset W5500
             pinMode(rstPin, OUTPUT);
@@ -167,23 +180,39 @@ public:
             digitalWrite(rstPin, HIGH);
             delay(200);
 
-            // Re-init Ethernet (DHCP retry)
-            byte mac[6];
-            // Re-use existing MAC
-            Ethernet.begin(mac, ETH_DHCP_TIMEOUT_MS);
+            // Re-init Ethernet cu MAC-ul cached (DHCP retry)
+            if (Ethernet.begin(_cachedMac, ETH_DHCP_TIMEOUT_MS) == 0) {
+                Serial.println("[Eth] DHCP retry esuat dupa reset W5500 — full restart");
+                delay(100);
+                ESP.restart();
+            }
+            Serial.print("[Eth] Recuperat dupa reset, IP: ");
+            Serial.println(Ethernet.localIP());
             _linkDownSince = 0;
         }
     }
 
 private:
     static inline unsigned long _linkDownSince = 0;
+    static inline byte _cachedMac[6] = {0};
+    static inline bool _macSet = false;
 };
 
 // ============================================================
-//  PREVENTIVE REBOOT — Master: duminică 03:00 UTC, weekly
+//  PREVENTIVE REBOOT — Master: duminică 03:00–03:04 UTC, weekly
+//  Fereastra 5min ca sa nu ratam minutul exact (verificam la 60s).
+//  Uptime > 6 zile evita loop de restart si protejeaza la deploy.
 // ============================================================
 namespace PreventiveReboot {
     inline void checkWeekly() {
+        // Throttle: verifica la fiecare 60s (intern in functie)
+        static unsigned long lastCheckMs = 0;
+        if (lastCheckMs != 0 && millis() - lastCheckMs < 60000UL) return;
+        lastCheckMs = millis();
+
+        // Skip primele 6 zile (fereastra deploy + boot recovery)
+        if (millis() < 6UL * 24UL * 3600UL * 1000UL) return;
+
         uint32_t epoch = TimeSync::getEpochSec();
         if (epoch < 1700000000UL) return;   // timp nesincronizat
 
@@ -191,15 +220,11 @@ namespace PreventiveReboot {
         time_t t = (time_t)epoch;
         if (!gmtime_r(&t, &timeinfo)) return;
 
-        // Duminică (wday==0), ora 03:00 UTC, verificare la fiecare 60s
-        static unsigned long lastCheckMs = 0;
-        if (millis() - lastCheckMs < 60000) return;
-        lastCheckMs = millis();
-
-        if (timeinfo.tm_wday == 0 && timeinfo.tm_hour == 3 &&
-            timeinfo.tm_min == 0 && millis() > 86400000UL) {
-            // Doar dacă uptime > 24h (evită loop de restarts)
-            Serial.println("[PreventiveReboot] Weekly maintenance reboot");
+        // Duminica (wday==0), ora 03:00–03:04 UTC
+        if (timeinfo.tm_wday == 0 &&
+            timeinfo.tm_hour == 3 &&
+            timeinfo.tm_min  < 5) {
+            Serial.println("[PreventiveReboot] Weekly maintenance reboot (Sun 03:00 UTC)");
             delay(200);
             ESP.restart();
         }

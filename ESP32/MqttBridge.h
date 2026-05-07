@@ -65,6 +65,11 @@ struct MqttPending {
     bool  update        = false;
     char  otaUrl[256]   = {0};
     char  otaSha[65]    = {0};
+
+    // OTA Slave (proxy via Master)
+    bool  updateSlave   = false;
+    char  slaveOtaUrl[256] = {0};
+    char  slaveOtaSha[65]  = {0};
 };
 
 class MqttBridge {
@@ -129,6 +134,10 @@ private:
     unsigned long _lockSetAtMs;
     unsigned long _lastDiagMs;
     MqttPending   _mqttPending;
+
+    // Cached pentru /diag publish (actualizate la publishStateIfNeeded)
+    int           _lastSlaveErrors;
+    bool          _lastSlaveOnline;
 
     bool _connect();
     void _publishStateNow(const VentilationZone& l, const VentilationZone& r,

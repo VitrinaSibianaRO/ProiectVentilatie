@@ -43,15 +43,20 @@ public:
     }
 
     // Setare imediata intensitate (0-100%). Override schedule 1 ora.
+    // Daca timpul nu e sincronizat, override-ul tine pana la primul TIME_SYNC,
+    // moment in care se reseteaza la _now+3600s.
     void setIntensity(uint8_t percent) {
         if (percent > 100) percent = 100;
         _manualOverride = true;
-        // Expiryul override-ului in secunde epoch
-        _manualOverrideUntilSec = (_syncedEpoch > 0)
-            ? _syncedEpoch + 3600
-            : 0;  // daca nu avem timp, override pana la proxima sincronizare
+        if (_syncedEpoch > 0) {
+            _manualOverrideUntilSec = _syncedEpoch + 3600;
+        } else {
+            // Timp ne-sincronizat → override expira la primul TIME_SYNC.
+            // Marker special: 1 (impossibil ca real epoch).
+            _manualOverrideUntilSec = 1;
+        }
         _applyPwm(percent);
-        LOG_INFO("LED manual: %u%%", percent);
+        LOG_INFO("LED manual: %u%% (override until %lu)", percent, _manualOverrideUntilSec);
     }
 
     // Configurare schedule. Persistent in NVS. Canceleaza orice manual override.
@@ -74,6 +79,11 @@ public:
         struct timeval tv = { .tv_sec = (time_t)epochSec, .tv_usec = 0 };
         settimeofday(&tv, nullptr);
         _syncedEpoch = epochSec;
+        // Daca aveam override pending (marker=1), il consolidam acum la +1h.
+        if (_manualOverride && _manualOverrideUntilSec == 1) {
+            _manualOverrideUntilSec = epochSec + 3600;
+            LOG_INFO("TIME_SYNC: override consolidat pana la %lu", _manualOverrideUntilSec);
+        }
         LOG_INFO("TIME_SYNC: epoch=%lu", epochSec);
     }
 
@@ -103,7 +113,8 @@ public:
             _applyPwm(target);
             LOG_INFO("LED schedule: %u%% (window=%d)", target, inWindow);
         }
-        _syncedEpoch = now;  // actualizeaza ca sa nu expiram override-ul gresit
+        // NU actualizam _syncedEpoch aici — _syncedEpoch e timestamp ULTIMA SYNC,
+        // nu time-of-day curent. Drift verificat doar la TIME_SYNC explicit.
     }
 
     uint8_t  getCurrentIntensity() const { return _currentPercent; }

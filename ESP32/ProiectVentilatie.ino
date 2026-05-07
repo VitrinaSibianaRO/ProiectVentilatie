@@ -22,6 +22,7 @@
 #include "VentilationZone.h"
 #include "MqttBridge.h"
 #include "OtaUpdater.h"
+#include "SlaveOtaProxy.h"
 #include "TimeSync.h"
 #include "EventLog.h"
 #include "SystemLED.h"
@@ -267,6 +268,40 @@ void processZones() {
         memset(pending.otaSha, 0, sizeof(pending.otaSha));
     }
 
+    if (pending.updateSlave) {
+        Serial.println("[SlaveOTA] Triggered from MQTT");
+        // Failsafe RIGHT pe durata OTA (Slave indisponibil ~30s)
+        rightZone.enterFailsafe();
+        SlaveOtaResult sres = SlaveOtaProxy::perform(
+            pending.slaveOtaUrl,
+            pending.slaveOtaSha,
+            Serial2,
+            [](uint32_t sent, uint32_t total) {
+                static uint32_t lastPct = 0;
+                uint32_t pct = (sent * 100UL) / (total ? total : 1);
+                if (pct - lastPct >= 5 || pct == 100) {
+                    char buf[96];
+                    snprintf(buf, sizeof(buf),
+                        "{\"type\":\"slave_ota_progress\",\"sent\":%u,\"total\":%u,\"percent\":%u}",
+                        sent, total, pct);
+                    mqtt.publishEventJson(buf);
+                    lastPct = pct;
+                }
+            });
+        char done[128];
+        if (sres == SOTA_OK) {
+            snprintf(done, sizeof(done), "{\"type\":\"slave_ota_done\",\"result\":\"ok\"}");
+        } else {
+            snprintf(done, sizeof(done),
+                "{\"type\":\"slave_ota_done\",\"result\":\"fail\",\"code\":%d}", (int)sres);
+        }
+        mqtt.publishEventJson(done);
+        // Lasam failsafe in vigoare — exit-ul se face automat la primul fetch reusit.
+        pending.updateSlave = false;
+        memset(pending.slaveOtaUrl, 0, sizeof(pending.slaveOtaUrl));
+        memset(pending.slaveOtaSha, 0, sizeof(pending.slaveOtaSha));
+    }
+
     if (pending.reboot) {
         Serial.println("[System] Reboot requested from MQTT");
         mqtt.publishOnline(false);
@@ -391,6 +426,7 @@ void setup() {
     Ethernet.init(W5500_CS_PIN);
     byte mac[6];
     getEthernetMac(mac);
+    EthLinkMonitor::setMac(mac);   // cache pentru recovery la link-down
     Serial.printf("[Eth] MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
         mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 

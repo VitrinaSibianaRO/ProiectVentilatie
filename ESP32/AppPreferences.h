@@ -103,7 +103,7 @@ public:
     }
 
     // Verifică dacă un override a expirat și îl șterge dacă da.
-    // Returnează true dacă starea s-a schimbat (pentru a triggera un update Blynk).
+    // Returnează true dacă starea s-a schimbat (pentru a forta republish state MQTT).
     bool tickOverrideExpiry() {
         bool changed = false;
         unsigned long nowMs = millis();

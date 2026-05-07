@@ -20,12 +20,13 @@ public:
     }
 
     void load() {
-        onH     = _prefs.getUChar("ledOnH", 8);     // Default 08:00
+        // Defaults aliniate cu LedController.h Slave (18:00→23:30 @80%, disabled).
+        onH     = _prefs.getUChar("ledOnH", 18);
         onM     = _prefs.getUChar("ledOnM", 0);
-        offH    = _prefs.getUChar("ledOffH", 22);   // Default 22:00
-        offM    = _prefs.getUChar("ledOffM", 0);
-        maxI    = _prefs.getUChar("ledMaxI", 80);   // Default 80%
-        enabled = _prefs.getBool ("ledEn", false);  // Default off
+        offH    = _prefs.getUChar("ledOffH", 23);
+        offM    = _prefs.getUChar("ledOffM", 30);
+        maxI    = _prefs.getUChar("ledMaxI", 80);
+        enabled = _prefs.getBool ("ledEn", false);
     }
 
     void save(uint8_t _onH, uint8_t _onM, uint8_t _offH, uint8_t _offM, uint8_t _maxI, bool _en) {

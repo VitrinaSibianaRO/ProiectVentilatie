@@ -59,6 +59,10 @@ public:
     int         getConsecErrors()  const;
     const char* getName()          const;
 
+    // Stuck relay detection (citeste pinul GPIO inapoi dupa write).
+    // Returneaza count de fail-uri consecutive; 0 daca OK.
+    int         getStuckCount()    const { return _stuckCount; }
+
 private:
     Sht30Sensor*  _localSensor;     // nullptr dacă remote
     int           _relayPin;
@@ -71,4 +75,5 @@ private:
     bool          _relayState;
     bool          _failsafe;
     int           _consecutiveErrors;
+    int           _stuckCount;
 };
