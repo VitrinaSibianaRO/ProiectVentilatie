@@ -2,30 +2,29 @@
 
 // ============================================================
 //  MqttBridge.h
-//  Wrapper peste PubSubClient + WiFiClientSecure pentru
+//  Wrapper peste PubSubClient + SSLClient + Ethernet pentru
 //  comunicația cu HiveMQ Cloud (TLS port 8883).
 //
-//  FAZA 2: connect, LWT, publishState, heartbeat,
-//          callback comenzi, lock owner, pending flags,
-//          push imediat la schimbare.
-//
-//  Reguli design:
-//  - TLS persistent (un singur handshake), reconnect cu backoff
-//  - Cert ISRG Root X1 stocat în PROGMEM (zero RAM)
-//  - State JSON serializat în StaticJsonDocument (zero heap alloc)
-//  - Throttle hard 500ms între publicări consecutive
-//  - Callback MQTT: ZERO String/new — doar set flags
+//  Arhitectura: EthernetClient → SSLClient → PubSubClient
+//  Cert ISRG Root X1 stocat în PROGMEM (zero RAM)
+//  State JSON serializat în StaticJsonDocument (zero heap alloc)
+//  Throttle hard 500ms între publicări consecutive
+//  Callback MQTT: ZERO String/new — doar set flags
 // ============================================================
 
 #include <Arduino.h>
-#include <WiFiClientSecure.h>
+#include <SPI.h>
+#include <Ethernet.h>
+#include <SSLClient.h>
 #include <PubSubClient.h>
 
 #include "AppPreferences.h"
 #include "VentilationZone.h"
+#include "HiveMqCert.h"
 
 // Lock owner: cine controlează sistemul în acest moment
-enum LockOwner { LOCK_NONE = 0, LOCK_BLYNK = 1, LOCK_MQTT = 2 };
+// LOCK_BLYNK eliminat — nu mai există interfață Blynk
+enum LockOwner { LOCK_NONE = 0, LOCK_MQTT = 2 };
 
 // Pending MQTT commands — setat în callback, procesat în main loop.
 // ZERO alocări dinamice. Valorile sunt copiate direct din JSON parse.
@@ -47,8 +46,21 @@ struct MqttPending {
 
     bool  resetDefaults = false;
     bool  reboot        = false;
+    bool  rebootSlave   = false;   // NOU: restart Slave via UART
 
     bool  getLog        = false;
+
+    // LED control (forwarded to Slave via UART)
+    bool  setLedNow     = false;
+    uint8_t ledPercent  = 0;        // 0-100%
+
+    bool  setLedSched   = false;
+    uint8_t ledOnH      = 0;
+    uint8_t ledOnM      = 0;
+    uint8_t ledOffH     = 0;
+    uint8_t ledOffM     = 0;
+    uint8_t ledMaxI     = 0;
+    bool    ledSchedEn  = false;
 
     bool  update        = false;
     char  otaUrl[256]   = {0};
@@ -59,24 +71,23 @@ class MqttBridge {
 public:
     MqttBridge();
 
-    // Inițializare. Apelat o singură dată în setup() după WiFi.connect.
-    // Configurează cert TLS, buffer size, callback.
+    // Inițializare. Apelat o singură dată în setup() după Ethernet init.
     void begin(AppPreferences* prefs);
 
     // Pump loop. Apelat la fiecare iterație de loop().
-    // Gestionează reconnect cu backoff + client.loop() pentru keepalive.
     void loop();
 
-    // Stare conexiune (true = MQTT autentificat și subscribed)
+    // Stare conexiune
     bool connected();
 
-    // Publicare state. Decide intern dacă publică (throttle, heartbeat, push imediat).
-    void publishStateIfNeeded(const VentilationZone& l, const VentilationZone& r);
+    // Publicare state cu slave + LED status. Decide intern dacă publică.
+    void publishStateIfNeeded(const VentilationZone& l, const VentilationZone& r,
+                              bool slaveOnline, int slaveErrors,
+                              unsigned long slaveLastSuccessMs,
+                              uint8_t ledIntensity, bool ledSchedEnabled);
 
     // Publicare explicită online/offline (folosit pre-restart).
     void publishOnline(bool online);
-
-    // --- FAZA 2: Lock + Commands ---
 
     // Lock owner management
     void setLockOwner(LockOwner owner);
@@ -88,7 +99,7 @@ public:
     // Publicare cmd_rejected pe ventilatie/event
     void publishCmdRejected(const char* reason, const char* by);
 
-    // Publicare event JSON pe ventilatie/event (OTA progress, done, failed)
+    // Publicare event JSON pe ventilatie/event
     void publishEventJson(const char* jsonStr);
 
     // Publicare log JSON pe ventilatie/log (QoS 1, not retained)
@@ -101,7 +112,8 @@ public:
     MqttPending& getPending();
 
 private:
-    WiFiClientSecure  _net;
+    EthernetClient    _baseClient;
+    SSLClient         _sslClient;
     PubSubClient      _client;
     AppPreferences*   _prefs;
 
@@ -112,19 +124,19 @@ private:
     unsigned long _lastHeartbeatMs;
     bool          _lastRelayState[2];
 
-    // Faza 2
     LockOwner     _lockOwner;
-    bool          _publishNow;          // flag: publicare forțată
-    unsigned long _lockSetAtMs;         // millis() când s-a setat lock-ul
+    bool          _publishNow;
+    unsigned long _lockSetAtMs;
+    unsigned long _lastDiagMs;
     MqttPending   _mqttPending;
 
-    // Conectare la broker (LWT setup, subscribe). Returnează true la succes.
     bool _connect();
+    void _publishStateNow(const VentilationZone& l, const VentilationZone& r,
+                          bool slaveOnline, int slaveErrors,
+                          unsigned long slaveLastSuccessMs,
+                          uint8_t ledIntensity, bool ledSchedEnabled);
+    void _publishDiag();
 
-    // Serializare + publish state. Reset throttle counters.
-    void _publishStateNow(const VentilationZone& l, const VentilationZone& r);
-
-    // Callback static → instanță (PubSubClient cere C-style function pointer)
     static MqttBridge* _instance;
     static void _staticCallback(char* topic, byte* payload, unsigned int length);
     void _handleMessage(char* topic, byte* payload, unsigned int length);

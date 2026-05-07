@@ -2,23 +2,29 @@
 
 // ============================================================
 //  VentilationZone.h
-//  Encapsulează un senzor DHT22 + un releu.
+//  Encapsulează un senzor + un releu (local sau remote).
 //
 //  Reguli de design:
-//  - readSensor() este idempotent: dacă nu au trecut ≥2100ms
-//    de la ultima citire, returnează imediat. Sigur de apelat oricând.
+//  - Constructor LOCAL: primește un Sht30Sensor* (ownership extern).
+//    readSensor() apelează _localSensor->read().
+//  - Constructor REMOTE: fără senzor local. Valorile vin din
+//    setExternalSensorValues() (de la Slave prin UART).
 //  - updateLogic() calculează starea releului exclusiv local.
-//    Nu știe nimic de Blynk sau WiFi.
-//  - manualOverride este un flag simplu; AppPreferences
-//    gestionează persistența și timeout-ul lui.
+//    Nu știe nimic de MQTT sau rețea.
+//  - Failsafe: la pierderea comunicării cu Slave (5 cicluri),
+//    zona remote intră în failsafe (releu OFF forțat).
 // ============================================================
 
 #include <Arduino.h>
-#include <DHT.h>
+#include "Sht30Sensor.h"
 
 class VentilationZone {
 public:
-    VentilationZone(int dhtPin, int relPin, const char* name);
+    // Constructor pentru zona cu senzor LOCAL (Master stânga)
+    VentilationZone(Sht30Sensor* localSensor, int relayPin, const char* name);
+
+    // Constructor pentru zona cu senzor REMOTE (dreapta, de la Slave UART)
+    VentilationZone(int relayPin, const char* name);
 
     void begin();
 
@@ -26,8 +32,13 @@ public:
     void setManualOverride(bool state);
     bool getManualOverride() const;
 
-    // Încearcă o citire. Respectă cooldown-ul intern de 2100ms (exceptând force=true).
+    // Încearcă o citire de la senzorul local. Respectă cooldown-ul intern.
+    // Pentru zone remote, nu face nimic (valorile vin din setExternalSensorValues).
     void readSensor(bool force = false);
+
+    // Setează valori senzor primite din exterior (Slave UART).
+    // Doar pentru zone remote.
+    void setExternalSensorValues(float temp, float hum, uint32_t ts);
 
     // Calculează și aplică starea releului — logică 100% locală.
     // hystTemp/hystHum: banda de histerezis (releul se oprește la prag−hyst).
@@ -35,6 +46,11 @@ public:
 
     // Oprire de urgență (restart, heap critic etc.).
     void emergencyOff();
+
+    // Failsafe — forțează relay OFF când Slave e offline
+    void enterFailsafe();
+    void exitFailsafe();
+    bool isInFailsafe() const;
 
     float       getTemp()          const;
     float       getHum()           const;
@@ -44,14 +60,15 @@ public:
     const char* getName()          const;
 
 private:
-    DHT           _dht;
+    Sht30Sensor*  _localSensor;     // nullptr dacă remote
     int           _relayPin;
     const char*   _name;
     float         _currentTemp;
     float         _currentHum;
+    uint32_t      _lastExternalTs;
     bool          _manualOverride;
     bool          _firstReadDone;
     bool          _relayState;
-    unsigned long _lastReadMs;
+    bool          _failsafe;
     int           _consecutiveErrors;
 };

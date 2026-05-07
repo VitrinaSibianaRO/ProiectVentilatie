@@ -1,21 +1,22 @@
 // ============================================================
-//  MqttBridge.cpp — FAZA 2 (commands + lock)
+//  MqttBridge.cpp — Ethernet + SSLClient + PubSubClient
+//  Comunicatie cu HiveMQ Cloud (TLS 8883) prin W5500.
 // ============================================================
 
 #include "MqttBridge.h"
 
-#include <WiFi.h>
 #include <ArduinoJson.h>
-
 #include "Config.h"
-#include "HiveMqCert.h"
+#include "TimeSync.h"
+#include "Resilience.h"
 
 // Pointer static pentru rutare callback PubSubClient → instanță
 MqttBridge* MqttBridge::_instance = nullptr;
 
 MqttBridge::MqttBridge()
-    : _net(),
-      _client(_net),
+    : _baseClient(),
+      _sslClient(_baseClient, TrustAnchors, TrustAnchors_NUM, A0),
+      _client(_sslClient),
       _prefs(nullptr),
       _initialized(false),
       _lastReconnectMs(0),
@@ -24,7 +25,8 @@ MqttBridge::MqttBridge()
       _lastHeartbeatMs(0),
       _lockOwner(LOCK_NONE),
       _publishNow(false),
-      _lockSetAtMs(0)
+      _lockSetAtMs(0),
+      _lastDiagMs(0)
 {
     _lastRelayState[0] = false;
     _lastRelayState[1] = false;
@@ -34,14 +36,13 @@ void MqttBridge::begin(AppPreferences* prefs) {
     _prefs = prefs;
     _instance = this;
 
-    _net.setCACert(HIVEMQ_ROOT_CA);
     _client.setServer(MQTT_HOST, MQTT_PORT);
     _client.setBufferSize(MQTT_BUF_SIZE);
     _client.setKeepAlive(60);
     _client.setCallback(_staticCallback);
 
     _initialized = true;
-    Serial.println("[MQTT] Bridge initialized (Faza 2: commands + lock).");
+    Serial.println("[MQTT] Bridge initialized (Ethernet + SSLClient).");
 }
 
 bool MqttBridge::connected() {
@@ -50,7 +51,8 @@ bool MqttBridge::connected() {
 
 void MqttBridge::loop() {
     if (!_initialized) return;
-    if (WiFi.status() != WL_CONNECTED) return;
+    // Ethernet link check — nu mai verificăm WiFi
+    if (Ethernet.linkStatus() != LinkON) return;
 
     if (!_client.connected()) {
         unsigned long now = millis();
@@ -58,32 +60,37 @@ void MqttBridge::loop() {
         _lastReconnectMs = now;
 
         if (_connect()) {
-            _backoffMs = MQTT_RECONNECT_INITIAL_MS;   // reset
-            // La reconectare reușită, forțăm un heartbeat la următorul publishStateIfNeeded
+            _backoffMs = MQTT_RECONNECT_INITIAL_MS;
             _lastHeartbeatMs = 0;
+            MqttReconnectGuard::onConnectSuccess();
         } else {
-            // Backoff exponențial 5s → 60s
             unsigned long next = _backoffMs * 2;
             _backoffMs = (next > MQTT_RECONNECT_MAX_MS) ? MQTT_RECONNECT_MAX_MS : next;
             Serial.printf("[MQTT] Reconnect failed, rc=%d, retry in %lus\n",
                 _client.state(), _backoffMs / 1000);
+            MqttReconnectGuard::onConnectFail();
         }
     } else {
-        _client.loop();   // keepalive + procesare mesaje callback
+        _client.loop();
+        
+        // Diag publish la fiecare 5 minute
+        unsigned long now = millis();
+        if (now - _lastDiagMs >= 300000UL || _lastDiagMs == 0) {
+            _publishDiag();
+            _lastDiagMs = now;
+        }
     }
 }
 
 bool MqttBridge::_connect() {
-    Serial.print("[MQTT] Connecting to HiveMQ... ");
+    Serial.print("[MQTT] Connecting to HiveMQ via Ethernet... ");
 
-    // Client ID unic: prefix + ultimele 4 bytes din MAC (eFuse)
     char clientId[32];
     uint64_t chipId = ESP.getEfuseMac();
     snprintf(clientId, sizeof(clientId), "%s%08X",
         MQTT_CLIENT_PREFIX, (uint32_t)(chipId >> 16));
 
     // LWT: dacă ESP32 cade neașteptat, broker-ul publică automat "offline"
-    // pe TOPIC_ONLINE (retained).
     bool ok = _client.connect(
         clientId,
         MQTT_USER, MQTT_PASS,
@@ -99,11 +106,7 @@ bool MqttBridge::_connect() {
     }
 
     Serial.println("OK.");
-
-    // Publicăm "online" (retained) imediat după conectare
     _client.publish(TOPIC_ONLINE, "online", true);
-
-    // Subscribe la comenzi (QoS 1)
     _client.subscribe(TOPIC_CMD, 1);
     Serial.println("[MQTT] Subscribed to ventilatie/cmd (QoS 1).");
 
@@ -112,7 +115,6 @@ bool MqttBridge::_connect() {
 
 // ============================================================
 //  CALLBACK MQTT — ZERO alocări dinamice
-//  Parsăm JSON pe stack, setăm doar flags.
 // ============================================================
 
 void MqttBridge::_staticCallback(char* topic, byte* payload, unsigned int length) {
@@ -122,10 +124,8 @@ void MqttBridge::_staticCallback(char* topic, byte* payload, unsigned int length
 }
 
 void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length) {
-    // Verificăm că e topic-ul corect
     if (strcmp(topic, TOPIC_CMD) != 0) return;
 
-    // Parsare JSON pe stack — StaticJsonDocument, zero heap
     StaticJsonDocument<256> doc;
     DeserializationError err = deserializeJson(doc, payload, length);
     if (err) {
@@ -136,19 +136,13 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
     const char* cmd = doc["cmd"] | "";
     Serial.printf("[MQTT] Cmd received: %s\n", cmd);
 
-    // cmd:refresh bypasses lock (conform §E din plan)
+    // cmd:refresh bypasses lock
     if (strcmp(cmd, "refresh") == 0) {
         _mqttPending.refresh = true;
         return;
     }
 
-    // Lock check: dacă Blynk deține lock-ul, respingem comanda
-    if (_lockOwner == LOCK_BLYNK) {
-        publishCmdRejected("locked", "blynk");
-        Serial.println("[MQTT] Cmd rejected: lock activ Blynk.");
-        return;
-    }
-
+    // Lock check: doar LOCK_MQTT acum (LOCK_BLYNK eliminat)
     // Setăm lock MQTT + forțăm publish state cu lock activ
     _lockOwner = LOCK_MQTT;
     _lockSetAtMs = millis();
@@ -185,19 +179,39 @@ void MqttBridge::_handleMessage(char* topic, byte* payload, unsigned int length)
     else if (strcmp(cmd, "reboot") == 0) {
         _mqttPending.reboot = true;
     }
+    else if (strcmp(cmd, "rebootSlave") == 0) {
+        _mqttPending.rebootSlave = true;
+    }
     // getLog — bypass lock (read-only)
     else if (strcmp(cmd, "getLog") == 0) {
         _mqttPending.getLog = true;
-        // Nu setăm lock (e read-only)
         _lockOwner = LOCK_NONE;
     }
-    // update — OTA
+    // LED control — forwarded to Slave via UART
+    else if (strcmp(cmd, "setLed") == 0) {
+        int pct = doc["percent"] | -1;
+        if (pct < 0 || pct > 100) {
+            Serial.println("[MQTT] setLed: percent out of range.");
+            return;
+        }
+        _mqttPending.setLedNow = true;
+        _mqttPending.ledPercent = (uint8_t)pct;
+    }
+    else if (strcmp(cmd, "setLedSchedule") == 0) {
+        _mqttPending.setLedSched = true;
+        _mqttPending.ledOnH     = doc["onH"]  | 0;
+        _mqttPending.ledOnM     = doc["onM"]  | 0;
+        _mqttPending.ledOffH    = doc["offH"] | 0;
+        _mqttPending.ledOffM    = doc["offM"] | 0;
+        _mqttPending.ledMaxI    = doc["maxI"] | 80;
+        _mqttPending.ledSchedEn = doc["enabled"] | false;
+    }
+    // update — OTA Master
     else if (strcmp(cmd, "update") == 0) {
         const char* otaUrl = doc["url"] | "";
-        const char* otaSha = doc["sha256"] | "";
-        if (strlen(otaUrl) == 0 || strlen(otaSha) != 64) {
-            Serial.println("[MQTT] cmd:update — URL sau SHA-256 invalid.");
-            _lockOwner = LOCK_NONE;
+        const char* otaSha = doc["sha"] | "";
+        if (strlen(otaUrl) < 10 || strlen(otaSha) != 64) {
+            Serial.println("[MQTT] update: url sau sha invalid.");
             return;
         }
         strncpy(_mqttPending.otaUrl, otaUrl, sizeof(_mqttPending.otaUrl) - 1);
@@ -254,7 +268,10 @@ bool MqttBridge::hasPendingCommands() const {
         || _mqttPending.setConfig
         || _mqttPending.resetDefaults
         || _mqttPending.reboot
+        || _mqttPending.rebootSlave
         || _mqttPending.getLog
+        || _mqttPending.setLedNow
+        || _mqttPending.setLedSched
         || _mqttPending.update;
 }
 
@@ -266,27 +283,24 @@ MqttPending& MqttBridge::getPending() {
 //  STATE PUBLISH
 // ============================================================
 
-void MqttBridge::publishStateIfNeeded(const VentilationZone& l, const VentilationZone& r) {
+void MqttBridge::publishStateIfNeeded(const VentilationZone& l, const VentilationZone& r,
+                                       bool slaveOnline, int slaveErrors,
+                                       unsigned long slaveLastSuccessMs,
+                                       uint8_t ledIntensity, bool ledSchedEnabled) {
     if (!connected()) return;
 
     unsigned long now = millis();
-
-    // Throttle hard
     if (now - _lastPublishMs < MQTT_PUBLISH_MIN_INTERVAL_MS) return;
 
-    // Heartbeat la fiecare MQTT_HEARTBEAT_MS
     bool heartbeat = (_lastHeartbeatMs == 0) ||
                      (now - _lastHeartbeatMs >= MQTT_HEARTBEAT_MS);
-
-    // Schimbare automată stare releu (auto on/off declanșat de senzori)
     bool relayChanged = (l.getRelayState() != _lastRelayState[0]) ||
                         (r.getRelayState() != _lastRelayState[1]);
-
-    // Push imediat (setat de comenzi MQTT/Blynk sau lock change)
     bool pushNow = _publishNow;
 
     if (heartbeat || relayChanged || pushNow) {
-        _publishStateNow(l, r);
+        _publishStateNow(l, r, slaveOnline, slaveErrors, slaveLastSuccessMs,
+                         ledIntensity, ledSchedEnabled);
         _lastPublishMs = now;
         _publishNow = false;
         if (heartbeat) _lastHeartbeatMs = now;
@@ -295,10 +309,13 @@ void MqttBridge::publishStateIfNeeded(const VentilationZone& l, const Ventilatio
     }
 }
 
-void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZone& r) {
+void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZone& r,
+                                   bool slaveOnline, int slaveErrors,
+                                   unsigned long slaveLastSuccessMs,
+                                   uint8_t ledIntensity, bool ledSchedEnabled) {
     if (!_prefs) return;
 
-    StaticJsonDocument<640> doc;
+    StaticJsonDocument<896> doc;
 
     JsonObject left = doc["left"].to<JsonObject>();
     left["temp"]     = l.getTemp();
@@ -313,6 +330,7 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     right["relay"]    = r.getRelayState();
     right["override"] = r.getManualOverride();
     right["errs"]     = r.getConsecErrors();
+    right["failsafe"] = r.isInFailsafe();
 
     JsonObject cfg = doc["config"].to<JsonObject>();
     cfg["threshT"]    = _prefs->tempThresh;
@@ -322,10 +340,21 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     cfg["hystT"]      = _prefs->tempHyst;
     cfg["hystH"]      = _prefs->humHyst;
 
-    // Lock object: {owner:"blynk"|"mqtt", ageMs:N} sau null
+    // Slave status
+    JsonObject slave = doc["slave"].to<JsonObject>();
+    slave["online"]   = slaveOnline;
+    slave["errors"]   = slaveErrors;
+    slave["lastSeen"] = (uint32_t)(slaveLastSuccessMs / 1000UL);
+
+    // LED status (from Slave)
+    JsonObject led = doc["led"].to<JsonObject>();
+    led["intensity"] = ledIntensity;
+    led["schedEnabled"] = ledSchedEnabled;
+
+    // Lock object
     if (_lockOwner != LOCK_NONE) {
         JsonObject lock = doc["lock"].to<JsonObject>();
-        lock["owner"] = (_lockOwner == LOCK_BLYNK) ? "blynk" : "mqtt";
+        lock["owner"] = "mqtt";
         lock["ageMs"] = (uint32_t)(millis() - _lockSetAtMs);
     } else {
         doc["lock"] = (const char*)nullptr;
@@ -335,7 +364,7 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     doc["uptimeSec"] = (uint32_t)(millis() / 1000);
     doc["heap"]      = (uint32_t)ESP.getFreeHeap();
 
-    char buf[700];
+    char buf[800];
     size_t n = serializeJson(doc, buf, sizeof(buf));
     if (n == 0 || n >= sizeof(buf)) {
         Serial.println("[MQTT] State serialize error.");
@@ -346,10 +375,10 @@ void MqttBridge::_publishStateNow(const VentilationZone& l, const VentilationZon
     if (!ok) {
         Serial.println("[MQTT] State publish FAILED.");
     } else {
-        Serial.printf("[MQTT] State published (%u bytes, lock=%s).\n",
+        Serial.printf("[MQTT] State published (%u bytes, lock=%s, slave=%s).\n",
             (unsigned)n,
-            _lockOwner == LOCK_NONE ? "none" :
-            _lockOwner == LOCK_BLYNK ? "blynk" : "mqtt");
+            _lockOwner == LOCK_NONE ? "none" : "mqtt",
+            slaveOnline ? "online" : "offline");
     }
 }
 
@@ -365,7 +394,17 @@ void MqttBridge::publishEventJson(const char* jsonStr) {
 
 void MqttBridge::publishLog(const char* jsonBuf, size_t len) {
     if (!connected()) return;
-    // QoS 1, NOT retained
     _client.publish(TOPIC_LOG, (const uint8_t*)jsonBuf, len, false);
     Serial.printf("[MQTT] Log published (%u bytes).\n", (unsigned)len);
+}
+
+void MqttBridge::_publishDiag() {
+    StaticJsonDocument<256> doc;
+    doc["uptimeSec"] = (uint32_t)(millis() / 1000);
+    doc["heap"]      = ESP.getFreeHeap();
+    doc["ethLink"]   = (Ethernet.linkStatus() == LinkON);
+    
+    char buf[256];
+    size_t n = serializeJson(doc, buf, sizeof(buf));
+    _client.publish(TOPIC_DIAG, (const uint8_t*)buf, n, false);
 }

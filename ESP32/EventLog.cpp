@@ -55,9 +55,8 @@ void EventLog::append(EventType type, EventZone zone, const char* msg) {
 }
 
 size_t EventLog::dumpJson(char* buf, size_t bufLen) {
-    // Folosim ArduinoJson streaming pentru a evita alocări mari
-    // Buffer 4096B e suficient pentru 50 entries (~60B/entry JSON)
-    DynamicJsonDocument doc(bufLen - 64);  // margin
+    // Buffer static 2048B e suficient pentru 20 entries
+    StaticJsonDocument<2048> doc;
 
     JsonArray entries = doc["entries"].to<JsonArray>();
 

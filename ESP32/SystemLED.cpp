@@ -1,5 +1,7 @@
 // ============================================================
 //  SystemLED.cpp
+//  Stări: Albastru=boot, Verde=OK, Galben=noMQTT, Roșu=noEth,
+//         Alb=reset, Mov=slaveOffline
 // ============================================================
 
 #include "SystemLED.h"
@@ -23,17 +25,21 @@ void SystemLED::setColor(uint8_t r, uint8_t g, uint8_t b) {
     _strip.show();
 }
 
-void SystemLED::updateStatus(bool wifiOk, bool blynkOk) {
-    if (!wifiOk) {
+void SystemLED::updateStatus(bool ethOk, bool mqttOk) {
+    if (!ethOk) {
         if (_r != 200 || _g != 0 || _b != 0)
-            setColor(200, 0, 0);          // roșu — fără WiFi
-    } else if (!blynkOk) {
+            setColor(200, 0, 0);          // roșu — fără Ethernet
+    } else if (!mqttOk) {
         if (_r != 180 || _g != 100 || _b != 0)
-            setColor(180, 100, 0);        // galben — WiFi ok, Blynk deconectat
+            setColor(180, 100, 0);        // galben — Eth ok, MQTT deconectat
     } else {
         if (_r != 0 || _g != 180 || _b != 0)
             setColor(0, 180, 0);          // verde — totul funcționează
     }
+}
+
+void SystemLED::setSlaveOffline() {
+    setColor(128, 0, 128);               // mov — Slave offline
 }
 
 void SystemLED::setWhite() { setColor(200, 200, 200); }

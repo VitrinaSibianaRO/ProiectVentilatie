@@ -1,13 +1,17 @@
 // ============================================================
 //  OtaUpdater.cpp
 //  OTA via HTTPS + SHA-256 streaming verification.
+//  Transport: EthernetClient + SSLClient (W5500).
 // ============================================================
 
 #include "OtaUpdater.h"
 #include "Config.h"
+#include "HiveMqCert.h"
 
-#include <WiFiClientSecure.h>
-#include <HTTPClient.h>
+#include <SPI.h>
+#include <Ethernet.h>
+#include <SSLClient.h>
+#include <ArduinoHttpClient.h>
 #include <Update.h>
 #include <esp_task_wdt.h>
 #include <mbedtls/sha256.h>
@@ -33,72 +37,116 @@ OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
         return OTA_ERR_URL_INVALID;
     }
 
-    // 3. HTTPS connect (setInsecure — SHA-256 garantează integritatea)
-    WiFiClientSecure secClient;
-    secClient.setInsecure();
+    // 3. Parse URL — extragem host și path
+    // Format: https://host/path
+    const char* hostStart = url + 8; // skip "https://"
+    if (strncmp(url, "https://", 8) != 0) {
+        Serial.println("[OTA] URL must start with https://");
+        return OTA_ERR_URL_INVALID;
+    }
+    const char* pathStart = strchr(hostStart, '/');
+    if (!pathStart) {
+        Serial.println("[OTA] URL has no path.");
+        return OTA_ERR_URL_INVALID;
+    }
 
-    HTTPClient http;
-    http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
-    http.setTimeout(30000);
+    char host[128];
+    size_t hostLen = (size_t)(pathStart - hostStart);
+    if (hostLen >= sizeof(host)) hostLen = sizeof(host) - 1;
+    memcpy(host, hostStart, hostLen);
+    host[hostLen] = '\0';
 
-    if (!http.begin(secClient, url)) {
-        Serial.println("[OTA] HTTP begin failed.");
+    // 4. Connect via EthernetClient + SSLClient
+    EthernetClient baseClient;
+    SSLClient sslClient(baseClient, TrustAnchors, TrustAnchors_NUM, A0);
+    HttpClient httpClient(sslClient, host, 443);
+    httpClient.setHttpResponseTimeout(30000);
+
+    Serial.printf("[OTA] Connecting to %s...\n", host);
+    int err = httpClient.get(pathStart);
+    if (err != 0) {
+        Serial.printf("[OTA] HTTP GET failed: %d\n", err);
         return OTA_ERR_CONNECT;
     }
 
-    int httpCode = http.GET();
-    if (httpCode != HTTP_CODE_OK) {
-        Serial.printf("[OTA] HTTP error: %d\n", httpCode);
-        http.end();
+    int statusCode = httpClient.responseStatusCode();
+    // Handle redirects (GitHub releases redirect 302)
+    if (statusCode == 301 || statusCode == 302) {
+        String location;
+        // ArduinoHttpClient: iterate headers to find Location
+        while (httpClient.headerAvailable()) {
+            String headerName = httpClient.readHeaderName();
+            String headerValue = httpClient.readHeaderValue();
+            if (headerName.equalsIgnoreCase("Location")) {
+                location = headerValue;
+                break;
+            }
+        }
+        if (location.length() > 0) {
+            Serial.printf("[OTA] Redirect to: %s\n", location.c_str());
+            httpClient.stop();
+            // Recursive call with redirected URL (one level max)
+            return start(location.c_str(), expectedSha256, progressCb);
+        }
+    }
+
+    if (statusCode != 200) {
+        Serial.printf("[OTA] HTTP error: %d\n", statusCode);
+        httpClient.stop();
         return OTA_ERR_HTTP;
     }
 
-    int contentLength = http.getSize();
+    long contentLength = httpClient.contentLength();
     if (contentLength <= 0) {
         Serial.println("[OTA] Content-Length invalid.");
-        http.end();
+        httpClient.stop();
         return OTA_ERR_HTTP;
     }
 
-    Serial.printf("[OTA] Firmware size: %d bytes\n", contentLength);
+    Serial.printf("[OTA] Firmware size: %ld bytes\n", contentLength);
 
-    // 4. Begin update
+    // 5. Begin update
     if (!Update.begin(contentLength)) {
         Serial.printf("[OTA] Update.begin failed: %s\n",
             Update.errorString());
-        http.end();
+        httpClient.stop();
         return OTA_ERR_BEGIN;
     }
 
-    // 5. SHA-256 context
+    // 6. SHA-256 context
     mbedtls_sha256_context sha;
     mbedtls_sha256_init(&sha);
     mbedtls_sha256_starts(&sha, 0);  // 0 = SHA-256
 
-    // 6. Download + write chunks
-    WiFiClient* stream = http.getStreamPtr();
+    // 7. Download + write chunks
     uint8_t buf[4096];
-    int totalRead = 0;
+    long totalRead = 0;
     int lastPct = -1;
 
     while (totalRead < contentLength) {
         // WDT feed — download-ul poate dura minute
         esp_task_wdt_reset();
 
-        int available = stream->available();
+        int available = httpClient.available();
         if (available <= 0) {
+            if (!httpClient.connected()) {
+                Serial.println("[OTA] Connection lost during download.");
+                Update.abort();
+                mbedtls_sha256_free(&sha);
+                return OTA_ERR_WRITE;
+            }
             delay(10);
             continue;
         }
 
         int toRead = min((int)sizeof(buf), available);
-        toRead = min(toRead, contentLength - totalRead);
-        int bytesRead = stream->readBytes(buf, toRead);
+        toRead = min((long)toRead, contentLength - totalRead);
+        int bytesRead = httpClient.read(buf, toRead);
 
         if (bytesRead <= 0) {
             Serial.println("[OTA] Read error during download.");
             Update.abort();
-            http.end();
+            httpClient.stop();
             mbedtls_sha256_free(&sha);
             return OTA_ERR_WRITE;
         }
@@ -111,7 +159,7 @@ OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
         if (written != (size_t)bytesRead) {
             Serial.printf("[OTA] Write failed: %d/%d\n", (int)written, bytesRead);
             Update.abort();
-            http.end();
+            httpClient.stop();
             mbedtls_sha256_free(&sha);
             return OTA_ERR_WRITE;
         }
@@ -119,7 +167,7 @@ OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
         totalRead += bytesRead;
 
         // Progress reporting la fiecare 10%
-        int pct = (totalRead * 100) / contentLength;
+        int pct = (int)((totalRead * 100L) / contentLength);
         int pct10 = (pct / 10) * 10;
         if (pct10 > lastPct) {
             lastPct = pct10;
@@ -128,9 +176,9 @@ OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
         }
     }
 
-    http.end();
+    httpClient.stop();
 
-    // 7. Finalizare SHA-256
+    // 8. Finalizare SHA-256
     uint8_t hash[32];
     mbedtls_sha256_finish(&sha, hash);
     mbedtls_sha256_free(&sha);
@@ -145,14 +193,14 @@ OtaResult OtaUpdater::start(const char* url, const char* expectedSha256,
     Serial.printf("[OTA] SHA-256 computed: %s\n", computedSha);
     Serial.printf("[OTA] SHA-256 expected: %s\n", expectedSha256);
 
-    // 8. Verificare SHA-256
+    // 9. Verificare SHA-256
     if (strcasecmp(computedSha, expectedSha256) != 0) {
         Serial.println("[OTA] SHA-256 MISMATCH! Aborting.");
         Update.abort();
         return OTA_ERR_SHA_MISMATCH;
     }
 
-    // 9. Finalizare Update
+    // 10. Finalizare Update
     if (!Update.end(true)) {
         Serial.printf("[OTA] Update.end failed: %s\n", Update.errorString());
         return OTA_ERR_END;

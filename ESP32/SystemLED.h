@@ -6,10 +6,11 @@
 //
 //  Stări:
 //    Albastru  — boot / inițializare
-//    Verde     — WiFi + Blynk conectate, sistem OK
-//    Galben    — WiFi conectat, Blynk deconectat
-//    Roșu      — fără WiFi
-//    Alb       — reset WiFiManager în curs
+//    Verde     — Ethernet + MQTT conectate, sistem OK
+//    Galben    — Ethernet OK, MQTT deconectat
+//    Roșu      — fără Ethernet link
+//    Alb       — reset NVS în curs
+//    Mov       — Slave offline (failsafe activ)
 // ============================================================
 
 #include <Arduino.h>
@@ -23,8 +24,11 @@ public:
     void setColor(uint8_t r, uint8_t g, uint8_t b);
 
     // Apelat periodic din loop() — actualizează culoarea
-    // în funcție de starea curentă a conexiunii.
-    void updateStatus(bool wifiOk, bool blynkOk);
+    // în funcție de starea curentă a conexiunii Ethernet + MQTT.
+    void updateStatus(bool ethOk, bool mqttOk);
+
+    // Slave offline (mov)
+    void setSlaveOffline();
 
     void setWhite();
     void setBlue();

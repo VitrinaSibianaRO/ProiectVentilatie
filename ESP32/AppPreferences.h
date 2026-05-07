@@ -41,8 +41,25 @@ public:
         // millis() nu supraviețuiește reboot-ului, deci resetăm timestamp-urile
         overrideLeftSetAt   = overrideLeft  ? millis() : 0;
         overrideRightSetAt  = overrideRight ? millis() : 0;
+        _validateOrFallback();
     }
 
+private:
+    void _validateOrFallback() {
+        bool bad = false;
+        if (tempThresh < 0.0f || tempThresh > 50.0f) bad = true;
+        if (humThresh < 0.0f || humThresh > 100.0f) bad = true;
+        if (intervalSec < MIN_INTERVAL_SEC || intervalSec > MAX_INTERVAL_SEC) bad = true;
+        if (tempHyst < MIN_TEMP_HYST || tempHyst > MAX_TEMP_HYST) bad = true;
+        if (humHyst < MIN_HUM_HYST || humHyst > MAX_HUM_HYST) bad = true;
+
+        if (bad) {
+            Serial.println("[Prefs] NVS CORRUPTION DETECTED — falling back to defaults!");
+            resetToDefaults();
+        }
+    }
+
+public:
     void saveTempThresh(float v) {
         tempThresh = v;
         _prefs.putFloat("tempThresh", v);

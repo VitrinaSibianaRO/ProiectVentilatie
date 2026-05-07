@@ -6,12 +6,14 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <WiFi.h>
+#include <esp_ota_ops.h>
 
 #include "Config.h"
 #include "Logger.h"
 #include "WatchdogManager.h"
 #include "Sht30Sensor.h"
 #include "SystemLED.h"
+#include "SlaveResilience.h"
 #include "LedController.h"
 #include "UartProtocol.h"
 #include "OtaReceiver.h"
@@ -33,6 +35,9 @@ void setup() {
     // 1. USB Serial pentru debug
     Logger::begin(LOG_BAUD);
     LOG_INFO("=== ESP32 Slave boot — fw build %d ===", FW_BUILD_NUMBER);
+
+    // OTA rollback protection
+    esp_ota_mark_app_valid_cancel_rollback();
 
     // 2. Oprim radio WiFi + Bluetooth — economie ~80mA + zero interferenta
     WiFi.mode(WIFI_OFF);
@@ -74,5 +79,9 @@ void loop() {
     WatchdogManager::feed();
     g_ledCtrl.tick();       // evalueaza schedule LED (no-op daca timp nesincronizat)
     g_dispatcher.tick();    // proceseaza UART + actualizeaza LED status
+    
+    // Resilience: watchdog idle & uptime monitor
+    SlaveResilience::check(g_dispatcher.getLastRequestMs());
+
     delay(LOOP_TICK_MS);
 }

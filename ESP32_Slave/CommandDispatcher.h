@@ -28,6 +28,8 @@ public:
     // Apelat la fiecare iteratie loop(). Non-blocking.
     void tick();
 
+    uint32_t getLastRequestMs() const { return _lastRequestMs; }
+
 private:
     Sht30Sensor&   _sensor;
     UartProtocol&  _uart;
