@@ -2,6 +2,7 @@
 // Resetează automat ESP32 dacă feed() nu este apelat in timeoutSec secunde.
 #pragma once
 #include <esp_task_wdt.h>
+#include <esp_err.h>
 
 class WatchdogManager {
 public:
@@ -13,7 +14,12 @@ public:
             .idle_core_mask = 0,
             .trigger_panic = panic
         };
-        esp_task_wdt_init(&wdt_cfg);
+
+        esp_err_t err = esp_task_wdt_reconfigure(&wdt_cfg);
+        if (err == ESP_ERR_INVALID_STATE) {
+            err = esp_task_wdt_init(&wdt_cfg);
+        }
+
         esp_task_wdt_add(nullptr);   // subscrie task-ul curent (loopTask)
     }
 

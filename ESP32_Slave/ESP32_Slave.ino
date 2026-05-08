@@ -87,19 +87,19 @@ void setup() {
     LOG_INFO("[PSRAM] g_sensorData @ %p (%s)", g_sensorData,
              esp_ptr_in_psram(g_sensorData) ? "PSRAM" : "heap");
 
-    // 6. Pornire SensorTask pe Core 0 (citire SHT30 la fiecare 30s)
+    // 6. Watchdog hardware 60s (loopTask pe Core 1; SensorTask se inregistreaza singur)
+    WatchdogManager::begin(WDT_TIMEOUT_SEC);
+
+    // 7. Pornire SensorTask pe Core 0 (citire SHT30 la fiecare 30s)
     SensorTask::start(g_sensor);
 
-    // 7. LED PWM controller
+    // 8. LED PWM controller
     g_ledCtrl.begin();
 
-    // 8. UART2 catre Master (TX=17, RX=16 pe Carbon V3)
+    // 9. UART2 catre Master (TX=GPIO5, RX=GPIO26 pe Carbon V3)
     g_uart.begin(SLAVE_UART_BAUD, SLAVE_UART_RX_PIN, SLAVE_UART_TX_PIN);
     LOG_INFO("UART2 ready: baud=%u TX=%d RX=%d",
              SLAVE_UART_BAUD, SLAVE_UART_TX_PIN, SLAVE_UART_RX_PIN);
-
-    // 9. Watchdog hardware 60s (loopTask pe Core 1; SensorTask se inregistreaza singur)
-    WatchdogManager::begin(WDT_TIMEOUT_SEC);
 
     g_led.setStatus(SystemLED::Status::Ready);
     LOG_INFO("Ready — awaiting UART commands");

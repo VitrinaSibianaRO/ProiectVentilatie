@@ -27,7 +27,16 @@
 #define W5500_SCK_PIN 14
 #define W5500_CS_PIN 15
 #define W5500_RST_PIN 33
-#define W5500_SPI_FREQ_HZ 1000000UL // 1 MHz diagnostic — creste la 4 MHz dupa detectie stabila
+#define W5500_SPI_FREQ_HZ                                                      \
+  4000000UL // 1 MHz diagnostic — creste la 4 MHz dupa detectie stabila
+#define W5500_PROBE_SPI_FREQ_HZ                                                \
+  250000UL // proba lenta pentru recovery dupa reseturi rapide
+#define W5500_RESET_LOW_MS 700
+#define W5500_RESET_READY_MS 1500
+
+// Depanare hardware: lasa boot-ul normal sa continue chiar dupa reseturi
+// rapide. Pune 0 dupa ce termini testele W5500.
+#define BOOTGUARD_SAFE_MODE_ENABLED 1
 
 // UART2 catre Slave
 #define SLAVE_UART_TX_PIN 19
@@ -158,3 +167,6 @@
 #ifndef FW_BUILD_NUMBER
 #define FW_BUILD_NUMBER 0
 #endif
+
+// Global flag for WiFi availability
+extern bool g_wifiAvailable;

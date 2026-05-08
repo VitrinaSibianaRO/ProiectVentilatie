@@ -4,6 +4,10 @@
 #include "HiveMqCert.h"
 
 #include <esp_task_wdt.h>
+#include <Ethernet.h>
+#include <WiFiClient.h>
+#include <memory>
+#include "Config.h"
 
 bool SlaveOtaProxy::_isUrlAllowed(const char* url) {
     return (strstr(url, OTA_URL_WHITELIST1) == url ||
@@ -80,9 +84,14 @@ SlaveOtaResult SlaveOtaProxy::perform(const char* url, const char* sha256,
     memcpy(host, hostStart, hostLen);
     host[hostLen] = '\0';
 
-    // HTTPS GET via Ethernet + SSLClient (re-foloseste TrustAnchors HiveMQ)
-    EthernetClient base;
-    SSLClient ssl(base, TrustAnchors, TrustAnchors_NUM, A0);
+    // HTTPS GET via dynamic client + SSLClient (re-foloseste TrustAnchors HiveMQ)
+    std::unique_ptr<Client> base;
+    if (g_wifiAvailable) {
+        base.reset(new WiFiClient());
+    } else {
+        base.reset(new EthernetClient());
+    }
+    SSLClient ssl(*base, TrustAnchors, TrustAnchors_NUM, A0);
     HttpClient http(ssl, host, 443);
     http.setHttpResponseTimeout(30000);
 

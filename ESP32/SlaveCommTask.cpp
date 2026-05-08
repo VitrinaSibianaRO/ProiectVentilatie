@@ -32,6 +32,15 @@ static void taskFn(void* pvParams) {
     TickType_t  xLastWakeTime     = xTaskGetTickCount();
     uint32_t    lastTimeSyncMs    = 0;
     uint32_t    lastLedStatusMs   = 0;
+    bool        lastFetchOk       = false;
+    bool        fetchStateKnown   = false;
+
+    uint32_t pingLatencyMs = 0;
+    if (client.ping(pingLatencyMs, SLAVE_REQ_TIMEOUT_MS)) {
+        Serial.printf("[SlaveCommTask] PING OK latency=%ums\n", pingLatencyMs);
+    } else {
+        Serial.println("[SlaveCommTask] PING FAIL (will retry via GET_SENSOR)");
+    }
 
     // Snapshot local — actualizat la fiecare fetch
     SlaveData snap{};
@@ -62,6 +71,16 @@ static void taskFn(void* pvParams) {
             snap.consecutiveErrors = client.getConsecutiveErrors();
         }
         slaveDataWrite(snap);
+
+        if (!fetchStateKnown || ok != lastFetchOk) {
+            if (ok) {
+                Serial.printf("[SlaveCommTask] LINK UP T=%.2f H=%.2f ts=%u\n", t, h, slaveTs);
+            } else {
+                Serial.printf("[SlaveCommTask] LINK DOWN errors=%d\n", snap.consecutiveErrors);
+            }
+            lastFetchOk = ok;
+            fetchStateKnown = true;
+        }
 
         // --- Drain comanda queue (Core 1 → Core 0) ---
         SlaveCommand cmd;

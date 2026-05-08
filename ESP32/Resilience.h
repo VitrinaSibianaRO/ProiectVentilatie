@@ -78,11 +78,17 @@ public:
         p.putInt("cnt", count);
         p.end();
 
+#if BOOTGUARD_SAFE_MODE_ENABLED
         if (count >= MAX_RAPID_BOOTS) {
             Serial.printf("[BootGuard] SAFE MODE! %d rapid reboots\n", count);
             _safeMode = true;
             return true;
         }
+#else
+        if (count >= MAX_RAPID_BOOTS) {
+            Serial.printf("[BootGuard] Safe mode bypassed for hardware debug (%d rapid reboots)\n", count);
+        }
+#endif
         Serial.printf("[BootGuard] Boot count: %d/%d\n", count, MAX_RAPID_BOOTS);
         return false;
     }

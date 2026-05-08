@@ -14,9 +14,9 @@
 MqttBridge* MqttBridge::_instance = nullptr;
 
 MqttBridge::MqttBridge()
-    : _baseClient(),
-      _sslClient(_baseClient, TrustAnchors, TrustAnchors_NUM, A0),
-      _client(_sslClient),
+    : _baseClient(nullptr),
+      _sslClient(nullptr),
+      _client(),
       _prefs(nullptr),
       _initialized(false),
       _lastReconnectMs(0),
@@ -47,6 +47,14 @@ void MqttBridge::begin(AppPreferences* prefs) {
     _prefs = prefs;
     _instance = this;
 
+    if (g_wifiAvailable) {
+        _baseClient = new WiFiClient();
+    } else {
+        _baseClient = new EthernetClient();
+    }
+    _sslClient = new SSLClient(*_baseClient, TrustAnchors, TrustAnchors_NUM, A0);
+    _client.setClient(*_sslClient);
+
     _client.setServer(MQTT_HOST, MQTT_PORT);
     _client.setBufferSize(MQTT_BUF_SIZE);
     _client.setKeepAlive(60);
@@ -62,8 +70,8 @@ bool MqttBridge::connected() {
 
 void MqttBridge::loop() {
     if (!_initialized) return;
-    // Ethernet link check — nu mai verificăm WiFi
-    if (Ethernet.linkStatus() != LinkON) return;
+    // Daca folosim Ethernet, verificam link status
+    if (!g_wifiAvailable && Ethernet.linkStatus() != LinkON) return;
 
     if (!_client.connected()) {
         unsigned long now = millis();

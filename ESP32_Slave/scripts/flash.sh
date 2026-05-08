@@ -24,6 +24,17 @@ if [[ ! -d "$OUTPUT_DIR" ]] || [[ -z "$(ls "$OUTPUT_DIR"/*.bin 2>/dev/null)" ]];
 fi
 
 echo "📤 Flash Slave → $PORT"
+
+if command -v esptool.py >/dev/null 2>&1; then
+    echo "🧹 Erase coredump partition region (0x3F0000..0x400000)"
+    esptool.py --chip esp32 --port "$PORT" erase_region 0x3F0000 0x10000
+elif command -v esptool >/dev/null 2>&1; then
+    echo "🧹 Erase coredump partition region (0x3F0000..0x400000)"
+    esptool --chip esp32 --port "$PORT" erase_region 0x3F0000 0x10000
+else
+    echo "⚠️  esptool nu este in PATH; daca apare 'core dump config corrupted', ruleaza o stergere completa a flash-ului o singura data."
+fi
+
 arduino-cli upload \
     --fqbn "$FQBN" \
     --board-options "PartitionScheme=custom" \

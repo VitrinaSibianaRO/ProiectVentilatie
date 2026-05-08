@@ -1,7 +1,8 @@
-# ESP32-PICO 4MB Flash — 1.875MB app0 + 1.875MB app1 OTA + 192KB SPIFFS
-# app0 end: 0x1F0000, app1 end: 0x3D0000, total: 0x400000 (4MB)
+# ESP32-PICO 4MB Flash — 1.875MB app0 + 1.875MB app1 OTA + 128KB SPIFFS + 64KB coredump
+# app0 end: 0x1F0000, app1 end: 0x3D0000, spiffs end: 0x3F0000, total: 0x400000 (4MB)
 nvs,      data, nvs,      0x9000,   0x5000,
 otadata,  data, ota,      0xe000,   0x2000,
 app0,     app,  ota_0,    0x10000,  0x1E0000,
 app1,     app,  ota_1,    0x1F0000, 0x1E0000,
-spiffs,   data, spiffs,   0x3D0000, 0x30000,
+spiffs,   data, spiffs,   0x3D0000, 0x20000,
+coredump, data, coredump, 0x3F0000, 0x10000,

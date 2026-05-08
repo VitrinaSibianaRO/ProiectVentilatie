@@ -37,6 +37,22 @@ struct TaskParams {
     Sht30Sensor* sensor;
 };
 
+inline void waitForNextRead() {
+    const uint32_t startMs = millis();
+
+    for (;;) {
+        if (xSemaphoreTake(g_forceReadSem, pdMS_TO_TICKS(1000)) == pdTRUE) {
+            return;
+        }
+
+        esp_task_wdt_reset();
+
+        if ((uint32_t)(millis() - startMs) >= SENSOR_READ_PERIOD_MS) {
+            return;
+        }
+    }
+}
+
 inline void taskFn(void* pvParams) {
     auto* p = static_cast<TaskParams*>(pvParams);
     Sht30Sensor& sensor = *p->sensor;
@@ -49,9 +65,6 @@ inline void taskFn(void* pvParams) {
     SharedSensorData snap{};
 
     for (;;) {
-        // Asteapta SENSOR_READ_PERIOD_MS sau trezire anticipata.
-        xSemaphoreTake(g_forceReadSem, pdMS_TO_TICKS(SENSOR_READ_PERIOD_MS));
-
         float t = 0.0f, h = 0.0f;
         bool ok = sensor.read(t, h, /*force=*/true);
 
@@ -76,11 +89,18 @@ inline void taskFn(void* pvParams) {
 
         if (ok) {
             LOG_DEBUG("[SensorTask] T=%.2f H=%.2f", t, h);
+            if (SENSOR_SERIAL_TELEMETRY) {
+                Serial.printf("[SENSOR] T=%.2f C  H=%.2f %%  uptime=%lus\n",
+                              t, h, millis() / 1000UL);
+            }
         } else {
             LOG_WARN("[SensorTask] Read fail (errors=%d)", snap.consecutiveErrors);
         }
 
         esp_task_wdt_reset();
+
+        // Asteapta SENSOR_READ_PERIOD_MS sau trezire anticipata.
+        waitForNextRead();
     }
 }
 

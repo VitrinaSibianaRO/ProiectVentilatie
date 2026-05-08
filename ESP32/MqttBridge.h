@@ -15,6 +15,7 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <Ethernet.h>
+#include <WiFiClient.h>
 #include <SSLClient.h>
 #include <PubSubClient.h>
 
@@ -117,8 +118,8 @@ public:
     MqttPending& getPending();
 
 private:
-    EthernetClient    _baseClient;
-    SSLClient         _sslClient;
+    Client*           _baseClient;
+    SSLClient*        _sslClient;
     PubSubClient      _client;
     AppPreferences*   _prefs;
 

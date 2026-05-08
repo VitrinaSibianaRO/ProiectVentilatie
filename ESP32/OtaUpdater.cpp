@@ -10,8 +10,10 @@
 
 #include <SPI.h>
 #include <Ethernet.h>
+#include <WiFiClient.h>
 #include <SSLClient.h>
 #include <ArduinoHttpClient.h>
+#include <memory>
 #include <Update.h>
 #include <esp_task_wdt.h>
 #include <mbedtls/sha256.h>
@@ -67,9 +69,14 @@ OtaResult OtaUpdater::_start(const char* url, const char* expectedSha256,
     memcpy(host, hostStart, hostLen);
     host[hostLen] = '\0';
 
-    // 4. Connect via EthernetClient + SSLClient
-    EthernetClient baseClient;
-    SSLClient sslClient(baseClient, TrustAnchors, TrustAnchors_NUM, A0);
+    // 4. Connect via dynamic client (WiFi/Ethernet) + SSLClient
+    std::unique_ptr<Client> baseClient;
+    if (g_wifiAvailable) {
+        baseClient.reset(new WiFiClient());
+    } else {
+        baseClient.reset(new EthernetClient());
+    }
+    SSLClient sslClient(*baseClient, TrustAnchors, TrustAnchors_NUM, A0);
     HttpClient httpClient(sslClient, host, 443);
     httpClient.setHttpResponseTimeout(30000);
 
