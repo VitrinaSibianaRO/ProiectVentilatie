@@ -106,7 +106,7 @@
 #define MQTT_PUBLISH_MIN_INTERVAL_MS 500UL
 // Reconnect MQTT (backoff)
 #define MQTT_RECONNECT_INITIAL_MS 5000UL
-#define MQTT_RECONNECT_MAX_MS 3000UL
+#define MQTT_RECONNECT_MAX_MS 10000UL
 
 // ============================================================
 //  ETHERNET

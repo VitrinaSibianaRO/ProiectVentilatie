@@ -133,6 +133,11 @@ void processZones() {
         ledCmd.ledSchedEn = ledPrefs.enabled;
         slaveCommandSend(ledCmd);
       }
+      
+      // IMPORTANT: Resetează flag-ul pentru a evita re-verificarea la fiecare secundă!
+      // Altfel, orice eroare de comparație ar duce la scrieri infinite în Flash-ul Slave-ului.
+      snap.ledScheduleFetched = false;
+      slaveDataWrite(snap);
     }
   } else {
     const int slaveErrors = snapOk ? snap.consecutiveErrors : 0;
@@ -146,33 +151,11 @@ void processZones() {
   }
   const int slaveErrors = snapOk ? snap.consecutiveErrors : -1;
 
-  // 3. Citire senzor local (stânga) — Wire e pe Core 1, OK
-  leftZone.readSensor(false);
-  if (leftZone.getConsecErrors() >= 5 && leftZone.getConsecErrors() % 5 == 0) {
-    I2CRecovery::recoverBus(I2C_SDA_PIN, I2C_SCL_PIN);
-  }
-
-  // 4. Sync override state din prefs → zone
-  leftZone.setManualOverride(prefs.overrideLeft);
-  rightZone.setManualOverride(prefs.overrideRight);
-
-  // 5. updateLogic — decide starea releului
-  leftZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst,
-                       prefs.humHyst);
-  rightZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst,
-                        prefs.humHyst);
-
-  // 6. MQTT publish state (incluzând LED status)
-  mqtt.publishStateIfNeeded(leftZone, rightZone, slaveOnline, slaveErrors,
-                            snap.lastSuccessMs, g_ledIntensity,
-                            g_ledSchedEnabled);
-
-  // 7. Procesare comenzi MQTT pending
+  // 3. Procesare comenzi MQTT pending — TREBUIE să fie înainte de updateLogic!
   MqttPending &pending = mqtt.getPending();
 
   if (pending.refresh) {
     leftZone.readSensor(true);
-    // Trezeste SlaveCommTask (Core 0) pentru fetch imediat.
     SlaveCommTask::forceRead();
     mqtt.requestPublishNow();
     pending.refresh = false;
@@ -185,7 +168,7 @@ void processZones() {
     else if (v == 1)
       prefs.saveOverrideLeft(true);
     else if (v == 2)
-      prefs.saveOverrideLeft(false); // clear
+      prefs.saveOverrideLeft(false);
     leftZone.setManualOverride(prefs.overrideLeft);
     mqtt.requestPublishNow();
     pending.setOverrideL = false;
@@ -198,7 +181,7 @@ void processZones() {
     else if (v == 1)
       prefs.saveOverrideRight(true);
     else if (v == 2)
-      prefs.saveOverrideRight(false); // clear
+      prefs.saveOverrideRight(false);
     rightZone.setManualOverride(prefs.overrideRight);
     mqtt.requestPublishNow();
     pending.setOverrideR = false;
@@ -238,20 +221,17 @@ void processZones() {
   if (pending.getLog) {
     if (g_logBuf) {
       size_t n = eventLog.dumpJson(g_logBuf, PSRAM_LOG_BUF_SIZE);
-      if (n > 0) {
+      if (n > 0)
         mqtt.publishLog(g_logBuf, n);
-      }
     }
     pending.getLog = false;
   }
 
-  // LED commands — trimise catre Slave prin command queue (Core 0 le executa)
   if (pending.setLedNow) {
     SlaveCommand cmd{};
     cmd.type = SLAVE_CMD_LED_SET;
     cmd.ledPercent = pending.ledPercent;
     slaveCommandSend(cmd);
-    Serial.printf("[LED] Set %u%% queued\n", pending.ledPercent);
     g_ledIntensity = pending.ledPercent;
     mqtt.requestPublishNow();
     pending.setLedNow = false;
@@ -267,10 +247,6 @@ void processZones() {
     cmd.ledMaxI = pending.ledMaxI;
     cmd.ledSchedEn = pending.ledSchedEn;
     slaveCommandSend(cmd);
-    Serial.printf("[LED] Schedule %02u:%02u→%02u:%02u @%u%% en=%d queued\n",
-                  pending.ledOnH, pending.ledOnM, pending.ledOffH,
-                  pending.ledOffM, pending.ledMaxI, pending.ledSchedEn);
-    // Persist in NVS Master (mirror) — non-blocking, Core 1 OK
     ledPrefs.save(pending.ledOnH, pending.ledOnM, pending.ledOffH,
                   pending.ledOffM, pending.ledMaxI, pending.ledSchedEn);
     g_ledSchedEnabled = pending.ledSchedEn;
@@ -279,18 +255,14 @@ void processZones() {
   }
 
   if (pending.update) {
-    Serial.println("[OTA] Master OTA triggered from MQTT");
     mqtt.publishOnline(false);
     delay(200);
-    OtaResult result =
-        OtaUpdater::start(pending.otaUrl, pending.otaSha,
-                          [](int pct) { Serial.printf("[OTA] %d%%\n", pct); });
+    OtaResult result = OtaUpdater::start(
+        pending.otaUrl, pending.otaSha,
+        [](int pct) { Serial.printf("[OTA] %d%%\n", pct); });
     if (result == OTA_OK) {
       delay(500);
       ESP.restart();
-    } else {
-      Serial.printf("[OTA] FAILED: %d\n", result);
-      mqtt.publishOnline(true);
     }
     pending.update = false;
     memset(pending.otaUrl, 0, sizeof(pending.otaUrl));
@@ -298,12 +270,8 @@ void processZones() {
   }
 
   if (pending.updateSlave) {
-    Serial.println("[SlaveOTA] Triggered from MQTT");
-    // Suspend SlaveCommTask (Core 0) — SlaveOtaProxy detine exclusiv
-    // Serial2/SlaveUartClient
     g_otaInProgress = true;
     SlaveCommTask::suspend();
-    // Failsafe RIGHT pe durata OTA (Slave indisponibil ~30s)
     rightZone.enterFailsafe();
     SlaveOtaResult sres = SlaveOtaProxy::perform(
         pending.slaveOtaUrl, pending.slaveOtaSha, Serial2,
@@ -320,7 +288,6 @@ void processZones() {
             lastPct = pct;
           }
         });
-    // Redă Serial2 catre SlaveCommTask
     SlaveCommTask::resume();
     g_otaInProgress = false;
     char done[128];
@@ -333,27 +300,53 @@ void processZones() {
                (int)sres);
     }
     mqtt.publishEventJson(done);
-    // Lasam failsafe in vigoare — exit-ul se face automat la primul fetch
-    // reusit.
     pending.updateSlave = false;
     memset(pending.slaveOtaUrl, 0, sizeof(pending.slaveOtaUrl));
     memset(pending.slaveOtaSha, 0, sizeof(pending.slaveOtaSha));
   }
 
   if (pending.reboot) {
-    Serial.println("[System] Reboot requested from MQTT");
+    mqtt.publishOnline(false);
+    delay(200);
+    ESP.restart();
+  }
+
+  // 4. Citire senzor local (stânga) — Wire e pe Core 1, OK
+  leftZone.readSensor(false);
+  if (leftZone.getConsecErrors() >= 5 && leftZone.getConsecErrors() % 5 == 0) {
+    I2CRecovery::recoverBus(I2C_SDA_PIN, I2C_SCL_PIN);
+  }
+
+  // 4. Sync override state din prefs → zone
+  leftZone.setManualOverride(prefs.overrideLeft);
+  rightZone.setManualOverride(prefs.overrideRight);
+
+  // 5. updateLogic — decide starea releului
+  leftZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst,
+                       prefs.humHyst);
+  rightZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst,
+                        prefs.humHyst);
+
+  // 6. MQTT publish state (incluzând LED status)
+  mqtt.publishStateIfNeeded(leftZone, rightZone, slaveOnline, slaveErrors,
+                            snap.lastSuccessMs, g_ledIntensity,
+                            g_ledSchedEnabled);
+
+  if (pending.reboot) {
     mqtt.publishOnline(false);
     delay(200);
     ESP.restart();
   }
 
   // 8. Status LED update
-  bool ethOk = (Ethernet.linkStatus() == LinkON);
+  bool ethLink = (Ethernet.linkStatus() == LinkON);
+  bool netOk = ethLink || g_wifiAvailable;
   bool mqttOk = mqtt.connected();
+
   if (!slaveOnline) {
     statusLed.setSlaveOffline();
   } else {
-    statusLed.updateStatus(ethOk, mqttOk);
+    statusLed.updateStatus(netOk, mqttOk);
   }
 }
 

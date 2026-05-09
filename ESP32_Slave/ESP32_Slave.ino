@@ -49,16 +49,27 @@ SemaphoreHandle_t g_sensorMutex = nullptr;
 SharedSensorData* g_sensorData  = nullptr;
 SemaphoreHandle_t g_forceReadSem = nullptr;
 
+#include <nvs_flash.h>
+#include "soc/rtc_cntl_reg.h"
+#include "soc/soc.h"
+
 void setup() {
-    // 1. USB Serial pentru debug
+    // 1. USB Serial pentru debug (UART0 - GPIO 1/3)
     Logger::begin(LOG_BAUD);
     LOG_INFO("=== ESP32 Slave boot — fw build %d ===", FW_BUILD_NUMBER);
+
+    // 2. NVS Flash Recovery
+    esp_err_t ret = nvs_flash_init();
+    if (ret == ESP_ERR_NVS_NO_FREE_PAGES || ret == ESP_ERR_NVS_NEW_VERSION_FOUND) {
+        nvs_flash_erase();
+        ret = nvs_flash_init();
+    }
+    if (ret != ESP_OK) LOG_ERROR("NVS init failed!");
 
     // OTA rollback protection
     esp_ota_mark_app_valid_cancel_rollback();
 
-    // 2. Oprim radio WiFi — economie ~80mA + zero interferenta.
-    // btStop() absent: ESP32-S2 nu are Bluetooth.
+    // 3. Oprim radio WiFi — economie ~80mA + zero interferenta.
     WiFi.mode(WIFI_OFF);
 #ifndef CONFIG_IDF_TARGET_ESP32S2
     btStop();
