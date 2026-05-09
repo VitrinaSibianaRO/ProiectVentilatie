@@ -5,23 +5,40 @@ using ProiectVentilatie.Mobile.Services;
 
 namespace ProiectVentilatie.Mobile.ViewModels;
 
-/// <summary>
-/// Pagina Setări — sliders pentru thresholds și interval senzori.
-/// Save diff-based: butonul e enabled DOAR dacă există modificări față
-/// de ultima stare primită de la ESP32. La connect, valorile sunt
-/// hidratate din state retained.
-/// </summary>
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly IMqttService _mqttService;
     private ConfigState? _lastReceivedConfig;
 
-    // ── Sliders ──────────────────────────────────────
+    // ── Thresholds ───────────────────────────────────
     [ObservableProperty] private float _tempThreshold = 45.0f;
     [ObservableProperty] private float _humThreshold = 60.0f;
     [ObservableProperty] private int _intervalSec = 300;
     [ObservableProperty] private float _tempHysteresis = 2.0f;
     [ObservableProperty] private float _humHysteresis = 5.0f;
+
+    // ── LED intensitate ──────────────────────────────
+    [ObservableProperty] private int _ledIntensity = 0;
+    private int _lastReceivedLedIntensity = -1;
+
+    // ── LED schedule (persistat în Preferences) ──────
+    [ObservableProperty] private TimeSpan _ledOnTime  = new TimeSpan(18, 0, 0);
+    [ObservableProperty] private TimeSpan _ledOffTime = new TimeSpan(23, 30, 0);
+    [ObservableProperty] private int  _ledMaxIntensity    = 80;
+    [ObservableProperty] private bool _ledScheduleEnabled = false;
+    private bool _lastReceivedSchedEnabled = false;
+    private bool _ledScheduleDirty = false;
+
+    private const string PrefThreshT  = "cfg_threshT";
+    private const string PrefThreshH  = "cfg_threshH";
+    private const string PrefInterval = "cfg_interval";
+    private const string PrefHystT    = "cfg_hystT";
+    private const string PrefHystH    = "cfg_hystH";
+    private const string PrefLedOnH   = "led_onH";
+    private const string PrefLedOnM   = "led_onM";
+    private const string PrefLedOffH  = "led_offH";
+    private const string PrefLedOffM  = "led_offM";
+    private const string PrefLedMaxI  = "led_maxI";
 
     // ── State UI ─────────────────────────────────────
     [ObservableProperty] private bool _hasChanges;
@@ -38,32 +55,58 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
         IsConnected = _mqttService.IsConnected;
 
-        // Hidratare din ultima stare cached (ex: navigăm pe Settings după Dashboard)
+        // Thresholds din Preferences — fallback până soseşte starea ESP32
+        TempThreshold  = Preferences.Get(PrefThreshT,  45.0f);
+        HumThreshold   = Preferences.Get(PrefThreshH,  60.0f);
+        IntervalSec    = Preferences.Get(PrefInterval, 300);
+        TempHysteresis = Preferences.Get(PrefHystT,    2.0f);
+        HumHysteresis  = Preferences.Get(PrefHystH,    5.0f);
+
+        // Schedule LED din Preferences
+        LedOnTime  = new TimeSpan(Preferences.Get(PrefLedOnH, 18), Preferences.Get(PrefLedOnM, 0), 0);
+        LedOffTime = new TimeSpan(Preferences.Get(PrefLedOffH, 23), Preferences.Get(PrefLedOffM, 30), 0);
+        LedMaxIntensity = Preferences.Get(PrefLedMaxI, 80);
+
         if (_mqttService.LastState != null)
-        {
             OnStateReceived(_mqttService.LastState);
-        }
     }
 
     private void OnStateReceived(VentilationState state)
     {
         _lastReceivedConfig = state.Config;
 
-        // Doar dacă utilizatorul nu a modificat încă (HasChanges=false),
-        // suprascriem cu valorile noi de la ESP32. Altfel ar pierde modificările pending.
+        // Thresholds: ESP32 câştigă dacă nu există modificări pending
         if (!HasChanges)
         {
-            TempThreshold = state.Config.ThreshT;
-            HumThreshold = state.Config.ThreshH;
-            IntervalSec = state.Config.Interval;
+            TempThreshold  = state.Config.ThreshT;
+            HumThreshold   = state.Config.ThreshH;
+            IntervalSec    = state.Config.Interval;
             TempHysteresis = state.Config.HystT;
-            HumHysteresis = state.Config.HystH;
+            HumHysteresis  = state.Config.HystH;
+        }
+
+        // Salvează întotdeauna ultimele valori ESP32 în Preferences
+        Preferences.Set(PrefThreshT,  state.Config.ThreshT);
+        Preferences.Set(PrefThreshH,  state.Config.ThreshH);
+        Preferences.Set(PrefInterval, state.Config.Interval);
+        Preferences.Set(PrefHystT,    state.Config.HystT);
+        Preferences.Set(PrefHystH,    state.Config.HystH);
+
+        // LED intensitate
+        if (state.Led != null)
+        {
+            _lastReceivedLedIntensity = state.Led.Intensity;
+            _lastReceivedSchedEnabled = state.Led.SchedEnabled;
+            if (!HasChanges)
+            {
+                LedIntensity       = state.Led.Intensity;
+                LedScheduleEnabled = state.Led.SchedEnabled;
+            }
         }
 
         IsLocked = state.Lock?.Owner == "blynk";
         RecomputeHasChanges();
 
-        // După Save, dacă valorile s-au sincronizat → status feedback
         if (!HasChanges && !string.IsNullOrEmpty(StatusMessage) && StatusMessage.StartsWith("Trimis"))
         {
             StatusMessage = "✓ Setări confirmate de ESP32";
@@ -77,36 +120,63 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         SaveCommand.NotifyCanExecuteChanged();
     }
 
+    // Threshold handlers
     partial void OnTempThresholdChanged(float value)  => RecomputeHasChanges();
     partial void OnHumThresholdChanged(float value)   => RecomputeHasChanges();
     partial void OnIntervalSecChanged(int value)       => RecomputeHasChanges();
     partial void OnTempHysteresisChanged(float value) => RecomputeHasChanges();
     partial void OnHumHysteresisChanged(float value)  => RecomputeHasChanges();
 
+    // LED handlers
+    partial void OnLedIntensityChanged(int value) => RecomputeHasChanges();
+
+    partial void OnLedScheduleEnabledChanged(bool value)
+    {
+        _ledScheduleDirty = true;
+        RecomputeHasChanges();
+    }
+
+    partial void OnLedOnTimeChanged(TimeSpan value)
+    {
+        Preferences.Set(PrefLedOnH, value.Hours);
+        Preferences.Set(PrefLedOnM, value.Minutes);
+        _ledScheduleDirty = true;
+        RecomputeHasChanges();
+    }
+
+    partial void OnLedOffTimeChanged(TimeSpan value)
+    {
+        Preferences.Set(PrefLedOffH, value.Hours);
+        Preferences.Set(PrefLedOffM, value.Minutes);
+        _ledScheduleDirty = true;
+        RecomputeHasChanges();
+    }
+
+    partial void OnLedMaxIntensityChanged(int value)
+    {
+        Preferences.Set(PrefLedMaxI, value);
+        _ledScheduleDirty = true;
+        RecomputeHasChanges();
+    }
+
     private void RecomputeHasChanges()
     {
-        if (_lastReceivedConfig == null)
-        {
-            HasChanges = false;
-        }
-        else
-        {
-            HasChanges = Math.Abs(TempThreshold   - _lastReceivedConfig.ThreshT) > 0.01f
-                      || Math.Abs(HumThreshold    - _lastReceivedConfig.ThreshH) > 0.01f
-                      || IntervalSec              != _lastReceivedConfig.Interval
-                      || Math.Abs(TempHysteresis  - _lastReceivedConfig.HystT)   > 0.01f
-                      || Math.Abs(HumHysteresis   - _lastReceivedConfig.HystH)   > 0.01f;
-        }
+        bool threshChanged = _lastReceivedConfig != null && (
+            Math.Abs(TempThreshold  - _lastReceivedConfig.ThreshT) > 0.01f ||
+            Math.Abs(HumThreshold   - _lastReceivedConfig.ThreshH) > 0.01f ||
+            IntervalSec             != _lastReceivedConfig.Interval         ||
+            Math.Abs(TempHysteresis - _lastReceivedConfig.HystT)   > 0.01f ||
+            Math.Abs(HumHysteresis  - _lastReceivedConfig.HystH)   > 0.01f);
+
+        bool ledChanged = (_lastReceivedLedIntensity >= 0 && LedIntensity != _lastReceivedLedIntensity)
+                       || (LedScheduleEnabled != _lastReceivedSchedEnabled)
+                       || _ledScheduleDirty;
+
+        HasChanges = threshChanged || ledChanged;
         SaveCommand.NotifyCanExecuteChanged();
     }
 
     private bool CanSave() => HasChanges && !IsLocked && IsConnected;
-
-    [RelayCommand]
-    private void SetInterval(int seconds)
-    {
-        IntervalSec = seconds;
-    }
 
     [RelayCommand]
     private void SetInterval10() => IntervalSec = 10;
@@ -126,17 +196,44 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        await _mqttService.SendCommandAsync(new
-        {
-            cmd = "setConfig",
-            threshT  = TempThreshold,
-            threshH  = HumThreshold,
-            interval = IntervalSec,
-            hystT    = TempHysteresis,
-            hystH    = HumHysteresis
-        });
         StatusMessage = "Trimis. Aștept confirmare ESP32...";
         StatusColor = Colors.Orange;
+
+        bool threshChanged = _lastReceivedConfig != null && (
+            Math.Abs(TempThreshold  - _lastReceivedConfig.ThreshT) > 0.01f ||
+            Math.Abs(HumThreshold   - _lastReceivedConfig.ThreshH) > 0.01f ||
+            IntervalSec             != _lastReceivedConfig.Interval         ||
+            Math.Abs(TempHysteresis - _lastReceivedConfig.HystT)   > 0.01f ||
+            Math.Abs(HumHysteresis  - _lastReceivedConfig.HystH)   > 0.01f);
+
+        if (threshChanged)
+            await _mqttService.SendCommandAsync(new
+            {
+                cmd      = "setConfig",
+                threshT  = TempThreshold,
+                threshH  = HumThreshold,
+                interval = IntervalSec,
+                hystT    = TempHysteresis,
+                hystH    = HumHysteresis
+            });
+
+        if (_lastReceivedLedIntensity >= 0 && LedIntensity != _lastReceivedLedIntensity)
+            await _mqttService.SendCommandAsync(new { cmd = "setLed", percent = LedIntensity });
+
+        if (_ledScheduleDirty || LedScheduleEnabled != _lastReceivedSchedEnabled)
+        {
+            await _mqttService.SendCommandAsync(new
+            {
+                cmd     = "setLedSchedule",
+                onH     = LedOnTime.Hours,
+                onM     = LedOnTime.Minutes,
+                offH    = LedOffTime.Hours,
+                offM    = LedOffTime.Minutes,
+                maxI    = LedMaxIntensity,
+                enabled = LedScheduleEnabled
+            });
+            _ledScheduleDirty = false;
+        }
     }
 
     [RelayCommand]

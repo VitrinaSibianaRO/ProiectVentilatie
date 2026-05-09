@@ -77,6 +77,12 @@
                             <Label Text="{Binding UptimeText}"
                                    FontSize="14" FontAttributes="Bold" HorizontalOptions="End"
                                    Style="{StaticResource LabelShareTech}" />
+                            <Label Text="LED" FontSize="9" CharacterSpacing="1.5" Opacity="0.4"
+                                   HorizontalOptions="End" Style="{StaticResource LabelRajdhani}" />
+                            <Label Text="{Binding LedIntensityText}"
+                                   FontSize="14" FontAttributes="Bold" HorizontalOptions="End"
+                                   TextColor="{StaticResource PrimaryOrange}"
+                                   Style="{StaticResource LabelShareTech}" />
                             <Button Text="↻ REFRESH"
                                     Style="{StaticResource CyberButton}"
                                     HeightRequest="30" Padding="10,0" FontSize="11"

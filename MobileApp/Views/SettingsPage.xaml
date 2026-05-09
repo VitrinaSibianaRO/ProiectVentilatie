@@ -168,6 +168,93 @@
                     </VerticalStackLayout>
                 </Border>
 
+                <!-- LED CONTROL CARD -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="18">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryOrange}" CornerRadius="2" />
+                            <Label Text="Control Iluminat LED" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Intensity slider -->
+                        <VerticalStackLayout Spacing="6">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Intensitate curentă" FontSize="13" VerticalOptions="Center"
+                                       Style="{StaticResource LabelRajdhani}" />
+                                <Label Grid.Column="1"
+                                       Text="{Binding LedIntensity, StringFormat='{0}%'}"
+                                       FontSize="18" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryOrange}"
+                                       Style="{StaticResource LabelShareTech}" />
+                            </Grid>
+                            <Slider Value="{Binding LedIntensity}" Minimum="0" Maximum="100"
+                                    ThumbColor="{StaticResource PrimaryOrange}"
+                                    MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                            <Label Text="Controlează imediat dimerul MOSFET al benzii LED."
+                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                        </VerticalStackLayout>
+
+                        <!-- Divider -->
+                        <BoxView HeightRequest="1" Opacity="0.1" BackgroundColor="White" />
+
+                        <!-- Schedule -->
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Program Automat" FontSize="14" FontAttributes="Bold"
+                                   Opacity="0.75" Style="{StaticResource LabelRajdhani}" />
+
+                            <!-- Toggle -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Activare program" FontSize="13" VerticalOptions="Center"
+                                       Style="{StaticResource LabelRajdhani}" />
+                                <Switch Grid.Column="1"
+                                        IsToggled="{Binding LedScheduleEnabled}"
+                                        OnColor="{StaticResource PrimaryOrange}" />
+                            </Grid>
+
+                            <!-- On time -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Oră pornire" FontSize="13" VerticalOptions="Center"
+                                       Style="{StaticResource LabelRajdhani}" />
+                                <TimePicker Grid.Column="1"
+                                            Time="{Binding LedOnTime}"
+                                            TextColor="{StaticResource PrimaryOrange}"
+                                            FontSize="15" />
+                            </Grid>
+
+                            <!-- Off time -->
+                            <Grid ColumnDefinitions="*,Auto">
+                                <Label Text="Oră oprire" FontSize="13" VerticalOptions="Center"
+                                       Style="{StaticResource LabelRajdhani}" />
+                                <TimePicker Grid.Column="1"
+                                            Time="{Binding LedOffTime}"
+                                            TextColor="{StaticResource PrimaryOrange}"
+                                            FontSize="15" />
+                            </Grid>
+
+                            <!-- Max intensity -->
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Intensitate maximă program" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding LedMaxIntensity, StringFormat='{0}%'}"
+                                           FontSize="16" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryOrange}"
+                                           Opacity="0.8"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </Grid>
+                                <Slider Value="{Binding LedMaxIntensity}" Minimum="0" Maximum="100"
+                                        ThumbColor="{StaticResource PrimaryOrange}"
+                                        MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                            </VerticalStackLayout>
+
+                            <Label Text="LED-ul se aprinde la ora de pornire și se stinge la ora de oprire."
+                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
                 <!-- ACTIONS -->
                 <VerticalStackLayout Spacing="10">
                     <Button Text="↑ TRIMITE CONFIG"

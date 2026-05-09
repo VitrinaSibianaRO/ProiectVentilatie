@@ -53,6 +53,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int _fwBuild;
     [ObservableProperty] private long _uptimeSec;
     [ObservableProperty] private int _heapBytes;
+    [ObservableProperty] private string _ledIntensityText = "—";
 
     public DashboardViewModel(IMqttService mqttService)
     {
@@ -153,6 +154,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         FwBuild = state.Fw;
         UptimeSec = state.UptimeSec;
         HeapBytes = state.Heap;
+        LedIntensityText = state.Led != null ? $"{state.Led.Intensity}%" : "—";
 
         // Ago
         _lastUpdateTime = DateTime.Now;

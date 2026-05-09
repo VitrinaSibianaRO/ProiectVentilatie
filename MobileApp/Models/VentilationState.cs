@@ -28,6 +28,9 @@ public class VentilationState
 
     [JsonPropertyName("heap")]
     public int Heap { get; set; }
+
+    [JsonPropertyName("led")]
+    public LedState? Led { get; set; }
 }
 
 public class ZoneState
@@ -76,4 +79,13 @@ public class LockState
 
     [JsonPropertyName("ageMs")]
     public int AgeMs { get; set; }
+}
+
+public class LedState
+{
+    [JsonPropertyName("intensity")]
+    public int Intensity { get; set; }
+
+    [JsonPropertyName("schedEnabled")]
+    public bool SchedEnabled { get; set; }
 }
