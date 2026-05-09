@@ -1,7 +1,14 @@
 // ESP32_Slave.ino — Entry point minimal. Toata logica e in module.
-// Slave Carbon V3 #2: SHT30 zona dreapta + UART responder + LED PWM 24V.
-// FARA WiFi, FARA Ethernet, FARA MQTT, FARA cloud.
+// Slave Carbon S2 (ESP32-S2FN4R2): SHT30 zona dreapta + UART responder + LED PWM 24V.
+// FARA WiFi activ, FARA Ethernet, FARA MQTT, FARA cloud.
 // Comunicare exclusiv prin UART2 (Serial2) catre Master.
+//
+// NOTE Carbon S2 vs Carbon V3:
+//   - ESP32-S2 e single-core (Xtensa LX7) — SensorTask si loopTask ruleaza pe
+//     acelasi core (Core 0) prin time-slicing FreeRTOS, fara separare fizica.
+//   - Bluetooth nu exista pe ESP32-S2 — btStop() eliminat.
+//   - USB CDC dezactivat in build (CDCOnBoot=default) ca sa elibereze GPIO18
+//     (USB D-) pentru UART2 RX. Debug Serial = UART0 (GPIO1/TX GPIO3/RX).
 
 #include <Arduino.h>
 #include <Wire.h>
@@ -30,8 +37,8 @@ namespace {
     Sht30Sensor       g_sensor;
     SystemLED         g_led(LED_PIN, LED_ENABLE_PIN, LED_COUNT);
     LedController     g_ledCtrl;
-    UartProtocol      g_uart(Serial2);
-    OtaReceiver       g_ota(Serial2);
+    UartProtocol      g_uart(Serial1);
+    OtaReceiver       g_ota(Serial1);
     CommandDispatcher g_dispatcher(g_sensor, g_uart, g_led, g_ledCtrl, g_ota);
 }
 
@@ -50,9 +57,12 @@ void setup() {
     // OTA rollback protection
     esp_ota_mark_app_valid_cancel_rollback();
 
-    // 2. Oprim radio WiFi + Bluetooth — economie ~80mA + zero interferenta
+    // 2. Oprim radio WiFi — economie ~80mA + zero interferenta.
+    // btStop() absent: ESP32-S2 nu are Bluetooth.
     WiFi.mode(WIFI_OFF);
+#ifndef CONFIG_IDF_TARGET_ESP32S2
     btStop();
+#endif
 
     // 3. Status LED — arata booting
     g_led.begin();
@@ -72,7 +82,8 @@ void setup() {
         LOG_INFO("SHT30 OK la 0x%02X", SHT30_ADDR);
     }
 
-    // 5. PSRAM + FreeRTOS primitives pentru shared sensor data (Core 0 ↔ Core 1)
+    // 5. PSRAM + FreeRTOS primitives pentru shared sensor data
+    // (ESP32-S2 single-core: SensorTask si loopTask pe Core 0 prin time-slicing)
     g_sensorData = (SharedSensorData*)ps_malloc(sizeof(SharedSensorData));
     if (!g_sensorData) g_sensorData = new SharedSensorData();
     memset(g_sensorData, 0, sizeof(SharedSensorData));
@@ -96,9 +107,9 @@ void setup() {
     // 8. LED PWM controller
     g_ledCtrl.begin();
 
-    // 9. UART2 catre Master (TX=GPIO5, RX=GPIO26 pe Carbon V3)
+    // 9. UART1 (Serial1) catre Master — ESP32-S2 are doar UART0+UART1
     g_uart.begin(SLAVE_UART_BAUD, SLAVE_UART_RX_PIN, SLAVE_UART_TX_PIN);
-    LOG_INFO("UART2 ready: baud=%u TX=%d RX=%d",
+    LOG_INFO("UART1 ready: baud=%u TX=%d RX=%d",
              SLAVE_UART_BAUD, SLAVE_UART_TX_PIN, SLAVE_UART_RX_PIN);
 
     g_led.setStatus(SystemLED::Status::Ready);

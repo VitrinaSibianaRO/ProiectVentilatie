@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# build.sh — Compileaza firmware ESP32_Slave (Carbon V3, ESP32-PICO-V3-02).
-# Folosire: bash scripts/build.sh [--debug]
+# build.sh — Compileaza firmware ESP32_Slave (Carbon S2, ESP32-S2FN4R2).
+# Folosire:
+#   bash scripts/build.sh           → release
+#   bash scripts/build.sh --debug   → debug verbose
 #
-# Directorul se numeste deja ESP32_Slave la fel ca ESP32_Slave.ino,
-# deci arduino-cli poate compila direct fara workaround.
+# CDCOnBoot=cdc: USB Serial Monitor activ. UART RX pe GPIO3 (nu GPIO18/19=USB).
 set -euo pipefail
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 OUTPUT_DIR="$PROJECT_DIR/build"
 
-FQBN="esp32:esp32:esp32"
+# ESP32-S2 (GroundStudio Carbon S2)
+FQBN="esp32:esp32:esp32s2"
 
 # Optional bump build number (daca exista scriptul Master)
 BUMP_SCRIPT="$PROJECT_DIR/../ESP32/scripts/bump_build.sh"
@@ -31,7 +33,7 @@ mkdir -p "$OUTPUT_DIR"
 
 arduino-cli compile \
     --fqbn "$FQBN" \
-    --board-options "PartitionScheme=custom,PSRAM=enabled" \
+    --board-options "PartitionScheme=custom,PSRAM=enabled,CDCOnBoot=cdc" \
     --build-property "build.extra_flags=$EXTRA_FLAGS" \
     --build-property "build.partitions=$PROJECT_DIR/partitions.csv" \
     --output-dir "$OUTPUT_DIR" \

@@ -16,6 +16,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <WiFiClient.h>
+#include <WiFiClientSecure.h>
 #include <SSLClient.h>
 #include <PubSubClient.h>
 
@@ -120,6 +121,7 @@ public:
 private:
     Client*           _baseClient;
     SSLClient*        _sslClient;
+    WiFiClientSecure* _wifiSecureClient;
     PubSubClient      _client;
     AppPreferences*   _prefs;
 

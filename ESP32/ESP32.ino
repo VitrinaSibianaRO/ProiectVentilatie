@@ -376,7 +376,7 @@ const char *ethernetHardwareName(EthernetHardwareStatus status) {
 }
 
 uint8_t readW5500VersionRegister(uint32_t spiFreqHz = W5500_SPI_FREQ_HZ,
-                                 uint8_t spiMode = SPI_MODE0) {
+                                 uint8_t spiMode = SPI_MODE1) {
   SPI.beginTransaction(SPISettings(spiFreqHz, MSBFIRST, spiMode));
   digitalWrite(W5500_CS_PIN, LOW);
   SPI.transfer(0x00); // VERSIONR address high byte
@@ -389,16 +389,81 @@ uint8_t readW5500VersionRegister(uint32_t spiFreqHz = W5500_SPI_FREQ_HZ,
 }
 
 void probeW5500AlternateSpiModes() {
-  uint8_t slowMode0 =
-      readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE0);
-  uint8_t slowMode3 =
-      readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE3);
-  Serial.printf("[Eth] W5500 probe: MODE0=0x%02X MODE3=0x%02X @ %lu Hz\n",
-                slowMode0, slowMode3, (unsigned long)W5500_PROBE_SPI_FREQ_HZ);
-  if (slowMode3 == 0x04 && slowMode0 != 0x04) {
-    Serial.println("[Eth] MODE3 reads VERSIONR correctly: likely SCK/MISO edge "
-                   "or signal integrity issue.");
+  uint8_t m0 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE0);
+  uint8_t m1 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE1);
+  uint8_t m2 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE2);
+  uint8_t m3 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE3);
+  Serial.printf(
+      "[Eth] W5500 probe: M0=0x%02X M1=0x%02X M2=0x%02X M3=0x%02X @ %lu Hz\n",
+      m0, m1, m2, m3, (unsigned long)W5500_PROBE_SPI_FREQ_HZ);
+}
+
+// Scriere directa registru COMMON (BSB=0, RWB=1, OM=00 var-len). Replica
+// protocolul lib pentru chip 55, dar sub controlul nostru: putem testa pas
+// cu pas write+read MR ca sa identificam unde clona pierde sincronul.
+void writeW5500Common(uint16_t addr, uint8_t value,
+                      uint32_t spiFreqHz = W5500_SPI_FREQ_HZ) {
+  SPI.beginTransaction(SPISettings(spiFreqHz, MSBFIRST, SPI_MODE1));
+  digitalWrite(W5500_CS_PIN, LOW);
+  SPI.transfer(addr >> 8);
+  SPI.transfer(addr & 0xFF);
+  SPI.transfer(0x04); // common reg, write, var-len
+  SPI.transfer(value);
+  digitalWrite(W5500_CS_PIN, HIGH);
+  SPI.endTransaction();
+}
+
+uint8_t readW5500Common(uint16_t addr,
+                       uint32_t spiFreqHz = W5500_SPI_FREQ_HZ) {
+  SPI.beginTransaction(SPISettings(spiFreqHz, MSBFIRST, SPI_MODE1));
+  digitalWrite(W5500_CS_PIN, LOW);
+  SPI.transfer(addr >> 8);
+  SPI.transfer(addr & 0xFF);
+  SPI.transfer(0x00); // common reg, read, var-len
+  uint8_t v = SPI.transfer(0x00);
+  digitalWrite(W5500_CS_PIN, HIGH);
+  SPI.endTransaction();
+  return v;
+}
+
+// Diagnostic: replica isW5500() din libraria Arduino Ethernet, dar sub
+// controlul nostru (frecventa configurabila, log la fiecare pas). Returneaza
+// true daca toate scrierile/citirile MR se confirma.
+bool diagnoseW5500Writes(uint32_t spiFreqHz) {
+  Serial.printf("[Eth] DIAG @ %lu Hz: ", (unsigned long)spiFreqHz);
+
+  // Soft reset: scriem MR=0x80, asteptam pana citim MR=0x00.
+  writeW5500Common(0x0000, 0x80, spiFreqHz);
+  uint8_t mr = 0xFF;
+  for (int i = 0; i < 100; i++) {
+    delay(2);
+    mr = readW5500Common(0x0000, spiFreqHz);
+    if (mr == 0x00)
+      break;
   }
+  Serial.printf("softReset MR=0x%02X ", mr);
+  if (mr != 0x00) {
+    Serial.println("FAIL (soft reset nu se confirma)");
+    return false;
+  }
+
+  // Test write+read pe MR cu valori distincte.
+  const uint8_t patterns[] = {0x08, 0x10, 0x00};
+  for (uint8_t p : patterns) {
+    writeW5500Common(0x0000, p, spiFreqHz);
+    delay(1);
+    uint8_t back = readW5500Common(0x0000, spiFreqHz);
+    Serial.printf("[w=0x%02X r=0x%02X%s] ", p, back, (back == p) ? "" : "!");
+    if (back != p) {
+      Serial.println("FAIL");
+      return false;
+    }
+  }
+
+  uint8_t ver = readW5500Common(0x0039, spiFreqHz);
+  Serial.printf("VERSIONR=0x%02X ", ver);
+  Serial.println(ver == 0x04 ? "OK" : "FAIL (VERSIONR final)");
+  return ver == 0x04;
 }
 
 void resetW5500Hardware() {
@@ -466,6 +531,11 @@ bool initNetwork(bool isHotPlug) {
   printW5500ProbeHint(rawVersion);
   if (rawVersion != 0x04) {
     probeW5500AlternateSpiModes();
+  } else {
+    // Diagnostic write+read MR la 2 viteze ca sa stim ce viteza sustine clona
+    // pentru librarie (W5100.init scrie MR repetat la SPI_ETHERNET_SETTINGS).
+    diagnoseW5500Writes(W5500_SPI_FREQ_HZ);
+    diagnoseW5500Writes(500000UL);
   }
 
   // 6. Verificam prezenta chipului pe magistrala (3 incercari cu re-reset).
@@ -553,9 +623,19 @@ void checkEthernetHotPlug() {
     return;
   _lastHotPlugCheckMs = now;
 
-  // Incercam direct initializarea completa (care include reset si init)
-  // Daca hardware-ul nu e acolo, initNetwork va returna rapid false.
+  bool wasEthAvailable = g_ethAvailable;
+  // initNetwork(true) apeleaza mqtt.begin() intern daca detecteaza hardware.
+  // Daca Ethernet devine disponibil si WiFi era activ, initNetwork comuta
+  // transportul MQTT la Ethernet si dezactiveaza WiFi.
   g_ethAvailable = initNetwork(true);
+
+  if (g_ethAvailable && !wasEthAvailable && g_wifiAvailable) {
+    // Ethernet tocmai a aparut — Ethernet are prioritate, oprim WiFi.
+    Serial.println("[Net] Ethernet hot-plug: comutare de la WiFi la Ethernet.");
+    WiFi.disconnect(true);
+    WiFi.mode(WIFI_OFF);
+    g_wifiAvailable = false;
+  }
 }
 
 // ============================================================
@@ -673,10 +753,29 @@ void setup() {
   Serial.printf("[PSRAM] g_slaveData @ %p  psramFree=%u KB\n", g_slaveData,
                 heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024);
 
-  // 10. Pornire SlaveCommTask pe Core 0 (detine Serial2 / SlaveUartClient)
+  // 10. Watchdog hardware 60s — configurat INAINTE de SlaveCommTask.
+  // SlaveCommTask apeleaza esp_task_wdt_add() imediat la start; daca WDT-ul
+  // ramane la default-ul de 5s al sistemului, task-ul depaseste timeout-ul
+  // in prima iteratie (PING+fetch+fetchLedStatus ~4s) si provoaca reboot.
+  {
+    const esp_task_wdt_config_t wdtConfig = {.timeout_ms = WDT_TIMEOUT_SEC * 1000,
+                                             .idle_core_mask = 0,
+                                             .trigger_panic = true};
+    esp_err_t wdtErr = esp_task_wdt_reconfigure(&wdtConfig);
+    if (wdtErr == ESP_ERR_INVALID_STATE) {
+      wdtErr = esp_task_wdt_init(&wdtConfig);
+    }
+    if (wdtErr != ESP_OK && wdtErr != ESP_ERR_INVALID_STATE) {
+      Serial.printf("[WDT] configure failed: %s\n", esp_err_to_name(wdtErr));
+    }
+    esp_task_wdt_add(NULL);  // subscrie loopTask (Core 1)
+    Serial.printf("[WDT] Timeout: %us\n", WDT_TIMEOUT_SEC);
+  }
+
+  // 11. Pornire SlaveCommTask pe Core 0 (detine Serial2 / SlaveUartClient)
   SlaveCommTask::start(slaveClient);
 
-  // 11. Ethernet W5500
+  // 12. Ethernet W5500
   Serial.println("[Eth] Initializing W5500...");
   g_ethAvailable = initNetwork(false);
 
@@ -711,20 +810,7 @@ void setup() {
   Serial.printf("[PSRAM] g_logBuf @ %p  psramFree=%u KB\n", g_logBuf,
                 heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024);
 
-  // 15. Watchdog hardware 60s
-  const esp_task_wdt_config_t wdtConfig = {.timeout_ms = WDT_TIMEOUT_SEC * 1000,
-                                           .idle_core_mask = 0,
-                                           .trigger_panic = true};
-  // Incercam intai reconfigure: Arduino core initializeaza deja TWDT pe unele
-  // versiuni.
-  esp_err_t wdtErr = esp_task_wdt_reconfigure(&wdtConfig);
-  if (wdtErr == ESP_ERR_INVALID_STATE) {
-    wdtErr = esp_task_wdt_init(&wdtConfig);
-  }
-  if (wdtErr != ESP_OK && wdtErr != ESP_ERR_INVALID_STATE) {
-    Serial.printf("[WDT] configure failed: %s\n", esp_err_to_name(wdtErr));
-  }
-  esp_task_wdt_add(NULL);
+  // WDT configurat si loopTask subscris anterior (pas 10).
 
   // 14. Prima citire senzori
   leftZone.readSensor(true); // force = true la boot

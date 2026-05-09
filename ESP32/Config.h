@@ -22,17 +22,20 @@
 
 // W5500 SPI (HSPI — singurul port SPI hardware expus pe Carbon V3)
 // GPIO18/GPIO23 NU sunt disponibili pe Carbon V3!
+// Modulul W5500 montat e CLONA: raspunde corect doar pe SPI_MODE1 (CPHA=1),
+// nu pe MODE0/MODE3 cum cere datasheet-ul oficial WIZnet. Patch aplicat in
+// ~/Arduino/libraries/Ethernet/src/utility/w5100.h (re-aplica la update lib).
 #define W5500_MOSI_PIN 13
 #define W5500_MISO_PIN 12
 #define W5500_SCK_PIN 14
 #define W5500_CS_PIN 15
 #define W5500_RST_PIN 33
 #define W5500_SPI_FREQ_HZ                                                      \
-  4000000UL // 1 MHz diagnostic — creste la 4 MHz dupa detectie stabila
+  1000000UL // 1 MHz diagnostic — creste la 4 MHz dupa detectie stabila
 #define W5500_PROBE_SPI_FREQ_HZ                                                \
-  250000UL // proba lenta pentru recovery dupa reseturi rapide
-#define W5500_RESET_LOW_MS 700
-#define W5500_RESET_READY_MS 1500
+  100000UL // proba lenta pentru recovery dupa reseturi rapide
+#define W5500_RESET_LOW_MS 10
+#define W5500_RESET_READY_MS 5000
 
 // Depanare hardware: lasa boot-ul normal sa continue chiar dupa reseturi
 // rapide. Pune 0 dupa ce termini testele W5500.
@@ -103,7 +106,7 @@
 #define MQTT_PUBLISH_MIN_INTERVAL_MS 500UL
 // Reconnect MQTT (backoff)
 #define MQTT_RECONNECT_INITIAL_MS 5000UL
-#define MQTT_RECONNECT_MAX_MS 60000UL
+#define MQTT_RECONNECT_MAX_MS 3000UL
 
 // ============================================================
 //  ETHERNET
@@ -147,7 +150,7 @@
 // ============================================================
 //  EVENT LOG
 // ============================================================
-#define EVENT_LOG_MAX_ENTRIES 20
+#define EVENT_LOG_MAX_ENTRIES 5
 
 // ============================================================
 //  NVS NAMESPACES

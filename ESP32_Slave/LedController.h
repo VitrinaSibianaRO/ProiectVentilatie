@@ -32,8 +32,9 @@ public:
     LedController& operator=(const LedController&) = delete;
 
     void begin() {
-        // esp32 core v3.x API: ledcAttach combina setup + attach pe pin
-        ledcAttach(LED_PWM_PIN, LED_PWM_FREQ_HZ, LED_PWM_BITS);
+        // esp32 core v2.x API (IDF 4.x): setup canal + attach pin separat
+        ledcSetup(LED_PWM_CHANNEL, LED_PWM_FREQ_HZ, LED_PWM_BITS);
+        ledcAttachPin(LED_PWM_PIN, LED_PWM_CHANNEL);
         _loadFromNvs();
         _applyPwm(0);   // start OFF
         LOG_INFO("LedController init: schedule %02u:%02u->%02u:%02u @%u%% en=%d",
@@ -131,7 +132,7 @@ private:
     void _applyPwm(uint8_t percent) {
         _currentPercent = percent;
         const uint32_t duty = (uint32_t)percent * PWM_MAX / 100;
-        ledcWriteChannel(LED_PWM_CHANNEL, duty);
+        ledcWrite(LED_PWM_CHANNEL, duty);
     }
 
     // Fereastra poate trece miezul noptii (ex. 22:00 → 06:00).

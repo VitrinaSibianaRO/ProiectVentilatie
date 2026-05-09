@@ -7,19 +7,9 @@
 class WatchdogManager {
 public:
     // Apelat o singura data in setup(). panic=true → reset la timeout (nu doar log).
-    // esp-idf v5+ (arduino core 3.x) foloseste struct in loc de 2 argumente.
+    // esp-idf v4.x (arduino core 2.x): esp_task_wdt_init ia timeout_sec + panic direct.
     static void begin(uint32_t timeoutSec, bool panic = true) {
-        const esp_task_wdt_config_t wdt_cfg = {
-            .timeout_ms    = timeoutSec * 1000,
-            .idle_core_mask = 0,
-            .trigger_panic = panic
-        };
-
-        esp_err_t err = esp_task_wdt_reconfigure(&wdt_cfg);
-        if (err == ESP_ERR_INVALID_STATE) {
-            err = esp_task_wdt_init(&wdt_cfg);
-        }
-
+        esp_task_wdt_init(timeoutSec, panic);
         esp_task_wdt_add(nullptr);   // subscrie task-ul curent (loopTask)
     }
 

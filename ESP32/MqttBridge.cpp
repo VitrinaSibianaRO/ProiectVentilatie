@@ -10,12 +10,17 @@
 #include "TimeSync.h"
 #include "Resilience.h"
 
+// Definite in ESP32.ino — accesibile din .cpp via extern.
+extern bool g_ethAvailable;
+extern bool g_wifiAvailable;
+
 // Pointer static pentru rutare callback PubSubClient → instanță
 MqttBridge* MqttBridge::_instance = nullptr;
 
 MqttBridge::MqttBridge()
     : _baseClient(nullptr),
       _sslClient(nullptr),
+      _wifiSecureClient(nullptr),
       _client(),
       _prefs(nullptr),
       _initialized(false),
@@ -47,13 +52,26 @@ void MqttBridge::begin(AppPreferences* prefs) {
     _prefs = prefs;
     _instance = this;
 
-    if (g_wifiAvailable) {
-        _baseClient = new WiFiClient();
-    } else {
+    // Cleanup transport anterior (poate fi re-apelat la comutare Eth↔WiFi).
+    if (_client.connected()) _client.disconnect();
+    if (_sslClient)        { delete _sslClient;        _sslClient = nullptr; }
+    if (_baseClient)       { delete _baseClient;       _baseClient = nullptr; }
+    if (_wifiSecureClient) { delete _wifiSecureClient; _wifiSecureClient = nullptr; }
+
+    // Ethernet are prioritate; WiFi e fallback.
+    if (g_ethAvailable) {
         _baseClient = new EthernetClient();
+        _sslClient  = new SSLClient(*_baseClient, TrustAnchors, TrustAnchors_NUM, A0);
+        _client.setClient(*_sslClient);
+        Serial.println("[MQTT] Transport: Ethernet + SSLClient.");
+    } else {
+        // WiFiClientSecure nativ ESP32 — TLS hardware-accelerat, fara dependenta
+        // de entropia pin A0 sau bearssl timing.
+        _wifiSecureClient = new WiFiClientSecure();
+        _wifiSecureClient->setCACert(ISRG_ROOT_X1_PEM);
+        _client.setClient(*_wifiSecureClient);
+        Serial.println("[MQTT] Transport: WiFi + WiFiClientSecure.");
     }
-    _sslClient = new SSLClient(*_baseClient, TrustAnchors, TrustAnchors_NUM, A0);
-    _client.setClient(*_sslClient);
 
     _client.setServer(MQTT_HOST, MQTT_PORT);
     _client.setBufferSize(MQTT_BUF_SIZE);
@@ -61,7 +79,6 @@ void MqttBridge::begin(AppPreferences* prefs) {
     _client.setCallback(_staticCallback);
 
     _initialized = true;
-    Serial.println("[MQTT] Bridge initialized (Ethernet + SSLClient).");
 }
 
 bool MqttBridge::connected() {

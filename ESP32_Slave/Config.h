@@ -1,24 +1,26 @@
-// Config.h — Toate constantele proiectului Slave (Carbon V3 #2).
+// Config.h — Toate constantele proiectului Slave (Carbon S2, ESP32-S2FN4R2).
 // NICIUN magic number in alte fisiere — toate valorile vin de aici.
 #pragma once
 
 // ============================================================
 //  HARDWARE PINS
 // ============================================================
-constexpr uint8_t I2C_SDA_PIN = 21;
-constexpr uint8_t I2C_SCL_PIN = 22;
+constexpr uint8_t I2C_SDA_PIN = 8;
+constexpr uint8_t I2C_SCL_PIN = 9;
 constexpr uint32_t I2C_FREQ_HZ = 100000UL;
 
-constexpr uint8_t SLAVE_UART_TX_PIN = 25; // Carbon V3 GPIO5: Slave TX -> Master RX
-constexpr uint8_t SLAVE_UART_RX_PIN = 26; // Carbon V3 GPIO26: Slave RX <- Master TX
+constexpr uint8_t SLAVE_UART_TX_PIN = 17; // Carbon S2 TX → Master RX
+constexpr uint8_t SLAVE_UART_RX_PIN = 18; // Carbon S2 RX ← Master TX
+// GPIO18/GPIO19 = USB D-/D+. CDC activ (CDCOnBoot=cdc) → GPIO18 ocupat.
+// RX mutat pe GPIO3 ca USB Serial Monitor sa functioneze.
 constexpr uint32_t SLAVE_UART_BAUD = 115200UL;
 
-constexpr uint8_t LED_PIN = 2;
-constexpr uint8_t LED_ENABLE_PIN = 4;
+constexpr uint8_t LED_PIN = 1;
+constexpr uint8_t LED_ENABLE_PIN = 2;
 constexpr uint8_t LED_COUNT = 1;
 
 // LED PWM (banda 24V 36W prin NCEP01T18 module)
-constexpr uint8_t LED_PWM_PIN = 8;
+constexpr uint8_t LED_PWM_PIN = 0;
 constexpr uint8_t LED_PWM_CHANNEL = 0;
 constexpr uint32_t LED_PWM_FREQ_HZ = 5000;
 constexpr uint8_t LED_PWM_BITS = 12; // rezolutie 12-bit: 0..4095
@@ -54,14 +56,15 @@ constexpr bool SENSOR_SERIAL_TELEMETRY = true;
 #endif
 
 // ============================================================
-//  PSRAM (ESP32-PICO-V3-02 — 2MB SPI PSRAM)
+//  PSRAM (ESP32-S2FN4R2 — 2MB QSPI PSRAM integrata)
 // ============================================================
 constexpr size_t OTA_CHUNK_BUF_SIZE = 1024; // OtaReceiver::_chunkBuf in PSRAM
 
 // ============================================================
-//  FREERTOS DUAL-CORE
+//  FREERTOS — ESP32-S2 SINGLE-CORE
 // ============================================================
-// SensorTask ruleaza pe Core 0 (Core 1 = loopTask: UART + LED + WDT).
+// SensorTask si loopTask ruleaza pe Core 0 prin time-slicing FreeRTOS.
+// xTaskCreatePinnedToCore(..., 0) valid pe single-core.
 constexpr size_t SENSOR_TASK_STACK = 4096;
 constexpr uint8_t SENSOR_TASK_PRIORITY = 2;
 // Perioada citire senzor (ms) — 30s; trezire anticipata posibila prin
