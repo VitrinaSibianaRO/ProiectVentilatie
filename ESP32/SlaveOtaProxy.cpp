@@ -91,7 +91,7 @@ SlaveOtaResult SlaveOtaProxy::perform(const char* url, const char* sha256,
     } else {
         base.reset(new EthernetClient());
     }
-    SSLClient ssl(*base, TrustAnchors, TrustAnchors_NUM, A0);
+    SSLClient ssl(*base, TrustAnchors, TrustAnchors_NUM, 34);
     HttpClient http(ssl, host, 443);
     http.setHttpResponseTimeout(30000);
 

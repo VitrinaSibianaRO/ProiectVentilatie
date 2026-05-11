@@ -434,4 +434,3 @@ Buton `🔌 TEST CONNECTION` → probe + try-open RTSP (5s timeout) → Toast OK
 - iOS / Windows target.
 - Drag&drop reorder pentru DisplayOrder.
 - Suport camere ne-IMOU (ONVIF generic).
-s

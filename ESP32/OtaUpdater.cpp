@@ -76,7 +76,7 @@ OtaResult OtaUpdater::_start(const char* url, const char* expectedSha256,
     } else {
         baseClient.reset(new EthernetClient());
     }
-    SSLClient sslClient(*baseClient, TrustAnchors, TrustAnchors_NUM, A0);
+    SSLClient sslClient(*baseClient, TrustAnchors, TrustAnchors_NUM, 34);
     HttpClient httpClient(sslClient, host, 443);
     httpClient.setHttpResponseTimeout(30000);
 

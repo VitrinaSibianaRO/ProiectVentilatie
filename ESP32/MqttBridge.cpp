@@ -61,7 +61,7 @@ void MqttBridge::begin(AppPreferences *prefs) {
   if (g_ethAvailable) {
     _baseClient = new EthernetClient();
     _sslClient =
-        new SSLClient(*_baseClient, TrustAnchors, TrustAnchors_NUM, A0);
+        new SSLClient(*_baseClient, TrustAnchors, TrustAnchors_NUM, 34);
     _client.setClient(*_sslClient);
     Serial.println("[MQTT] Transport: Ethernet + SSLClient.");
   } else {

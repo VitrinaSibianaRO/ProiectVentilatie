@@ -31,11 +31,11 @@
 #define W5500_CS_PIN 15
 #define W5500_RST_PIN 33
 #define W5500_SPI_FREQ_HZ                                                      \
-  1000000UL // 1 MHz diagnostic — creste la 4 MHz dupa detectie stabila
+  4000000UL // 4 MHz operation
 #define W5500_PROBE_SPI_FREQ_HZ                                                \
-  100000UL // proba lenta pentru recovery dupa reseturi rapide
+  1000000UL // proba lenta pentru recovery dupa reseturi rapide
 #define W5500_RESET_LOW_MS 10
-#define W5500_RESET_READY_MS 5000
+#define W5500_RESET_READY_MS 150
 
 // Depanare hardware: lasa boot-ul normal sa continue chiar dupa reseturi
 // rapide. Pune 0 dupa ce termini testele W5500.
@@ -170,6 +170,10 @@
 #ifndef FW_BUILD_NUMBER
 #define FW_BUILD_NUMBER 0
 #endif
+
+// WiFi fallback
+#define WIFI_CONNECT_TIMEOUT_MS 15000
+#define WIFI_MAX_ATTEMPTS 5
 
 // Global flag for WiFi availability
 extern bool g_wifiAvailable;

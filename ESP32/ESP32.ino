@@ -5,11 +5,11 @@
 //              Relee x2 pentru ventilație
 // FĂRĂ WiFi, FĂRĂ Blynk, FĂRĂ DHT22.
 
+#include "w5500_mode_patch.h"
 #include <Arduino.h>
 #include <Ethernet.h>
 #include <SPI.h>
 #include <WiFi.h> // doar pentru WiFi.mode(WIFI_OFF)
-#include <WiFiManager.h>
 #include <Wire.h>
 #include <esp_heap_caps.h>
 #include <esp_ota_ops.h>
@@ -18,6 +18,7 @@
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
 #include <utility/w5100.h>
+#include <WiFiManager.h>
 
 #include "AppPreferences.h"
 #include "Config.h"
@@ -507,9 +508,8 @@ bool initNetwork(bool isHotPlug) {
   static bool _spiInitialized = false;
   if (!_spiInitialized) {
     SPI.begin(W5500_SCK_PIN, W5500_MISO_PIN, W5500_MOSI_PIN, W5500_CS_PIN);
-    SPI.setFrequency(W5500_SPI_FREQ_HZ);
     _spiInitialized = true;
-    Serial.printf("[Eth] SPI Bus initialized (HSPI) @ %lu Hz\n",
+    Serial.printf("[Eth] SPI initialized @ %lu Hz\n",
                   (unsigned long)W5500_SPI_FREQ_HZ);
   }
 
@@ -690,7 +690,6 @@ void setup() {
   esp_ota_mark_app_valid_cancel_rollback();
 
   // 1. Oprim radio WiFi + Bluetooth — economie ~80mA + zero interferență
-  WiFi.mode(WIFI_OFF);
   btStop();
   Serial.println("[Boot] WiFi + BT OFF");
 
@@ -774,25 +773,34 @@ void setup() {
 
   // 12. WiFiManager Fallback
   if (!g_ethAvailable) {
-    Serial.println("[WiFi] Ethernet not available. Starting WiFiManager fallback...");
-    statusLed.setColor(0, 0, 200); // Albastru
+    Serial.println("[WiFi] Ethernet unavailable, trying WiFi fallback...");
+
     WiFiManager wm;
-    wm.setAPCallback([](WiFiManager* myWiFiManager) {
-        Serial.println("[WiFi] Entered config mode");
-        Serial.println(WiFi.softAPIP());
-        Serial.println(myWiFiManager->getConfigPortalSSID());
+    wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_MS / 1000);
+    wm.setConfigPortalTimeout(180);
+
+    wm.setAPCallback([](WiFiManager* wm) {
+        Serial.println("[WiFi] Config portal activ.");
+        Serial.printf("[WiFi] SSID: %s\n", wm->getConfigPortalSSID().c_str());
+        Serial.printf("[WiFi] IP: 192.168.4.1\n");
+        statusLed.setColor(0, 0, 200);
     });
-    
-    // autoConnect blocant infinit. Sistemul ramane aici pana se configureaza WiFi-ul.
-    if (wm.autoConnect("CarbonV3-AP")) {
-        Serial.println("[WiFi] Conectat cu succes la WiFi!");
+
+    wm.setSaveConfigCallback([]() {
+        Serial.println("[WiFi] Credentiale salvate.");
+    });
+
+    wm.setConnectRetries(WIFI_MAX_ATTEMPTS);
+
+    if (wm.autoConnect("CarbonV3-Setup")) {
+        Serial.printf("[WiFi] Connected: %s\n",
+                      WiFi.localIP().toString().c_str());
         g_wifiAvailable = true;
-        
-        // Setup NTP si MQTT deoarece initNetwork() nu le-a rulat
         TimeSync::begin();
         mqtt.begin(&prefs);
     } else {
-        Serial.println("[WiFi] Failed to connect.");
+        Serial.println("[WiFi] Portal timeout — running offline.");
+        WiFi.mode(WIFI_OFF);
     }
   }
 
