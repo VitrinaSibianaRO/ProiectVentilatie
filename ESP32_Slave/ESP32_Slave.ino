@@ -16,6 +16,7 @@
 #include <esp_ota_ops.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
+#include <esp_memory_utils.h>
 
 #include "Config.h"
 #include "Logger.h"
@@ -107,7 +108,7 @@ void setup() {
     }
 
     LOG_INFO("[PSRAM] g_sensorData @ %p (%s)", g_sensorData,
-             esp_ptr_in_psram(g_sensorData) ? "PSRAM" : "heap");
+             esp_ptr_external_ram(g_sensorData) ? "PSRAM" : "heap");
 
     // 6. Watchdog hardware 60s (loopTask pe Core 1; SensorTask se inregistreaza singur)
     WatchdogManager::begin(WDT_TIMEOUT_SEC);
