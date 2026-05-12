@@ -15,7 +15,6 @@ public partial class FloatingNavBar : ContentView
     public bool IsDashboardActive => CurrentPage == "Dashboard";
     public bool IsDevicesActive   => CurrentPage == "Devices";
     public bool IsSettingsActive  => CurrentPage == "Settings";
-    public bool IsReportsActive   => CurrentPage == "Reports";
     public bool IsSystemActive    => CurrentPage == "System";
 
     public FloatingNavBar()
@@ -27,7 +26,6 @@ public partial class FloatingNavBar : ContentView
     private void OnTapDashboard(object? sender, TappedEventArgs e) => _ = NavigateToPage("Dashboard");
     private void OnTapDevices  (object? sender, TappedEventArgs e) => _ = NavigateToPage("Devices");
     private void OnTapSettings (object? sender, TappedEventArgs e) => _ = NavigateToPage("Settings");
-    private void OnTapReports  (object? sender, TappedEventArgs e) => _ = NavigateToPage("Reports");
     private void OnTapSystem   (object? sender, TappedEventArgs e) => _ = NavigateToPage("System");
 
     private async Task NavigateToPage(string page)
@@ -40,7 +38,7 @@ public partial class FloatingNavBar : ContentView
             return;
         }
 
-        var route = page == "Reports" ? "//ReportsPage" : $"//{page}Page";
+        var route = $"//{page}Page";
         try
         {
             await Shell.Current.GoToAsync(route, animate: false);
@@ -57,7 +55,6 @@ public partial class FloatingNavBar : ContentView
         OnPropertyChanged(nameof(IsDashboardActive));
         OnPropertyChanged(nameof(IsDevicesActive));
         OnPropertyChanged(nameof(IsSettingsActive));
-        OnPropertyChanged(nameof(IsReportsActive));
         OnPropertyChanged(nameof(IsSystemActive));
     }
 }

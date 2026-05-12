@@ -15,7 +15,6 @@
         <ShellContent Route="DashboardPage" ContentTemplate="{DataTemplate views:DashboardPage}" />
         <ShellContent Route="DevicesPage" ContentTemplate="{DataTemplate views:DevicesPage}" />
         <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate views:SettingsPage}" />
-        <ShellContent Route="ReportsPage" ContentTemplate="{DataTemplate views:LogPage}" />
         <ShellContent Route="SystemPage" ContentTemplate="{DataTemplate views:SystemPage}" />
     </TabBar>
 

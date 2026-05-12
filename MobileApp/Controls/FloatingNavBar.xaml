@@ -25,8 +25,8 @@
             </Border.Background>
         </Border>
 
-        <!-- Tap layer: Grid cu 5 celule SOLIDE care primesc tap -->
-        <Grid ColumnDefinitions="*,*,*,*,*" Padding="6,0">
+        <!-- Tap layer: Grid cu 4 celule SOLIDE care primesc tap -->
+        <Grid ColumnDefinitions="*,*,*,*" Padding="6,0">
 
             <!-- ===== DASHBOARD ===== -->
             <Grid Grid.Column="0" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
@@ -85,27 +85,8 @@
                 </Grid.GestureRecognizers>
             </Grid>
 
-            <!-- ===== REPORTS ===== -->
-            <Grid Grid.Column="3" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
-                <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
-                         Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
-                         HorizontalOptions="Center" InputTransparent="True"
-                         IsVisible="{Binding IsReportsActive, Source={x:Reference self}}" />
-                <Path Grid.Row="1"
-                      Data="M6,2 H14 L19,7 V22 H6 Z M14,2 V7 H19 M9,12 H16 M9,16 H16"
-                      Fill="Transparent" StrokeThickness="2" InputTransparent="True"
-                      HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
-                      Stroke="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                <Label Grid.Row="2" Text="Reports" FontSize="10" HorizontalOptions="Center" InputTransparent="True"
-                       Style="{StaticResource LabelRajdhani}"
-                       TextColor="{Binding IsReportsActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                <Grid.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnTapReports" />
-                </Grid.GestureRecognizers>
-            </Grid>
-
             <!-- ===== SYSTEM ===== -->
-            <Grid Grid.Column="4" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
+            <Grid Grid.Column="3" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
                 <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
                          Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
                          HorizontalOptions="Center" InputTransparent="True"
