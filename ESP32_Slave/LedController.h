@@ -24,7 +24,7 @@ public:
 
   LedController()
       : _currentPercent(0), _schedule{18, 0, 23, 30, 80, false},
-        _syncedEpoch(0), _manualOverride(false), _manualOverrideUntilSec(0) {}
+        _syncedEpoch(0), _manualOverride(false), _manualIntensity(0), _wasInWindow(false) {}
 
   LedController(const LedController &) = delete;
   LedController &operator=(const LedController &) = delete;
@@ -36,29 +36,24 @@ public:
 
     ledcAttach(LED_PWM_PIN, LED_PWM_FREQ_HZ, LED_PWM_BITS);
     _loadFromNvs();
-    _applyPwm(0); // start OFF
+    _applyPwm(_manualIntensity); // start la valoarea salvata
+    if (_manualIntensity > 0) {
+      _manualOverride = true;
+    }
     LOG_INFO("LedController init: schedule %02u:%02u->%02u:%02u @%u%% en=%d",
              _schedule.onHour, _schedule.onMin, _schedule.offHour,
              _schedule.offMin, _schedule.maxIntensity, _schedule.enabled);
   }
 
-  // Setare imediata intensitate (0-100%). Override schedule 1 ora.
-  // Daca timpul nu e sincronizat, override-ul tine pana la primul TIME_SYNC,
-  // moment in care se reseteaza la _now+3600s.
+  // Setare imediata intensitate (0-100%).
   void setIntensity(uint8_t percent) {
     if (percent > 100)
       percent = 100;
     _manualOverride = true;
-    if (_syncedEpoch > 0) {
-      _manualOverrideUntilSec = _syncedEpoch + 3600;
-    } else {
-      // Timp ne-sincronizat → override expira la primul TIME_SYNC.
-      // Marker special: 1 (impossibil ca real epoch).
-      _manualOverrideUntilSec = 1;
-    }
+    _manualIntensity = percent;
+    _saveManToNvs();
     _applyPwm(percent);
-    LOG_INFO("LED manual: %u%% (override until %lu)", percent,
-             _manualOverrideUntilSec);
+    LOG_INFO("LED manual: %u%% (persistent)", percent);
   }
 
   // Configurare schedule. Persistent in NVS. Canceleaza orice manual override.
@@ -82,12 +77,7 @@ public:
     struct timeval tv = {.tv_sec = (time_t)epochSec, .tv_usec = 0};
     settimeofday(&tv, nullptr);
     _syncedEpoch = epochSec;
-    // Daca aveam override pending (marker=1), il consolidam acum la +1h.
-    if (_manualOverride && _manualOverrideUntilSec == 1) {
-      _manualOverrideUntilSec = epochSec + 3600;
-      LOG_INFO("TIME_SYNC: override consolidat pana la %lu",
-               _manualOverrideUntilSec);
-    }
+
     struct tm timeinfo;
     time_t t = (time_t)epochSec;
     localtime_r(&t, &timeinfo);
@@ -102,15 +92,6 @@ public:
     if (now < 1700000000UL)
       return; // timp nesincronizat
 
-    // Verifica expirare override manual
-    if (_manualOverride && _manualOverrideUntilSec > 0 &&
-        now > _manualOverrideUntilSec) {
-      _manualOverride = false;
-      LOG_INFO("LED manual override expired");
-    }
-    if (_manualOverride || !_schedule.enabled)
-      return;
-
     struct tm timeinfo;
     time_t t = (time_t)now;
     if (!localtime_r(&t, &timeinfo))
@@ -119,6 +100,17 @@ public:
     const bool inWindow = _isInWindow(
         (uint8_t)timeinfo.tm_hour, (uint8_t)timeinfo.tm_min, _schedule.onHour,
         _schedule.onMin, _schedule.offHour, _schedule.offMin);
+
+    if (inWindow != _wasInWindow) {
+      _wasInWindow = inWindow;
+      if (_manualOverride) {
+        _manualOverride = false;
+        LOG_INFO("LED override anulat de tranzitia schedule-ului");
+      }
+    }
+
+    if (_manualOverride || !_schedule.enabled)
+      return;
 
     const uint8_t target = inWindow ? _schedule.maxIntensity : 0;
     if (target != _currentPercent) {
@@ -138,7 +130,8 @@ private:
   Schedule _schedule;
   uint32_t _syncedEpoch;
   bool _manualOverride;
-  uint32_t _manualOverrideUntilSec;
+  uint8_t _manualIntensity;
+  bool _wasInWindow;
 
   void _applyPwm(uint8_t percent) {
     _currentPercent = percent;
@@ -169,6 +162,14 @@ private:
     _schedule.offMin = p.getUChar("fm", 30);
     _schedule.maxIntensity = p.getUChar("mi", 80);
     _schedule.enabled = p.getBool("en", false);
+    _manualIntensity = p.getUChar("manI", 0);
+    p.end();
+  }
+
+  void _saveManToNvs() const {
+    Preferences p;
+    p.begin("led", false);
+    p.putUChar("manI", _manualIntensity);
     p.end();
   }
 

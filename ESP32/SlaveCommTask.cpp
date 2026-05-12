@@ -9,7 +9,7 @@ TaskHandle_t     _taskHandle   = nullptr;
 SemaphoreHandle_t _forceReadSem = nullptr;
 
 // Intervale orar (ms)
-static constexpr uint32_t TIME_SYNC_INTERVAL_MS  = 3600000UL;  // 1h
+static constexpr uint32_t TIME_SYNC_INTERVAL_MS  = 300000UL;   // 5 min
 static constexpr uint32_t LED_STATUS_INTERVAL_MS = 3600000UL;  // 1h
 
 struct TaskParams {
@@ -75,6 +75,8 @@ static void taskFn(void* pvParams) {
         if (!fetchStateKnown || ok != lastFetchOk) {
             if (ok) {
                 Serial.printf("[SlaveCommTask] LINK UP T=%.2f H=%.2f ts=%u\n", t, h, slaveTs);
+                // Forteaza TIME_SYNC imediat ce Slave-ul devine online (la reset)
+                lastTimeSyncMs = 0;
             } else {
                 Serial.printf("[SlaveCommTask] LINK DOWN errors=%d\n", snap.consecutiveErrors);
             }

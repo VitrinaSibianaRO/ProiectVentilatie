@@ -258,11 +258,25 @@ public partial class SystemViewModel : ObservableObject, IDisposable
         if (page == null) return;
         var confirm = await page.DisplayAlertAsync(
             "Restart ESP32",
-            "Confirmi restart-ul ESP32-ului? Sistemul va fi indisponibil ~5 secunde.",
+            "Confirmi restart-ul ESP32-ului (Master)? Sistemul va fi indisponibil ~5 secunde.",
             "Da, restart",
             "Anulează");
         if (!confirm) return;
         await _mqttService.SendCommandAsync(new { cmd = "reboot" });
+    }
+
+    [RelayCommand]
+    private async Task RebootSlaveAsync()
+    {
+        var page = Application.Current?.Windows[0]?.Page;
+        if (page == null) return;
+        var confirm = await page.DisplayAlertAsync(
+            "Restart Slave",
+            "Confirmi restart-ul unității Slave (Control LED)?",
+            "Da, restart",
+            "Anulează");
+        if (!confirm) return;
+        await _mqttService.SendCommandAsync(new { cmd = "rebootSlave" });
     }
 
     [RelayCommand]

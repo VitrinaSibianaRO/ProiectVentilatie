@@ -39,6 +39,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const string PrefLedOffH  = "led_offH";
     private const string PrefLedOffM  = "led_offM";
     private const string PrefLedMaxI  = "led_maxI";
+    private const string PrefLedIntensity = "led_intensity";
 
     // ── State UI ─────────────────────────────────────
     [ObservableProperty] private bool _hasChanges;
@@ -66,6 +67,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         LedOnTime  = new TimeSpan(Preferences.Get(PrefLedOnH, 18), Preferences.Get(PrefLedOnM, 0), 0);
         LedOffTime = new TimeSpan(Preferences.Get(PrefLedOffH, 23), Preferences.Get(PrefLedOffM, 30), 0);
         LedMaxIntensity = Preferences.Get(PrefLedMaxI, 80);
+        LedIntensity = Preferences.Get(PrefLedIntensity, 0);
+
+        // Resetează flag-ul declanșat accidental de încărcarea preferințelor
+        _ledScheduleDirty = false;
 
         if (_mqttService.LastState != null)
             OnStateReceived(_mqttService.LastState);
@@ -97,9 +102,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         {
             _lastReceivedLedIntensity = state.Led.Intensity;
             _lastReceivedSchedEnabled = state.Led.SchedEnabled;
+            
             if (!HasChanges)
             {
-                LedIntensity       = state.Led.Intensity;
+                // Decuplat intensivitatea de la MQTT. Se păstrează exclusiv din Preferences.
                 LedScheduleEnabled = state.Led.SchedEnabled;
             }
         }
@@ -128,7 +134,33 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnHumHysteresisChanged(float value)  => RecomputeHasChanges();
 
     // LED handlers
-    partial void OnLedIntensityChanged(int value) => RecomputeHasChanges();
+    private CancellationTokenSource? _ledDebounceCts;
+
+    partial void OnLedIntensityChanged(int value)
+    {
+        Preferences.Set(PrefLedIntensity, value);
+
+        // Anulează trimiterea anterioară dacă sliderul e încă în mișcare
+        _ledDebounceCts?.Cancel();
+        _ledDebounceCts = new CancellationTokenSource();
+        var token = _ledDebounceCts.Token;
+
+        Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(300, token); // Așteaptă 300ms să te oprești din slider
+                if (!token.IsCancellationRequested && _mqttService.IsConnected && _lastReceivedLedIntensity >= 0 && value != _lastReceivedLedIntensity)
+                {
+                    await _mqttService.SendCommandAsync(new { cmd = "setLed", percent = value });
+                    _lastReceivedLedIntensity = value;
+                }
+            }
+            catch (TaskCanceledException) { }
+        });
+
+        RecomputeHasChanges();
+    }
 
     partial void OnLedScheduleEnabledChanged(bool value)
     {
@@ -168,8 +200,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             Math.Abs(TempHysteresis - _lastReceivedConfig.HystT)   > 0.01f ||
             Math.Abs(HumHysteresis  - _lastReceivedConfig.HystH)   > 0.01f);
 
-        bool ledChanged = (_lastReceivedLedIntensity >= 0 && LedIntensity != _lastReceivedLedIntensity)
-                       || (LedScheduleEnabled != _lastReceivedSchedEnabled)
+        // Eliminat _lastReceivedLedIntensity pentru a decupla complet UI-ul
+        bool ledChanged = (LedScheduleEnabled != _lastReceivedSchedEnabled)
                        || _ledScheduleDirty;
 
         HasChanges = threshChanged || ledChanged;
@@ -216,9 +248,6 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 hystT    = TempHysteresis,
                 hystH    = HumHysteresis
             });
-
-        if (_lastReceivedLedIntensity >= 0 && LedIntensity != _lastReceivedLedIntensity)
-            await _mqttService.SendCommandAsync(new { cmd = "setLed", percent = LedIntensity });
 
         if (_ledScheduleDirty || LedScheduleEnabled != _lastReceivedSchedEnabled)
         {
