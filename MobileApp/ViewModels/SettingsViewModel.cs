@@ -1,14 +1,15 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using ProiectVentilatie.Mobile.Models;
 using ProiectVentilatie.Mobile.Services;
 
 namespace ProiectVentilatie.Mobile.ViewModels;
 
+// Settings UI = sursa locala (Preferences). NU se mai sincronizeaza din MQTT state.
+// Toate comenzile catre ESP32 (setConfig, setLed, setLedSchedule, reset) se trimit
+// EXCLUSIV la apasarea butonului Save / Reset Defaults (user-triggered).
 public partial class SettingsViewModel : ObservableObject, IDisposable
 {
     private readonly IMqttService _mqttService;
-    private ConfigState? _lastReceivedConfig;
 
     // ── Thresholds ───────────────────────────────────
     [ObservableProperty] private float _tempThreshold = 45.0f;
@@ -19,15 +20,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     // ── LED intensitate ──────────────────────────────
     [ObservableProperty] private int _ledIntensity = 0;
-    private int _lastReceivedLedIntensity = -1;
 
     // ── LED schedule (persistat în Preferences) ──────
     [ObservableProperty] private TimeSpan _ledOnTime  = new TimeSpan(18, 0, 0);
     [ObservableProperty] private TimeSpan _ledOffTime = new TimeSpan(23, 30, 0);
     [ObservableProperty] private int  _ledMaxIntensity    = 80;
     [ObservableProperty] private bool _ledScheduleEnabled = false;
-    private bool _lastReceivedSchedEnabled = false;
-    private bool _ledScheduleDirty = false;
+
+    // Dirty flags — controleaza ce comenzi se trimit la Save
+    private bool _threshDirty;
+    private bool _ledIntensityDirty;
+    private bool _ledScheduleDirty;
 
     private const string PrefThreshT  = "cfg_threshT";
     private const string PrefThreshH  = "cfg_threshH";
@@ -39,85 +42,43 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const string PrefLedOffH  = "led_offH";
     private const string PrefLedOffM  = "led_offM";
     private const string PrefLedMaxI  = "led_maxI";
+    private const string PrefLedSchedEn = "led_schedEn";
     private const string PrefLedIntensity = "led_intensity";
 
     // ── State UI ─────────────────────────────────────
     [ObservableProperty] private bool _hasChanges;
-    [ObservableProperty] private bool _isLocked;
     [ObservableProperty] private bool _isConnected;
+    // IsLocked: pastrat pentru binding XAML; Blynk eliminat, deci mereu false
+    [ObservableProperty] private bool _isLocked;
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private Color _statusColor = Colors.Gray;
 
     public SettingsViewModel(IMqttService mqttService)
     {
         _mqttService = mqttService;
-        _mqttService.OnStateReceived += OnStateReceived;
         _mqttService.OnConnectionChanged += OnConnectionChanged;
 
         IsConnected = _mqttService.IsConnected;
 
-        // Thresholds din Preferences — fallback până soseşte starea ESP32
+        // Toate valorile UI sunt INCARCATE EXCLUSIV din Preferences locale.
+        // Nu mai exista sincronizare automata cu ESP32 state.
         TempThreshold  = Preferences.Get(PrefThreshT,  45.0f);
         HumThreshold   = Preferences.Get(PrefThreshH,  60.0f);
         IntervalSec    = Preferences.Get(PrefInterval, 300);
         TempHysteresis = Preferences.Get(PrefHystT,    2.0f);
         HumHysteresis  = Preferences.Get(PrefHystH,    5.0f);
 
-        // Schedule LED din Preferences
         LedOnTime  = new TimeSpan(Preferences.Get(PrefLedOnH, 18), Preferences.Get(PrefLedOnM, 0), 0);
         LedOffTime = new TimeSpan(Preferences.Get(PrefLedOffH, 23), Preferences.Get(PrefLedOffM, 30), 0);
-        LedMaxIntensity = Preferences.Get(PrefLedMaxI, 80);
-        LedIntensity = Preferences.Get(PrefLedIntensity, 0);
+        LedMaxIntensity    = Preferences.Get(PrefLedMaxI, 80);
+        LedScheduleEnabled = Preferences.Get(PrefLedSchedEn, false);
+        LedIntensity       = Preferences.Get(PrefLedIntensity, 0);
 
-        // Resetează flag-ul declanșat accidental de încărcarea preferințelor
+        // Property changed handler-ele au setat dirty flags la incarcarea Preferences — resetam.
+        _threshDirty = false;
+        _ledIntensityDirty = false;
         _ledScheduleDirty = false;
-
-        if (_mqttService.LastState != null)
-            OnStateReceived(_mqttService.LastState);
-    }
-
-    private void OnStateReceived(VentilationState state)
-    {
-        _lastReceivedConfig = state.Config;
-
-        // Thresholds: ESP32 câştigă dacă nu există modificări pending
-        if (!HasChanges)
-        {
-            TempThreshold  = state.Config.ThreshT;
-            HumThreshold   = state.Config.ThreshH;
-            IntervalSec    = state.Config.Interval;
-            TempHysteresis = state.Config.HystT;
-            HumHysteresis  = state.Config.HystH;
-        }
-
-        // Salvează întotdeauna ultimele valori ESP32 în Preferences
-        Preferences.Set(PrefThreshT,  state.Config.ThreshT);
-        Preferences.Set(PrefThreshH,  state.Config.ThreshH);
-        Preferences.Set(PrefInterval, state.Config.Interval);
-        Preferences.Set(PrefHystT,    state.Config.HystT);
-        Preferences.Set(PrefHystH,    state.Config.HystH);
-
-        // LED intensitate
-        if (state.Led != null)
-        {
-            _lastReceivedLedIntensity = state.Led.Intensity;
-            _lastReceivedSchedEnabled = state.Led.SchedEnabled;
-            
-            if (!HasChanges)
-            {
-                // Decuplat intensivitatea de la MQTT. Se păstrează exclusiv din Preferences.
-                LedScheduleEnabled = state.Led.SchedEnabled;
-            }
-        }
-
-        IsLocked = state.Lock?.Owner == "blynk";
-        RecomputeHasChanges();
-
-        if (!HasChanges && !string.IsNullOrEmpty(StatusMessage) && StatusMessage.StartsWith("Trimis"))
-        {
-            StatusMessage = "✓ Setări confirmate de ESP32";
-            StatusColor = Colors.LimeGreen;
-        }
+        HasChanges = false;
     }
 
     private void OnConnectionChanged(bool isConnected)
@@ -126,44 +87,25 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    // Threshold handlers
-    partial void OnTempThresholdChanged(float value)  => RecomputeHasChanges();
-    partial void OnHumThresholdChanged(float value)   => RecomputeHasChanges();
-    partial void OnIntervalSecChanged(int value)       => RecomputeHasChanges();
-    partial void OnTempHysteresisChanged(float value) => RecomputeHasChanges();
-    partial void OnHumHysteresisChanged(float value)  => RecomputeHasChanges();
+    // Threshold handlers — marcheaza dirty, NU salveaza in Preferences (commit-on-Save)
+    partial void OnTempThresholdChanged(float value)  { _threshDirty = true; RecomputeHasChanges(); }
+    partial void OnHumThresholdChanged(float value)   { _threshDirty = true; RecomputeHasChanges(); }
+    partial void OnIntervalSecChanged(int value)      { _threshDirty = true; RecomputeHasChanges(); }
+    partial void OnTempHysteresisChanged(float value) { _threshDirty = true; RecomputeHasChanges(); }
+    partial void OnHumHysteresisChanged(float value)  { _threshDirty = true; RecomputeHasChanges(); }
 
-    // LED handlers
-    private CancellationTokenSource? _ledDebounceCts;
-
+    // LED intensity — salveaza imediat in Preferences (pastreaza pozitia sliderului la navigare),
+    // dar trimite la ESP32 doar la Save
     partial void OnLedIntensityChanged(int value)
     {
         Preferences.Set(PrefLedIntensity, value);
-
-        // Anulează trimiterea anterioară dacă sliderul e încă în mișcare
-        _ledDebounceCts?.Cancel();
-        _ledDebounceCts = new CancellationTokenSource();
-        var token = _ledDebounceCts.Token;
-
-        Task.Run(async () =>
-        {
-            try
-            {
-                await Task.Delay(300, token); // Așteaptă 300ms să te oprești din slider
-                if (!token.IsCancellationRequested && _mqttService.IsConnected && _lastReceivedLedIntensity >= 0 && value != _lastReceivedLedIntensity)
-                {
-                    await _mqttService.SendCommandAsync(new { cmd = "setLed", percent = value });
-                    _lastReceivedLedIntensity = value;
-                }
-            }
-            catch (TaskCanceledException) { }
-        });
-
+        _ledIntensityDirty = true;
         RecomputeHasChanges();
     }
 
     partial void OnLedScheduleEnabledChanged(bool value)
     {
+        Preferences.Set(PrefLedSchedEn, value);
         _ledScheduleDirty = true;
         RecomputeHasChanges();
     }
@@ -193,22 +135,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void RecomputeHasChanges()
     {
-        bool threshChanged = _lastReceivedConfig != null && (
-            Math.Abs(TempThreshold  - _lastReceivedConfig.ThreshT) > 0.01f ||
-            Math.Abs(HumThreshold   - _lastReceivedConfig.ThreshH) > 0.01f ||
-            IntervalSec             != _lastReceivedConfig.Interval         ||
-            Math.Abs(TempHysteresis - _lastReceivedConfig.HystT)   > 0.01f ||
-            Math.Abs(HumHysteresis  - _lastReceivedConfig.HystH)   > 0.01f);
-
-        // Eliminat _lastReceivedLedIntensity pentru a decupla complet UI-ul
-        bool ledChanged = (LedScheduleEnabled != _lastReceivedSchedEnabled)
-                       || _ledScheduleDirty;
-
-        HasChanges = threshChanged || ledChanged;
+        HasChanges = _threshDirty || _ledIntensityDirty || _ledScheduleDirty;
         SaveCommand.NotifyCanExecuteChanged();
     }
 
-    private bool CanSave() => HasChanges && !IsLocked && IsConnected;
+    private bool CanSave() => HasChanges && IsConnected;
 
     [RelayCommand]
     private void SetInterval10() => IntervalSec = 10;
@@ -228,17 +159,17 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync()
     {
-        StatusMessage = "Trimis. Aștept confirmare ESP32...";
+        StatusMessage = "Trimit...";
         StatusColor = Colors.Orange;
 
-        bool threshChanged = _lastReceivedConfig != null && (
-            Math.Abs(TempThreshold  - _lastReceivedConfig.ThreshT) > 0.01f ||
-            Math.Abs(HumThreshold   - _lastReceivedConfig.ThreshH) > 0.01f ||
-            IntervalSec             != _lastReceivedConfig.Interval         ||
-            Math.Abs(TempHysteresis - _lastReceivedConfig.HystT)   > 0.01f ||
-            Math.Abs(HumHysteresis  - _lastReceivedConfig.HystH)   > 0.01f);
+        if (_threshDirty)
+        {
+            Preferences.Set(PrefThreshT,  TempThreshold);
+            Preferences.Set(PrefThreshH,  HumThreshold);
+            Preferences.Set(PrefInterval, IntervalSec);
+            Preferences.Set(PrefHystT,    TempHysteresis);
+            Preferences.Set(PrefHystH,    HumHysteresis);
 
-        if (threshChanged)
             await _mqttService.SendCommandAsync(new
             {
                 cmd      = "setConfig",
@@ -248,8 +179,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 hystT    = TempHysteresis,
                 hystH    = HumHysteresis
             });
+            _threshDirty = false;
+        }
 
-        if (_ledScheduleDirty || LedScheduleEnabled != _lastReceivedSchedEnabled)
+        if (_ledScheduleDirty)
         {
             await _mqttService.SendCommandAsync(new
             {
@@ -263,6 +196,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
             });
             _ledScheduleDirty = false;
         }
+
+        if (_ledIntensityDirty)
+        {
+            await _mqttService.SendCommandAsync(new { cmd = "setLed", percent = LedIntensity });
+            _ledIntensityDirty = false;
+        }
+
+        RecomputeHasChanges();
+        StatusMessage = "✓ Trimis";
+        StatusColor = Colors.LimeGreen;
     }
 
     [RelayCommand]
@@ -280,13 +223,30 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         if (!confirm) return;
 
         await _mqttService.SendCommandAsync(new { cmd = "reset" });
-        StatusMessage = "Reset trimis. Aștept confirmare ESP32...";
-        StatusColor = Colors.Orange;
+
+        // Reseteaza Preferences + UI locale doar pentru scope-ul cmd:reset (thresholds + interval + hysteresis)
+        // LED schedule + intensity sunt independente de cmd:reset si raman neatinse.
+        Preferences.Remove(PrefThreshT);
+        Preferences.Remove(PrefThreshH);
+        Preferences.Remove(PrefInterval);
+        Preferences.Remove(PrefHystT);
+        Preferences.Remove(PrefHystH);
+
+        TempThreshold  = 45.0f;
+        HumThreshold   = 60.0f;
+        IntervalSec    = 300;
+        TempHysteresis = 2.0f;
+        HumHysteresis  = 5.0f;
+
+        _threshDirty = false;
+        RecomputeHasChanges();
+
+        StatusMessage = "✓ Reset trimis. Valorile locale restaurate.";
+        StatusColor = Colors.LimeGreen;
     }
 
     public void Dispose()
     {
-        _mqttService.OnStateReceived -= OnStateReceived;
         _mqttService.OnConnectionChanged -= OnConnectionChanged;
     }
 }

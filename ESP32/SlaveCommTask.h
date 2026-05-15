@@ -6,9 +6,8 @@
 //   - drain comanda queue (LED_SET, LED_SCHEDULE, REBOOT, TIME_SYNC)
 //   - fetchLedStatus() orar
 //   - sendTimeSync() orar
-//   - Guard g_otaInProgress: suspenda fetch pe durata OTA Slave
 //
-// NU atinge niciodata: Ethernet, SSLClient, PubSubClient, Preferences, Wire, GPIO.
+// NU atinge niciodata: SSLClient, PubSubClient, Preferences, Wire, GPIO.
 #pragma once
 
 #include <Arduino.h>
@@ -30,7 +29,6 @@ void start(SlaveUartClient& client);
 // Trezire anticipata — urmatorul fetch ruleaza imediat (fara asteptare 500ms).
 void forceRead();
 
-// Suspend/resume task (apelat de SlaveOtaProxy din Core 1 inainte/dupa OTA).
 void suspend();
 void resume();
 

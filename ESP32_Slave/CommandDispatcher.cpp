@@ -6,23 +6,6 @@
 void CommandDispatcher::tick() {
     char cmd[UART_BUFFER_SIZE];
 
-    // OTA in desfasurare: trat OTA_CHUNK special (date binare dupa header)
-    if (_ota.isActive()) {
-        if (_uart.poll(cmd, sizeof(cmd))) {
-            _lastRequestMs = millis();
-            LOG_DEBUG("OTA RX: %s", cmd);
-
-            if (strncmp(cmd, "OTA_CHUNK ", 10) == 0)  _handleOtaChunk(cmd + 10);
-            else if (strcmp(cmd, "OTA_END") == 0)       _handleOtaEnd();
-            else if (strcmp(cmd, "OTA_ABORT") == 0)     _handleOtaAbort();
-            else {
-                LOG_WARN("Unexpected cmd during OTA: %s", cmd);
-                _uart.sendLine("ERR_OTA_ACTIVE");
-            }
-        }
-        return;
-    }
-
     if (!_uart.poll(cmd, sizeof(cmd))) {
         _updateIdleStatus();
         return;
@@ -32,17 +15,14 @@ void CommandDispatcher::tick() {
     LOG_DEBUG("RX: %s", cmd);
 
     // Routing comenzi (strcmp / strncmp pentru prefix-uri)
-    if (strcmp(cmd, "GET_SENSOR") == 0)          _handleGetSensor();
-    else if (strcmp(cmd, "REBOOT") == 0)          _handleReboot();
-    else if (strcmp(cmd, "PING") == 0)            _handlePing();
-    else if (strncmp(cmd, "LED_SET ", 8) == 0)   _handleLedSet(cmd + 8);
+    if (strcmp(cmd, "GET_SENSOR") == 0)              _handleGetSensor();
+    else if (strcmp(cmd, "REBOOT") == 0)              _handleReboot();
+    else if (strcmp(cmd, "PING") == 0)                _handlePing();
+    else if (strncmp(cmd, "LED_SET ", 8) == 0)       _handleLedSet(cmd + 8);
     else if (strncmp(cmd, "LED_SCHEDULE ", 13) == 0) _handleLedSchedule(cmd + 13);
-    else if (strcmp(cmd, "LED_STATUS") == 0)      _handleLedStatus();
-    else if (strncmp(cmd, "TIME_SYNC ", 10) == 0) _handleTimeSync(cmd + 10);
-    else if (strncmp(cmd, "OTA_BEGIN ", 10) == 0) _handleOtaBegin(cmd + 10);
-    else if (strcmp(cmd, "UART_BAUD_HIGH") == 0)  _handleUartBaudHigh();
-    else if (strcmp(cmd, "UART_BAUD_LOW") == 0)   _handleUartBaudLow();
-    else                                           _handleUnknown(cmd);
+    else if (strcmp(cmd, "LED_STATUS") == 0)          _handleLedStatus();
+    else if (strncmp(cmd, "TIME_SYNC ", 10) == 0)    _handleTimeSync(cmd + 10);
+    else                                               _handleUnknown(cmd);
 
     _updateIdleStatus();
 }
@@ -146,77 +126,6 @@ void CommandDispatcher::_handleTimeSync(const char* args) {
     uint32_t epoch = (uint32_t)strtoul(args, nullptr, 10);
     _ledCtrl.syncTime(epoch);
     _uart.sendLine("OK");
-}
-
-// ============================================================
-//  OTA_BEGIN <size> <sha256>
-// ============================================================
-void CommandDispatcher::_handleOtaBegin(const char* args) {
-    uint32_t size;
-    char sha[65];
-    if (sscanf(args, "%u %64s", &size, sha) != 2) {
-        LOG_ERROR("OTA_BEGIN parse fail: %s", args);
-        _uart.sendLine("ERR_BEGIN_PARSE");
-        return;
-    }
-    _led.setStatus(SystemLED::Status::OtaProgress);
-    _uart.sendLine(_ota.begin(size, sha) ? "OK" : "ERR_BEGIN");
-}
-
-// ============================================================
-//  OTA_CHUNK <length>  (urmat de N bytes binari)
-// ============================================================
-void CommandDispatcher::_handleOtaChunk(const char* args) {
-    uint32_t length = (uint32_t)strtoul(args, nullptr, 10);
-    if (_ota.writeChunk(length)) {
-        char resp[32];
-        snprintf(resp, sizeof(resp), "OK %u", length);
-        _uart.sendLine(resp);
-    } else {
-        _uart.sendLine("ERR_CHUNK");
-        _ota.abort();
-        // Revenim la Ready — OTA a esuat dar Slave e operational
-        _led.setStatus(SystemLED::Status::Ready);
-    }
-}
-
-// ============================================================
-//  OTA_END
-// ============================================================
-void CommandDispatcher::_handleOtaEnd() {
-    // _ota.end() reseteaza ESP32 la succes — nu mai ajungem la sendLine("OK")
-    if (!_ota.end()) {
-        _uart.sendLine("ERR_END");
-        // OTA failed → revenim la Ready, firmware-ul vechi e activ
-        _led.setStatus(SystemLED::Status::Ready);
-    }
-    // la succes ESP.restart() e deja apelat in OtaReceiver::end()
-}
-
-// ============================================================
-//  OTA_ABORT
-// ============================================================
-void CommandDispatcher::_handleOtaAbort() {
-    _ota.abort();
-    _led.setStatus(SystemLED::Status::Ready);
-    _uart.sendLine("OK");
-}
-
-// ============================================================
-//  UART_BAUD_HIGH / UART_BAUD_LOW
-// ============================================================
-void CommandDispatcher::_handleUartBaudHigh() {
-    _uart.sendLine("OK");
-    delay(50);
-    _uart.updateBaudRate(OTA_UART_BAUD);
-    LOG_INFO("Baud → %u", OTA_UART_BAUD);
-}
-
-void CommandDispatcher::_handleUartBaudLow() {
-    _uart.sendLine("OK");
-    delay(50);
-    _uart.updateBaudRate(SLAVE_UART_BAUD);
-    LOG_INFO("Baud → %u", SLAVE_UART_BAUD);
 }
 
 // ============================================================

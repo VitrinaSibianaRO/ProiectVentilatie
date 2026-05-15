@@ -49,6 +49,9 @@ public class ZoneState
 
     [JsonPropertyName("errs")]
     public int Errs { get; set; }
+
+    [JsonPropertyName("failsafe")]
+    public bool Failsafe { get; set; }
 }
 
 public class ConfigState
@@ -61,9 +64,6 @@ public class ConfigState
 
     [JsonPropertyName("interval")]
     public int Interval { get; set; }
-
-    [JsonPropertyName("ovrTimeout")]
-    public int OvrTimeout { get; set; }
 
     [JsonPropertyName("hystT")]
     public float HystT { get; set; } = 2.0f;

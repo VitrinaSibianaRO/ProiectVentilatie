@@ -2,27 +2,22 @@
 
 // ============================================================
 //  MqttBridge.h
-//  Wrapper peste PubSubClient + SSLClient + Ethernet pentru
+//  Wrapper peste PubSubClient + WiFiClientSecure pentru
 //  comunicația cu HiveMQ Cloud (TLS port 8883).
 //
-//  Arhitectura: EthernetClient → SSLClient → PubSubClient
-//  Cert ISRG Root X1 stocat în PROGMEM (zero RAM)
-//  State JSON serializat în StaticJsonDocument (zero heap alloc)
+//  Arhitectura: WiFiClientSecure → PubSubClient
+//  State JSON serializat în JsonDocument (zero heap alloc)
 //  Throttle hard 500ms între publicări consecutive
 //  Callback MQTT: ZERO String/new — doar set flags
 // ============================================================
 
 #include <Arduino.h>
-#include <SPI.h>
-#include <Ethernet.h>
 #include <WiFiClient.h>
 #include <WiFiClientSecure.h>
-#include <SSLClient.h>
 #include <PubSubClient.h>
 
 #include "AppPreferences.h"
 #include "VentilationZone.h"
-#include "HiveMqCert.h"
 
 // Lock owner: cine controlează sistemul în acest moment
 // LOCK_BLYNK eliminat — nu mai există interfață Blynk
@@ -64,14 +59,6 @@ struct MqttPending {
     uint8_t ledMaxI     = 0;
     bool    ledSchedEn  = false;
 
-    bool  update        = false;
-    char  otaUrl[256]   = {0};
-    char  otaSha[65]    = {0};
-
-    // OTA Slave (proxy via Master)
-    bool  updateSlave   = false;
-    char  slaveOtaUrl[256] = {0};
-    char  slaveOtaSha[65]  = {0};
 };
 
 class MqttBridge {
@@ -119,8 +106,6 @@ public:
     MqttPending& getPending();
 
 private:
-    Client*           _baseClient;
-    SSLClient*        _sslClient;
     WiFiClientSecure* _wifiSecureClient;
     PubSubClient      _client;
     AppPreferences*   _prefs;

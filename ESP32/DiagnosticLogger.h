@@ -1,10 +1,10 @@
 #pragma once
 #include <Arduino.h>
-#include <Ethernet.h>
+#include <WiFi.h>
 #include "VentilationZone.h"
 #include "SharedState.h"
 
-extern bool g_ethAvailable;
+extern bool g_wifiAvailable;
 extern VentilationZone leftZone;
 extern SlaveData* g_slaveData;
 extern SemaphoreHandle_t g_slaveDataMutex;
@@ -21,10 +21,10 @@ namespace DiagnosticLogger {
         Serial.println("\n--- [DIAGNOSTIC STATUS] ---");
         
         // Status Retea
-        Serial.printf("Network (W5500): %s\n", g_ethAvailable ? "OK" : "NOT FOUND / OFFLINE");
-        if (g_ethAvailable) {
+        Serial.printf("Network (WiFi): %s\n", g_wifiAvailable ? "OK" : "OFFLINE");
+        if (g_wifiAvailable) {
             Serial.print("IP Address: ");
-            Serial.println(Ethernet.localIP());
+            Serial.println(WiFi.localIP());
         }
 
         // Status Senzori Master (Stanga)

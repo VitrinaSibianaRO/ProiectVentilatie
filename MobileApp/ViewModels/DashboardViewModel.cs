@@ -46,6 +46,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _lockBannerText = string.Empty;
     [ObservableProperty] private bool _isControlEnabled = true;
 
+    // ── Failsafe + Reboot warning ─────────────────────
+    [ObservableProperty] private bool _rightFailsafe;
+    [ObservableProperty] private bool _rebootWarningVisible;
+    [ObservableProperty] private string _rebootWarningText = string.Empty;
+
     // ── Ago ──────────────────────────────────────────
     [ObservableProperty] private string _lastUpdateText = "Niciodată";
 
@@ -80,6 +85,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         }
 
         _ = ConnectAsync();
+
+        // Aplica ultimul state cunoscut imediat (evita flash de valori default la creare VM)
+        if (_mqttService.LastState != null)
+            UpdateState(_mqttService.LastState);
     }
 
     private async Task ConnectAsync()
@@ -100,7 +109,11 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     {
         ConnectionStatus = isConnected ? "Conectat la HiveMQ" : "Deconectat";
         if (isConnected)
-            RefreshCommand.Execute(null);
+        {
+            // Cerinta arhitecturala: la pornire/reconectare cerem ESP32 sa publice state fresh.
+            // Noul payload contine doar senzori + system info (NU config), deci e efectiv "getSensors".
+            _ = _mqttService.SendCommandAsync(new { cmd = "refresh" });
+        }
     }
 
     private void UpdateOnlineStatus(string status)
@@ -122,9 +135,17 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         LeftRelay = state.Left.Relay;
         RightRelay = state.Right.Relay;
         RelayLeftText = state.Left.Relay ? "PORNIT" : "OPRIT";
-        RelayRightText = state.Right.Relay ? "PORNIT" : "OPRIT";
+        RightFailsafe = state.Right.Failsafe;
+        RelayRightText = state.Right.Failsafe ? "FAILSAFE"
+                       : (state.Right.Relay ? "PORNIT" : "OPRIT");
         OnPropertyChanged(nameof(LeftRelayActive));
         OnPropertyChanged(nameof(RightRelayActive));
+
+        // Reboot warning
+        RebootWarningVisible = state.UptimeSec < 120;
+        RebootWarningText = state.UptimeSec < 120
+            ? $"ESP32 a rebootat recent ({state.UptimeSec}s). Pragurile pot fi la valorile implicite."
+            : string.Empty;
 
         // Override
         LeftOverride = state.Left.Override;
@@ -191,6 +212,10 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshAsync()
     {
+        // Aplica imediat LastState din cache (zero-flicker UI),
+        // apoi cere ESP32 sa publice state fresh.
+        if (_mqttService.LastState != null)
+            UpdateState(_mqttService.LastState);
         await _mqttService.SendCommandAsync(new { cmd = "refresh" });
     }
 

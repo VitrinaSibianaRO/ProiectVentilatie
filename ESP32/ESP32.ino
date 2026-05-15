@@ -5,19 +5,14 @@
 //              Relee x2 pentru ventilație
 // FĂRĂ WiFi, FĂRĂ Blynk, FĂRĂ DHT22.
 
-#include "w5500_mode_patch.h"
 #include <Arduino.h>
-#include <Ethernet.h>
-#include <SPI.h>
-#include <WiFi.h> // doar pentru WiFi.mode(WIFI_OFF)
+#include <WiFi.h>
 #include <Wire.h>
 #include <esp_heap_caps.h>
-#include <esp_ota_ops.h>
 #include <esp_task_wdt.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/queue.h>
 #include <freertos/semphr.h>
-#include <utility/w5100.h>
 #include <WiFiManager.h>
 
 #include "AppPreferences.h"
@@ -26,12 +21,10 @@
 #include "EventLog.h"
 #include "LedConfigStorage.h"
 #include "MqttBridge.h"
-#include "OtaUpdater.h"
 #include "Resilience.h"
 #include "SharedState.h"
 #include "Sht30Sensor.h"
 #include "SlaveCommTask.h"
-#include "SlaveOtaProxy.h"
 #include "SlaveUartClient.h"
 #include "SystemLED.h"
 #include "TimeSync.h"
@@ -73,22 +66,7 @@ char *g_logBuf = nullptr;
 SemaphoreHandle_t g_slaveDataMutex = nullptr;
 QueueHandle_t g_slaveCommandQueue = nullptr;
 SlaveData *g_slaveData = nullptr; // alocat in PSRAM
-volatile bool g_otaInProgress = false;
-bool g_ethAvailable = false; // true doar dacă W5500 este detectat fizic
 bool g_wifiAvailable = false;
-
-// ============================================================
-//  ETHERNET MAC derivat din eFuse (unicat per chip)
-// ============================================================
-void getEthernetMac(byte mac[6]) {
-  uint64_t chipId = ESP.getEfuseMac();
-  mac[0] = 0xDE; // prefix local (bit unicast + locally administered)
-  mac[1] = (chipId >> 8) & 0xFF;
-  mac[2] = (chipId >> 16) & 0xFF;
-  mac[3] = (chipId >> 24) & 0xFF;
-  mac[4] = (chipId >> 32) & 0xFF;
-  mac[5] = (chipId >> 40) & 0xFF;
-}
 
 // ============================================================
 //  PROCESS ZONES — logica principală (apelată la interval)
@@ -96,10 +74,7 @@ void getEthernetMac(byte mac[6]) {
 void processZones() {
   lastProcessMs = millis();
 
-  // 1. Override expiry check
-  bool overrideChanged = prefs.tickOverrideExpiry();
-
-  // 2. Citeste snapshot Slave din SharedState (Core 0 actualizeaza la 500ms).
+  // 1. Citeste snapshot Slave din SharedState (Core 0 actualizeaza la 500ms).
   //    Non-blocant: <1ms (vs pana la 3s blocant anterior pe
   //    slaveClient.fetch()).
   SlaveData snap{};
@@ -255,57 +230,6 @@ void processZones() {
     pending.setLedSched = false;
   }
 
-  if (pending.update) {
-    mqtt.publishOnline(false);
-    delay(200);
-    OtaResult result = OtaUpdater::start(
-        pending.otaUrl, pending.otaSha,
-        [](int pct) { Serial.printf("[OTA] %d%%\n", pct); });
-    if (result == OTA_OK) {
-      delay(500);
-      ESP.restart();
-    }
-    pending.update = false;
-    memset(pending.otaUrl, 0, sizeof(pending.otaUrl));
-    memset(pending.otaSha, 0, sizeof(pending.otaSha));
-  }
-
-  if (pending.updateSlave) {
-    g_otaInProgress = true;
-    SlaveCommTask::suspend();
-    rightZone.enterFailsafe();
-    SlaveOtaResult sres = SlaveOtaProxy::perform(
-        pending.slaveOtaUrl, pending.slaveOtaSha, Serial2,
-        [](uint32_t sent, uint32_t total) {
-          static uint32_t lastPct = 0;
-          uint32_t pct = (sent * 100UL) / (total ? total : 1);
-          if (pct - lastPct >= 5 || pct == 100) {
-            char buf[96];
-            snprintf(buf, sizeof(buf),
-                     "{\"type\":\"slave_ota_progress\",\"sent\":%u,\"total\":%"
-                     "u,\"percent\":%u}",
-                     sent, total, pct);
-            mqtt.publishEventJson(buf);
-            lastPct = pct;
-          }
-        });
-    SlaveCommTask::resume();
-    g_otaInProgress = false;
-    char done[128];
-    if (sres == SOTA_OK) {
-      snprintf(done, sizeof(done),
-               "{\"type\":\"slave_ota_done\",\"result\":\"ok\"}");
-    } else {
-      snprintf(done, sizeof(done),
-               "{\"type\":\"slave_ota_done\",\"result\":\"fail\",\"code\":%d}",
-               (int)sres);
-    }
-    mqtt.publishEventJson(done);
-    pending.updateSlave = false;
-    memset(pending.slaveOtaUrl, 0, sizeof(pending.slaveOtaUrl));
-    memset(pending.slaveOtaSha, 0, sizeof(pending.slaveOtaSha));
-  }
-
   if (pending.reboot) {
     mqtt.publishOnline(false);
     delay(200);
@@ -329,6 +253,8 @@ void processZones() {
                         prefs.humHyst);
 
   // 6. MQTT publish state (incluzând LED status)
+  // Forțează publicare la fiecare ciclu — senzori se actualizează la intervalul din Settings
+  mqtt.requestPublishNow();
   mqtt.publishStateIfNeeded(leftZone, rightZone, slaveOnline, slaveErrors,
                             snap.lastSuccessMs, g_ledIntensity,
                             g_ledSchedEnabled);
@@ -340,294 +266,11 @@ void processZones() {
   }
 
   // 8. Status LED update
-  bool ethLink = (Ethernet.linkStatus() == LinkON);
-  bool netOk = ethLink || g_wifiAvailable;
   bool mqttOk = mqtt.connected();
-
   if (!slaveOnline) {
     statusLed.setSlaveOffline();
   } else {
-    statusLed.updateStatus(netOk, mqttOk);
-  }
-}
-
-// ============================================================
-//  W5500 HOT-PLUG — detectare automată la conectare ulterioară
-// ============================================================
-static unsigned long _lastHotPlugCheckMs = 0;
-
-const char *ethernetHardwareName(EthernetHardwareStatus status) {
-  switch (status) {
-  case EthernetW5100:
-    return "W5100";
-  case EthernetW5200:
-    return "W5200";
-  case EthernetW5500:
-    return "W5500";
-  default:
-    return "NO_HARDWARE";
-  }
-}
-
-uint8_t readW5500VersionRegister(uint32_t spiFreqHz = W5500_SPI_FREQ_HZ,
-                                 uint8_t spiMode = SPI_MODE1) {
-  SPI.beginTransaction(SPISettings(spiFreqHz, MSBFIRST, spiMode));
-  digitalWrite(W5500_CS_PIN, LOW);
-  SPI.transfer(0x00); // VERSIONR address high byte
-  SPI.transfer(0x39); // VERSIONR address low byte
-  SPI.transfer(0x00); // Common register block, read, variable data length
-  uint8_t version = SPI.transfer(0x00);
-  digitalWrite(W5500_CS_PIN, HIGH);
-  SPI.endTransaction();
-  return version;
-}
-
-void probeW5500AlternateSpiModes() {
-  uint8_t m0 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE0);
-  uint8_t m1 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE1);
-  uint8_t m2 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE2);
-  uint8_t m3 = readW5500VersionRegister(W5500_PROBE_SPI_FREQ_HZ, SPI_MODE3);
-  Serial.printf(
-      "[Eth] W5500 probe: M0=0x%02X M1=0x%02X M2=0x%02X M3=0x%02X @ %lu Hz\n",
-      m0, m1, m2, m3, (unsigned long)W5500_PROBE_SPI_FREQ_HZ);
-}
-
-// Scriere directa registru COMMON (BSB=0, RWB=1, OM=00 var-len). Replica
-// protocolul lib pentru chip 55, dar sub controlul nostru: putem testa pas
-// cu pas write+read MR ca sa identificam unde clona pierde sincronul.
-void writeW5500Common(uint16_t addr, uint8_t value,
-                      uint32_t spiFreqHz = W5500_SPI_FREQ_HZ) {
-  SPI.beginTransaction(SPISettings(spiFreqHz, MSBFIRST, SPI_MODE1));
-  digitalWrite(W5500_CS_PIN, LOW);
-  SPI.transfer(addr >> 8);
-  SPI.transfer(addr & 0xFF);
-  SPI.transfer(0x04); // common reg, write, var-len
-  SPI.transfer(value);
-  digitalWrite(W5500_CS_PIN, HIGH);
-  SPI.endTransaction();
-}
-
-uint8_t readW5500Common(uint16_t addr,
-                       uint32_t spiFreqHz = W5500_SPI_FREQ_HZ) {
-  SPI.beginTransaction(SPISettings(spiFreqHz, MSBFIRST, SPI_MODE1));
-  digitalWrite(W5500_CS_PIN, LOW);
-  SPI.transfer(addr >> 8);
-  SPI.transfer(addr & 0xFF);
-  SPI.transfer(0x00); // common reg, read, var-len
-  uint8_t v = SPI.transfer(0x00);
-  digitalWrite(W5500_CS_PIN, HIGH);
-  SPI.endTransaction();
-  return v;
-}
-
-// Diagnostic: replica isW5500() din libraria Arduino Ethernet, dar sub
-// controlul nostru (frecventa configurabila, log la fiecare pas). Returneaza
-// true daca toate scrierile/citirile MR se confirma.
-bool diagnoseW5500Writes(uint32_t spiFreqHz) {
-  Serial.printf("[Eth] DIAG @ %lu Hz: ", (unsigned long)spiFreqHz);
-
-  // Soft reset: scriem MR=0x80, asteptam pana citim MR=0x00.
-  writeW5500Common(0x0000, 0x80, spiFreqHz);
-  uint8_t mr = 0xFF;
-  for (int i = 0; i < 100; i++) {
-    delay(2);
-    mr = readW5500Common(0x0000, spiFreqHz);
-    if (mr == 0x00)
-      break;
-  }
-  Serial.printf("softReset MR=0x%02X ", mr);
-  if (mr != 0x00) {
-    Serial.println("FAIL (soft reset nu se confirma)");
-    return false;
-  }
-
-  // Test write+read pe MR cu valori distincte.
-  const uint8_t patterns[] = {0x08, 0x10, 0x00};
-  for (uint8_t p : patterns) {
-    writeW5500Common(0x0000, p, spiFreqHz);
-    delay(1);
-    uint8_t back = readW5500Common(0x0000, spiFreqHz);
-    Serial.printf("[w=0x%02X r=0x%02X%s] ", p, back, (back == p) ? "" : "!");
-    if (back != p) {
-      Serial.println("FAIL");
-      return false;
-    }
-  }
-
-  uint8_t ver = readW5500Common(0x0039, spiFreqHz);
-  Serial.printf("VERSIONR=0x%02X ", ver);
-  Serial.println(ver == 0x04 ? "OK" : "FAIL (VERSIONR final)");
-  return ver == 0x04;
-}
-
-void resetW5500Hardware() {
-  digitalWrite(W5500_CS_PIN, HIGH);
-  pinMode(W5500_RST_PIN, OUTPUT);
-  digitalWrite(W5500_RST_PIN, LOW);
-  delay(W5500_RESET_LOW_MS);
-  digitalWrite(W5500_RST_PIN, HIGH);
-  delay(W5500_RESET_READY_MS);
-  digitalWrite(W5500_CS_PIN, HIGH);
-}
-
-void printW5500ProbeHint(uint8_t rawVersion) {
-  if (rawVersion == 0x04)
-    return;
-
-  Serial.printf("[Eth] SPI pins: SCK=%d MISO=%d MOSI=%d CS=%d RST=%d\n",
-                W5500_SCK_PIN, W5500_MISO_PIN, W5500_MOSI_PIN, W5500_CS_PIN,
-                W5500_RST_PIN);
-  if (rawVersion == 0x00 || rawVersion == 0xFF) {
-    Serial.println("[Eth] VERSIONR is bus-idle value: check 3V3/GND, CS, MISO, "
-                   "reset and wiring.");
-  } else if (rawVersion == 0x02) {
-    Serial.println(
-        "[Eth] VERSIONR=0x02 is not a W5500 signature. Check that the module "
-        "is W5500 and the firmware pinout matches the wiring.");
-  } else {
-    Serial.println("[Eth] Unexpected VERSIONR value. Check SPI mode/pinout or "
-                   "possible non-W5500 hardware.");
-  }
-}
-
-bool initNetwork(bool isHotPlug) {
-  // 1. CS trebuie sa stea inactiv inainte de reset si inainte de SPI.begin().
-  // Pe boot/reboot rapid, un CS flotant poate lasa W5500 intr-o stare SPI
-  // invalida.
-  pinMode(W5500_CS_PIN, OUTPUT);
-  digitalWrite(W5500_CS_PIN, HIGH);
-  delay(5);
-
-  // 2. Reset hardware W5500 obligatoriu la fiecare incercare.
-  // Resetul este deliberat lung: unele module raman blocate dupa reseturi
-  // rapide ESP32.
-  resetW5500Hardware();
-
-  // 3. Initializare magistrala SPI - O SINGURA DATA
-  // Apeluri multiple de SPI.begin pe ESP32 pot corupe matricea GPIO.
-  static bool _spiInitialized = false;
-  if (!_spiInitialized) {
-    SPI.begin(W5500_SCK_PIN, W5500_MISO_PIN, W5500_MOSI_PIN, W5500_CS_PIN);
-    _spiInitialized = true;
-    Serial.printf("[Eth] SPI initialized @ %lu Hz\n",
-                  (unsigned long)W5500_SPI_FREQ_HZ);
-  }
-
-  // 4. Spunem librariei Ethernet ce pin folosim pentru CS
-  Ethernet.init(W5500_CS_PIN);
-
-  // 5. Proba SPI directa: W5500 VERSIONR trebuie sa fie 0x04.
-  // Daca aici vezi 0x00/0xFF, problema e electrica/pinout/reset, nu DHCP/MQTT.
-  uint8_t rawVersion = readW5500VersionRegister();
-  Serial.printf("[Eth] W5500 VERSIONR raw=0x%02X (expected 0x04)\n",
-                rawVersion);
-  printW5500ProbeHint(rawVersion);
-  if (rawVersion != 0x04) {
-    probeW5500AlternateSpiModes();
-  } else {
-    // Diagnostic write+read MR la 2 viteze ca sa stim ce viteza sustine clona
-    // pentru librarie (W5100.init scrie MR repetat la SPI_ETHERNET_SETTINGS).
-    diagnoseW5500Writes(W5500_SPI_FREQ_HZ);
-    diagnoseW5500Writes(500000UL);
-  }
-
-  // 6. Verificam prezenta chipului pe magistrala (3 incercari cu re-reset).
-  // Ethernet.hardwareStatus() raporteaza doar dupa W5100.init(); nu declanseaza
-  // detectia singur.
-  bool hwFound = false;
-  for (int attempt = 1; attempt <= 3 && !hwFound; attempt++) {
-    if (W5100.init() != 0) {
-      EthernetHardwareStatus status = Ethernet.hardwareStatus();
-      Serial.printf("[Eth] Hardware detected by Ethernet lib: %s\n",
-                    ethernetHardwareName(status));
-      hwFound = (status != EthernetNoHardware);
-      break;
-    }
-    if (attempt < 3) {
-      Serial.printf(
-          "[Eth] W5500 not detected (attempt %d/3), re-resetting...\n",
-          attempt);
-      resetW5500Hardware();
-      Ethernet.init(W5500_CS_PIN);
-      rawVersion = readW5500VersionRegister();
-      Serial.printf("[Eth] W5500 VERSIONR raw=0x%02X (expected 0x04)\n",
-                    rawVersion);
-      printW5500ProbeHint(rawVersion);
-      if (rawVersion != 0x04) {
-        probeW5500AlternateSpiModes();
-      }
-    }
-  }
-  if (!hwFound) {
-    if (!isHotPlug)
-      Serial.println("[Eth] W5500 hardware NOT FOUND after 3 attempts! Running "
-                     "in NO-NETWORK mode.");
-    return false;
-  }
-
-  if (isHotPlug) {
-    Serial.println("[Eth] W5500 detected (hot-plug)! Initializing network...");
-  }
-
-  byte mac[6];
-  getEthernetMac(mac);
-  EthLinkMonitor::setMac(mac);
-  Serial.printf("[Eth] MAC: %02X:%02X:%02X:%02X:%02X:%02X\n", mac[0], mac[1],
-                mac[2], mac[3], mac[4], mac[5]);
-
-  // 7. Daca PHY-ul nu vede link, nu blocam boot-ul 15s in DHCP/NTP.
-  // Lasam hot-plug check sa reincerce init-ul complet dupa conectarea cablului.
-  EthernetLinkStatus link = Ethernet.linkStatus();
-  Serial.printf("[Eth] Link status before DHCP: %s\n",
-                link == LinkON ? "ON" : (link == LinkOFF ? "OFF" : "UNKNOWN"));
-  if (link != LinkON) {
-    Serial.println("[Eth] W5500 hardware OK, but Ethernet link is DOWN. "
-                   "Skipping DHCP/NTP/MQTT for now.");
-    statusLed.setColor(200, 80, 0);
-    return false;
-  }
-
-  // 8. Incercam DHCP
-  if (Ethernet.begin(mac, ETH_DHCP_TIMEOUT_MS) == 0) {
-    Serial.println("[Eth] DHCP FAILED. Continuing in OFFLINE mode (LinkMonitor "
-                   "will retry).");
-    statusLed.setColor(200, 0, 0);
-    if (!isHotPlug)
-      delay(2000);
-  } else {
-    Serial.print("[Eth] IP: ");
-    Serial.println(Ethernet.localIP());
-    if (isHotPlug) {
-      statusLed.setColor(0, 180, 0);
-      Serial.println(
-          "[Eth] Hot-plug init complete — full network mode active.");
-    }
-  }
-
-  TimeSync::begin();
-  mqtt.begin(&prefs);
-
-  return true;
-}
-
-void checkEthernetHotPlug() {
-  unsigned long now = millis();
-  if (now - _lastHotPlugCheckMs < ETH_HOTPLUG_CHECK_MS)
-    return;
-  _lastHotPlugCheckMs = now;
-
-  bool wasEthAvailable = g_ethAvailable;
-  // initNetwork(true) apeleaza mqtt.begin() intern daca detecteaza hardware.
-  // Daca Ethernet devine disponibil si WiFi era activ, initNetwork comuta
-  // transportul MQTT la Ethernet si dezactiveaza WiFi.
-  g_ethAvailable = initNetwork(true);
-
-  if (g_ethAvailable && !wasEthAvailable && g_wifiAvailable) {
-    // Ethernet tocmai a aparut — Ethernet are prioritate, oprim WiFi.
-    Serial.println("[Net] Ethernet hot-plug: comutare de la WiFi la Ethernet.");
-    WiFi.disconnect(true);
-    WiFi.mode(WIFI_OFF);
-    g_wifiAvailable = false;
+    statusLed.updateStatus(g_wifiAvailable, mqttOk);
   }
 }
 
@@ -685,13 +328,8 @@ void setup() {
     ESP.restart();
   }
 
-  // 0. OTA rollback protection — marcăm firmware-ul curent ca valid.
-  //    Fără asta, bootloader-ul va reveni la versiunea anterioară la reboot.
-  esp_ota_mark_app_valid_cancel_rollback();
-
-  // 1. Oprim radio WiFi + Bluetooth — economie ~80mA + zero interferență
+  // 1. Oprim Bluetooth
   btStop();
-  Serial.println("[Boot] WiFi + BT OFF");
 
   // 2. Status LED — albastru la boot
   statusLed.begin();
@@ -767,14 +405,8 @@ void setup() {
   // 11. Pornire SlaveCommTask pe Core 0 (detine Serial2 / SlaveUartClient)
   SlaveCommTask::start(slaveClient);
 
-  // 12. Ethernet W5500
-  Serial.println("[Eth] Initializing W5500...");
-  g_ethAvailable = initNetwork(false);
-
-  // 12. WiFiManager Fallback
-  if (!g_ethAvailable) {
-    Serial.println("[WiFi] Ethernet unavailable, trying WiFi fallback...");
-
+  // 12. WiFiManager — singura cale de rețea
+  {
     WiFiManager wm;
     wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_MS / 1000);
     wm.setConfigPortalTimeout(180);
@@ -782,7 +414,6 @@ void setup() {
     wm.setAPCallback([](WiFiManager* wm) {
         Serial.println("[WiFi] Config portal activ.");
         Serial.printf("[WiFi] SSID: %s\n", wm->getConfigPortalSSID().c_str());
-        Serial.printf("[WiFi] IP: 192.168.4.1\n");
         statusLed.setColor(0, 0, 200);
     });
 
@@ -831,12 +462,8 @@ void loop() {
   HeapMonitor::check();
   BootLoopGuard::tick();
 
-  // Network-dependent operations — skip complet dacă W5500 și WiFi lipsesc
-  if (g_ethAvailable || g_wifiAvailable) {
-    if (g_ethAvailable) {
-      EthLinkMonitor::check(W5500_RST_PIN);
-      Ethernet.maintain();
-    }
+  // Network-dependent operations
+  if (g_wifiAvailable) {
     PreventiveReboot::checkWeekly();
     mqtt.loop();
     TimeSync::loop();
@@ -845,21 +472,12 @@ void loop() {
   // Buton reset
   handleResetButton();
 
-  // Verificare hot-plug W5500 (doar daca niciuna nu e valabila)
-  if (!g_ethAvailable && !g_wifiAvailable) {
-    checkEthernetHotPlug();
-  }
-
-  // Process zones la intervalul configurat
+  // Process zones la intervalul configurat SAU imediat cand exista comenzi pending
   unsigned long now = millis();
   unsigned long intervalMs = (unsigned long)prefs.intervalSec * 1000UL;
 
-  if (now - lastProcessMs >= intervalMs) {
-    processZones();
-  }
-
-  // Procesare imediată la comenzi MQTT pending
-  if ((g_ethAvailable || g_wifiAvailable) && mqtt.hasPendingCommands()) {
+  if ((now - lastProcessMs >= intervalMs) ||
+      (g_wifiAvailable && mqtt.hasPendingCommands())) {
     processZones();
   }
 

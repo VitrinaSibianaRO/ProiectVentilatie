@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
+             x:Class="ProiectVentilatie.Mobile.Views.CamerasPage"
+             x:DataType="vm:CamerasViewModel"
+             BackgroundColor="{StaticResource BackgroundColor}"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <converters:NetworkScopeToColorConverter x:Key="ScopeToColor" />
+        <converters:InverseBoolConverter x:Key="InverseBool" />
+
+        <!-- Template tile camera -->
+        <DataTemplate x:Key="CameraTileTemplate" x:DataType="vm:StreamCellViewModel">
+            <Grid RowDefinitions="*,Auto" Margin="3">
+                <Border StrokeShape="RoundRectangle 10"
+                        Stroke="#2000e6ff"
+                        StrokeThickness="1"
+                        BackgroundColor="#0D111C"
+                        Padding="0">
+                    <Grid>
+                        <!-- Video surface -->
+                        <ContentView x:Name="VideoContainer"
+                                     Content="{Binding PlayerView}"
+                                     BackgroundColor="Black" />
+
+                        <!-- Buffering overlay -->
+                        <Grid IsVisible="{Binding IsBuffering}" BackgroundColor="#AA000010">
+                            <ActivityIndicator IsRunning="{Binding IsBuffering}"
+                                              Color="{StaticResource PrimaryCyan}"
+                                              HorizontalOptions="Center" VerticalOptions="Center" />
+                        </Grid>
+
+                        <!-- Error overlay -->
+                        <Grid IsVisible="{Binding LastError, Converter={StaticResource StringNotNullConverter}}"
+                              BackgroundColor="#AA200000">
+                            <Label Text="{Binding LastError}"
+                                   TextColor="#FF4444" FontSize="10"
+                                   HorizontalOptions="Center" VerticalOptions="Center"
+                                   HorizontalTextAlignment="Center"
+                                   Margin="8" Style="{StaticResource LabelRajdhani}" />
+                        </Grid>
+
+                        <!-- Tap pentru fullscreen -->
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer Tapped="OnTileTapped" />
+                        </Grid.GestureRecognizers>
+                    </Grid>
+                </Border>
+
+                <!-- Overlay jos: nume + badge -->
+                <HorizontalStackLayout Grid.Row="1" Spacing="6" Padding="4,2">
+                    <BoxView WidthRequest="8" HeightRequest="8"
+                             CornerRadius="4" VerticalOptions="Center"
+                             Color="{Binding ActiveScope, Converter={StaticResource ScopeToColor}}" />
+                    <Label Text="{Binding Name}" FontSize="10"
+                           Style="{StaticResource LabelRajdhani}"
+                           TextColor="#AACCFF" VerticalOptions="Center" />
+                    <Label Text="REC" FontSize="9" TextColor="Red"
+                           IsVisible="{Binding IsRecording}"
+                           Style="{StaticResource LabelRajdhani}" VerticalOptions="Center" />
+                </HorizontalStackLayout>
+            </Grid>
+        </DataTemplate>
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
+
+        <!-- Scanline -->
+        <controls:ScanLineView Grid.RowSpan="3" InputTransparent="True" ZIndex="100" />
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Padding="14,46,14,8" ColumnDefinitions="*,Auto,Auto">
+            <VerticalStackLayout Grid.Column="0">
+                <Label Text="CAMERE LIVE" FontSize="10" CharacterSpacing="3" Opacity="0.4"
+                       Style="{StaticResource LabelRajdhani}" />
+                <Label Text="{Binding Cameras.Count, StringFormat='{0} camere'}"
+                       FontSize="18" FontAttributes="Bold"
+                       Style="{StaticResource LabelRajdhani}"
+                       TextColor="{StaticResource PrimaryCyan}" />
+            </VerticalStackLayout>
+
+            <!-- Refresh button -->
+            <Border Grid.Column="1" Margin="4,0"
+                    Padding="10,6" StrokeShape="RoundRectangle 8"
+                    Stroke="#2000e6ff" BackgroundColor="#0D111C">
+                <Label Text="↻" FontSize="18" TextColor="{StaticResource PrimaryCyan}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding LoadCamerasCommand}" />
+                </Border.GestureRecognizers>
+            </Border>
+
+            <!-- Settings cameras button -->
+            <Border Grid.Column="2"
+                    Padding="10,6" StrokeShape="RoundRectangle 8"
+                    Stroke="#2000e6ff" BackgroundColor="#0D111C">
+                <Label Text="⚙" FontSize="18" TextColor="{StaticResource PrimaryCyan}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnOpenSettingsTapped" />
+                </Border.GestureRecognizers>
+            </Border>
+        </Grid>
+
+        <!-- Loading -->
+        <ActivityIndicator Grid.Row="1"
+                           IsRunning="{Binding IsLoading}"
+                           IsVisible="{Binding IsLoading}"
+                           Color="{StaticResource PrimaryCyan}"
+                           HorizontalOptions="Center" VerticalOptions="Center" />
+
+        <!-- Empty state -->
+        <VerticalStackLayout Grid.Row="1"
+                             IsVisible="{Binding HasNoCameras}"
+                             HorizontalOptions="Center" VerticalOptions="Center"
+                             Spacing="12" Padding="24">
+            <Label Text="NICIO CAMERA CONFIGURATA" FontSize="12"
+                   CharacterSpacing="2" HorizontalOptions="Center"
+                   Style="{StaticResource LabelRajdhani}" Opacity="0.4" />
+            <Label Text="Adauga camere din Settings → IMOU Cloud" FontSize="13"
+                   HorizontalOptions="Center" TextColor="{StaticResource PrimaryCyan}"
+                   Style="{StaticResource LabelRajdhani}" />
+            <Border Padding="16,8" StrokeShape="RoundRectangle 10"
+                    Stroke="{StaticResource PrimaryCyan}" BackgroundColor="#0D111C">
+                <Label Text="DESCHIDE SETTINGS" FontSize="12" CharacterSpacing="1.5"
+                       TextColor="{StaticResource PrimaryCyan}"
+                       Style="{StaticResource LabelRajdhani}" HorizontalOptions="Center" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnOpenSettingsTapped" />
+                </Border.GestureRecognizers>
+            </Border>
+        </VerticalStackLayout>
+
+        <!-- Grid camere -->
+        <CollectionView Grid.Row="1"
+                        x:Name="CamerasCollection"
+                        ItemsSource="{Binding Cameras}"
+                        ItemTemplate="{StaticResource CameraTileTemplate}"
+                        IsVisible="{Binding HasNoCameras, Converter={StaticResource InverseBool}}"
+                        Scrolled="OnCollectionScrolled">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout x:Name="GridLayout"
+                                 Orientation="Vertical"
+                                 Span="{Binding GridSpan}"
+                                 HorizontalItemSpacing="0"
+                                 VerticalItemSpacing="0" />
+            </CollectionView.ItemsLayout>
+        </CollectionView>
+
+        <!-- Nav bar -->
+        <controls:FloatingNavBar Grid.Row="2"
+                                 CurrentPage="Camere"
+                                 VerticalOptions="End" />
+    </Grid>
+</ContentPage>

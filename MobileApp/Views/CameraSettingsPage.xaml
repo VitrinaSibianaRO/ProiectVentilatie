@@ -1,0 +1,282 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             xmlns:models="clr-namespace:ProiectVentilatie.Mobile.Models"
+             xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
+             x:Class="ProiectVentilatie.Mobile.Views.CameraSettingsPage"
+             x:DataType="vm:CameraSettingsViewModel"
+             BackgroundColor="{StaticResource BackgroundColor}"
+             Shell.NavBarIsVisible="False"
+             Title="Setari Camere">
+
+    <ContentPage.Resources>
+        <converters:InverseBoolConverter x:Key="InverseBool" />
+        <converters:StringNotNullConverter x:Key="StringNotNull" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="Auto,*">
+
+        <!-- Header -->
+        <Grid Grid.Row="0" Padding="14,52,14,8" ColumnDefinitions="Auto,*">
+            <Border Grid.Column="0" Padding="10,6" Margin="0,0,10,0"
+                    StrokeShape="RoundRectangle 8"
+                    Stroke="#2000e6ff" BackgroundColor="#0D111C">
+                <Label Text="← INAPOI" FontSize="12" TextColor="{StaticResource PrimaryCyan}"
+                       Style="{StaticResource LabelRajdhani}" />
+                <Border.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnBackTapped" />
+                </Border.GestureRecognizers>
+            </Border>
+            <Label Grid.Column="1" Text="SETARI CAMERE" FontSize="11" CharacterSpacing="3"
+                   VerticalOptions="Center" Opacity="0.6"
+                   Style="{StaticResource LabelRajdhani}" />
+        </Grid>
+
+        <ScrollView Grid.Row="1">
+            <VerticalStackLayout Padding="14,0,14,100" Spacing="14">
+
+                <!-- Status message -->
+                <Border IsVisible="{Binding StatusMessage, Converter={StaticResource StringNotNull}}"
+                        Padding="12,8" StrokeShape="RoundRectangle 8"
+                        StrokeThickness="1">
+                    <Border.Triggers>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsError}" Value="True">
+                            <Setter Property="BackgroundColor" Value="#1AFF3030" />
+                            <Setter Property="Stroke" Value="#55FF3030" />
+                        </DataTrigger>
+                        <DataTrigger TargetType="Border" Binding="{Binding IsError}" Value="False">
+                            <Setter Property="BackgroundColor" Value="#1A00FF80" />
+                            <Setter Property="Stroke" Value="#5500FF80" />
+                        </DataTrigger>
+                    </Border.Triggers>
+                    <Label Text="{Binding StatusMessage}" FontSize="12"
+                           Style="{StaticResource LabelRajdhani}" />
+                </Border>
+
+                <!-- Section: IMOU Cloud Credentials -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="IMOU CLOUD CREDENTIALS" FontSize="9" CharacterSpacing="2"
+                               Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+
+                        <Label Text="App ID" FontSize="10" Opacity="0.6"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <Border Padding="10,8" StrokeShape="RoundRectangle 6"
+                                Stroke="#3000e6ff" BackgroundColor="#08111C">
+                            <Entry x:Name="AppIdEntry" Text="{Binding AppId}"
+                                   Placeholder="Introdu AppId" PlaceholderColor="#44CCFF"
+                                   TextColor="White" BackgroundColor="Transparent"
+                                   FontFamily="Rajdhani" FontSize="14" />
+                        </Border>
+
+                        <Label Text="App Secret" FontSize="10" Opacity="0.6"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <Border Padding="10,8" StrokeShape="RoundRectangle 6"
+                                Stroke="#3000e6ff" BackgroundColor="#08111C">
+                            <Entry Text="{Binding AppSecret}" IsPassword="True"
+                                   Placeholder="Introdu AppSecret" PlaceholderColor="#44CCFF"
+                                   TextColor="White" BackgroundColor="Transparent"
+                                   FontFamily="Rajdhani" FontSize="14" />
+                        </Border>
+
+                        <Label Text="Region" FontSize="10" Opacity="0.6"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <Picker SelectedItem="{Binding Region}" TextColor="White"
+                                BackgroundColor="#08111C" FontFamily="Rajdhani">
+                            <Picker.Items>
+                                <x:String>eu</x:String>
+                                <x:String>us</x:String>
+                                <x:String>ap</x:String>
+                            </Picker.Items>
+                        </Picker>
+
+                        <Label Text="{Binding TokenStatus, StringFormat='Token: {0}'}"
+                               FontSize="10" Opacity="0.5"
+                               Style="{StaticResource LabelRajdhani}" />
+
+                        <Border Padding="14,10" StrokeShape="RoundRectangle 8"
+                                Stroke="{StaticResource PrimaryCyan}" BackgroundColor="#0D1A2A"
+                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                            <Label Text="SALVEAZA SI TESTEAZA CONEXIUNEA" FontSize="11"
+                                   CharacterSpacing="1.5" HorizontalOptions="Center"
+                                   TextColor="{StaticResource PrimaryCyan}"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <Border.GestureRecognizers>
+                                <TapGestureRecognizer Command="{Binding SaveCredentialsCommand}" />
+                            </Border.GestureRecognizers>
+                        </Border>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Section: Camere -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <Label Text="CAMERE CONFIGURATE" FontSize="9" CharacterSpacing="2"
+                               Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+
+                        <!-- Action buttons -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
+                            <Border Grid.Column="0" Padding="10,8" StrokeShape="RoundRectangle 8"
+                                    Stroke="{StaticResource PrimaryCyan}" BackgroundColor="#0D1A2A"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                                <Label Text="IMPORTA DIN CLOUD" FontSize="10" CharacterSpacing="1"
+                                       HorizontalOptions="Center" TextColor="{StaticResource PrimaryCyan}"
+                                       Style="{StaticResource LabelRajdhani}" />
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding DiscoverCamerasCommand}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                            <Border Grid.Column="1" Padding="10,8" StrokeShape="RoundRectangle 8"
+                                    Stroke="#3000e6ff" BackgroundColor="#0D111C"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBool}}">
+                                <Label Text="ACTUALIZEAZA IP-URI" FontSize="10" CharacterSpacing="1"
+                                       HorizontalOptions="Center" Opacity="0.7"
+                                       Style="{StaticResource LabelRajdhani}" />
+                                <Border.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding RefreshIpsCommand}" />
+                                </Border.GestureRecognizers>
+                            </Border>
+                        </Grid>
+
+                        <!-- Camera list -->
+                        <CollectionView ItemsSource="{Binding Cameras}" SelectionMode="None">
+                            <CollectionView.ItemTemplate>
+                                <DataTemplate x:DataType="models:CameraConfig">
+                                    <Border Margin="0,4" Padding="12,10"
+                                            StrokeShape="RoundRectangle 8"
+                                            Stroke="#2000e6ff" BackgroundColor="#08111C">
+                                        <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto">
+                                            <Label Grid.Column="0" Grid.Row="0"
+                                                   Text="{Binding Name}" FontSize="14" FontAttributes="Bold"
+                                                   TextColor="{StaticResource PrimaryCyan}"
+                                                   Style="{StaticResource LabelRajdhani}" />
+                                            <Label Grid.Column="0" Grid.Row="1"
+                                                   Text="{Binding LocalIp, StringFormat='IP: {0}'}"
+                                                   FontSize="10" Opacity="0.5"
+                                                   Style="{StaticResource LabelRajdhani}" />
+                                            <HorizontalStackLayout Grid.Column="1" Grid.RowSpan="2"
+                                                                   VerticalOptions="Center" Spacing="8">
+                                                <Border Padding="8,4" StrokeShape="RoundRectangle 6"
+                                                        Stroke="#3000e6ff" BackgroundColor="#0D111C">
+                                                    <Label Text="EDITEAZA" FontSize="9" Opacity="0.7"
+                                                           Style="{StaticResource LabelRajdhani}" />
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnEditCameraTapped"
+                                                                              CommandParameter="{Binding .}" />
+                                                    </Border.GestureRecognizers>
+                                                </Border>
+                                                <Border Padding="8,4" StrokeShape="RoundRectangle 6"
+                                                        Stroke="#55FF3030" BackgroundColor="#1AFF0000">
+                                                    <Label Text="STERGE" FontSize="9" TextColor="#FF5555"
+                                                           Style="{StaticResource LabelRajdhani}" />
+                                                    <Border.GestureRecognizers>
+                                                        <TapGestureRecognizer Tapped="OnDeleteCameraTapped"
+                                                                              CommandParameter="{Binding .}" />
+                                                    </Border.GestureRecognizers>
+                                                </Border>
+                                            </HorizontalStackLayout>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </CollectionView.ItemTemplate>
+                        </CollectionView>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- Discovery popup overlay -->
+                <Grid IsVisible="{Binding IsDiscovering}"
+                      BackgroundColor="#EE000011"
+                      ZIndex="200">
+                    <Border Margin="0,20" Padding="14"
+                            StrokeShape="RoundRectangle 14"
+                            Stroke="#4400e6ff" BackgroundColor="#0D111C">
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="CAMERE GASITE IN CONTUL IMOU" FontSize="9"
+                                   CharacterSpacing="2" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+
+                            <CollectionView ItemsSource="{Binding DiscoveredItems}"
+                                            HeightRequest="300">
+                                <CollectionView.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:DiscoveryItemVm">
+                                        <Border Margin="0,4" Padding="10,8"
+                                                StrokeShape="RoundRectangle 8"
+                                                Stroke="#2000e6ff" BackgroundColor="#08111C">
+                                            <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="Auto,*"
+                                                  ColumnSpacing="10" RowSpacing="4">
+                                                <CheckBox Grid.Column="0" Grid.RowSpan="3"
+                                                          IsChecked="{Binding IsSelected}"
+                                                          VerticalOptions="Center"
+                                                          Color="{StaticResource PrimaryCyan}" />
+                                                <HorizontalStackLayout Grid.Column="1" Grid.Row="0" Spacing="8">
+                                                    <Label Text="{Binding Device.Name}" FontSize="13"
+                                                           TextColor="{StaticResource PrimaryCyan}"
+                                                           Style="{StaticResource LabelRajdhani}" />
+                                                    <Label Text="{Binding StatusBadge}" FontSize="9"
+                                                           Opacity="0.6" VerticalOptions="Center"
+                                                           Style="{StaticResource LabelRajdhani}" />
+                                                </HorizontalStackLayout>
+                                                <Label Grid.Column="1" Grid.Row="1"
+                                                       Text="{Binding IpText}" FontSize="10"
+                                                       Opacity="0.5" Style="{StaticResource LabelRajdhani}" />
+
+                                                <!-- Inputs pentru import -->
+                                                <VerticalStackLayout Grid.Column="1" Grid.Row="2"
+                                                                     Spacing="4"
+                                                                     IsVisible="{Binding IsSelected}">
+                                                    <Border Padding="8,4" StrokeShape="RoundRectangle 5"
+                                                            Stroke="#2200e6ff" BackgroundColor="Transparent">
+                                                        <Entry Text="{Binding CustomName}"
+                                                               Placeholder="Nume camera (custom)"
+                                                               PlaceholderColor="#44CCFF"
+                                                               TextColor="White" FontSize="12"
+                                                               FontFamily="Rajdhani"
+                                                               BackgroundColor="Transparent" />
+                                                    </Border>
+                                                    <Border Padding="8,4" StrokeShape="RoundRectangle 5"
+                                                            Stroke="#2200e6ff" BackgroundColor="Transparent">
+                                                        <Entry Text="{Binding SafetyCode}"
+                                                               Placeholder="Safety code (eticheta camera)"
+                                                               PlaceholderColor="#44CCFF"
+                                                               TextColor="White" FontSize="12"
+                                                               FontFamily="Rajdhani"
+                                                               IsPassword="True"
+                                                               BackgroundColor="Transparent" />
+                                                    </Border>
+                                                </VerticalStackLayout>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </CollectionView.ItemTemplate>
+                            </CollectionView>
+
+                            <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                                <Border Grid.Column="0" Padding="12,10"
+                                        StrokeShape="RoundRectangle 8"
+                                        Stroke="#3000e6ff" BackgroundColor="#0D111C">
+                                    <Label Text="ANULEAZA" FontSize="11" HorizontalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding CancelDiscoveryCommand}" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                                <Border Grid.Column="1" Padding="12,10"
+                                        StrokeShape="RoundRectangle 8"
+                                        Stroke="{StaticResource PrimaryCyan}" BackgroundColor="#0D1A2A">
+                                    <Label Text="IMPORTA" FontSize="11" HorizontalOptions="Center"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer Command="{Binding ImportSelectedCommand}" />
+                                    </Border.GestureRecognizers>
+                                </Border>
+                            </Grid>
+                        </VerticalStackLayout>
+                    </Border>
+                </Grid>
+
+            </VerticalStackLayout>
+        </ScrollView>
+    </Grid>
+</ContentPage>

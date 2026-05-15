@@ -13,7 +13,6 @@
 #include <Arduino.h>
 #include <Wire.h>
 #include <WiFi.h>
-#include <esp_ota_ops.h>
 #include <freertos/FreeRTOS.h>
 #include <freertos/semphr.h>
 #include <esp_memory_utils.h>
@@ -28,7 +27,6 @@
 #include "SlaveResilience.h"
 #include "LedController.h"
 #include "UartProtocol.h"
-#include "OtaReceiver.h"
 #include "CommandDispatcher.h"
 
 // ============================================================
@@ -39,8 +37,7 @@ namespace {
     SystemLED         g_led(LED_PIN, LED_ENABLE_PIN, LED_COUNT);
     LedController     g_ledCtrl;
     UartProtocol      g_uart(Serial1);
-    OtaReceiver       g_ota(Serial1);
-    CommandDispatcher g_dispatcher(g_sensor, g_uart, g_led, g_ledCtrl, g_ota);
+    CommandDispatcher g_dispatcher(g_sensor, g_uart, g_led, g_ledCtrl);
 }
 
 // ============================================================
@@ -66,9 +63,6 @@ void setup() {
         ret = nvs_flash_init();
     }
     if (ret != ESP_OK) LOG_ERROR("NVS init failed!");
-
-    // OTA rollback protection
-    esp_ota_mark_app_valid_cancel_rollback();
 
     // 3. Oprim radio WiFi — economie ~80mA + zero interferenta.
     WiFi.mode(WIFI_OFF);

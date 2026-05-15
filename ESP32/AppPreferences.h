@@ -20,9 +20,6 @@ public:
     int     intervalSec;
     bool    overrideLeft;
     bool    overrideRight;
-    unsigned long overrideLeftSetAt;   // millis() când a fost setat
-    unsigned long overrideRightSetAt;
-    int     overrideTimeoutMin;
 
     void begin() {
         _prefs.begin(NVS_PREFS_NAMESPACE, false);
@@ -37,10 +34,6 @@ public:
         intervalSec         = _prefs.getInt  ("intervalSec",  DEFAULT_INTERVAL_SEC);
         overrideLeft        = _prefs.getBool ("ovrLeft",      false);
         overrideRight       = _prefs.getBool ("ovrRight",     false);
-        overrideTimeoutMin  = _prefs.getInt  ("ovrTimeout",   DEFAULT_OVERRIDE_TIMEOUT_MIN);
-        // millis() nu supraviețuiește reboot-ului, deci resetăm timestamp-urile
-        overrideLeftSetAt   = overrideLeft  ? millis() : 0;
-        overrideRightSetAt  = overrideRight ? millis() : 0;
         _validateOrFallback();
     }
 
@@ -87,43 +80,12 @@ public:
 
     void saveOverrideLeft(bool v) {
         overrideLeft = v;
-        overrideLeftSetAt = v ? millis() : 0;
         _prefs.putBool("ovrLeft", v);
     }
 
     void saveOverrideRight(bool v) {
         overrideRight = v;
-        overrideRightSetAt = v ? millis() : 0;
         _prefs.putBool("ovrRight", v);
-    }
-
-    void saveOverrideTimeout(int minutes) {
-        overrideTimeoutMin = minutes;
-        _prefs.putInt("ovrTimeout", minutes);
-    }
-
-    // Verifică dacă un override a expirat și îl șterge dacă da.
-    // Returnează true dacă starea s-a schimbat (pentru a forta republish state MQTT).
-    bool tickOverrideExpiry() {
-        bool changed = false;
-        unsigned long nowMs = millis();
-        unsigned long limitMs = (unsigned long)overrideTimeoutMin * 60UL * 1000UL;
-
-        if (overrideLeft && overrideLeftSetAt > 0) {
-            if (nowMs - overrideLeftSetAt >= limitMs) {
-                saveOverrideLeft(false);
-                Serial.println("[Override] Zona STANGA: timeout expirat, override anulat.");
-                changed = true;
-            }
-        }
-        if (overrideRight && overrideRightSetAt > 0) {
-            if (nowMs - overrideRightSetAt >= limitMs) {
-                saveOverrideRight(false);
-                Serial.println("[Override] Zona DREAPTA: timeout expirat, override anulat.");
-                changed = true;
-            }
-        }
-        return changed;
     }
 
     void resetToDefaults() {
@@ -135,9 +97,6 @@ public:
         intervalSec        = DEFAULT_INTERVAL_SEC;
         overrideLeft       = false;
         overrideRight      = false;
-        overrideLeftSetAt  = 0;
-        overrideRightSetAt = 0;
-        overrideTimeoutMin = DEFAULT_OVERRIDE_TIMEOUT_MIN;
         // Re-salvăm explicit ca NVS să fie consistent
         _prefs.putFloat("tempThresh",  tempThresh);
         _prefs.putFloat("humThresh",   humThresh);
@@ -146,7 +105,7 @@ public:
         _prefs.putInt  ("intervalSec", intervalSec);
         _prefs.putBool ("ovrLeft",     false);
         _prefs.putBool ("ovrRight",    false);
-        _prefs.putInt  ("ovrTimeout",  overrideTimeoutMin);
+        _prefs.remove  ("ovrTimeout");  // cleanup legacy key dupa upgrade firmware
         Serial.println("[Prefs] Reset la valorile default.");
     }
 

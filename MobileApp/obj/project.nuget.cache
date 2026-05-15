@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "FuWjZyEiY58=",
+  "dgSpecHash": "j1Byw67Qm8I=",
   "success": true,
   "projectFilePath": "/mnt/81d17934-0657-41a6-8caf-5075bc128310/dev/ProiectVentilatie/MobileApp/ProiectVentilatie.Mobile.csproj",
   "expectedPackageFiles": [
@@ -9,6 +9,9 @@
     "/home/ovidiu/.nuget/packages/communitytoolkit.mvvm/8.2.2/communitytoolkit.mvvm.8.2.2.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/googlegson/2.13.1.1/googlegson.2.13.1.1.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/hivemqtt/0.9.0/hivemqtt.0.9.0.nupkg.sha512",
+    "/home/ovidiu/.nuget/packages/libvlcsharp/3.9.7.1/libvlcsharp.3.9.7.1.nupkg.sha512",
+    "/home/ovidiu/.nuget/packages/libvlcsharp.android.awindowmodern/3.9.7.1/libvlcsharp.android.awindowmodern.3.9.7.1.nupkg.sha512",
+    "/home/ovidiu/.nuget/packages/libvlcsharp.maui/3.9.7.1/libvlcsharp.maui.3.9.7.1.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/microsoft.extensions.configuration/10.0.0/microsoft.extensions.configuration.10.0.0.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/microsoft.extensions.configuration.abstractions/10.0.0/microsoft.extensions.configuration.abstractions.10.0.0.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/microsoft.extensions.configuration.binder/8.0.0/microsoft.extensions.configuration.binder.8.0.0.nupkg.sha512",
@@ -44,6 +47,7 @@
     "/home/ovidiu/.nuget/packages/skiasharp.views/3.116.1/skiasharp.views.3.116.1.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/skiasharp.views.maui.controls/3.116.1/skiasharp.views.maui.controls.3.116.1.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/skiasharp.views.maui.core/3.116.1/skiasharp.views.maui.core.3.116.1.nupkg.sha512",
+    "/home/ovidiu/.nuget/packages/videolan.libvlc.android/3.6.5/videolan.libvlc.android.3.6.5.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/xamarin.android.glide/4.16.0.14/xamarin.android.glide.4.16.0.14.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/xamarin.android.glide.annotations/4.16.0.14/xamarin.android.glide.annotations.4.16.0.14.nupkg.sha512",
     "/home/ovidiu/.nuget/packages/xamarin.android.glide.disklrucache/4.16.0.14/xamarin.android.glide.disklrucache.4.16.0.14.nupkg.sha512",

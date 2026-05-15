@@ -14,7 +14,6 @@ public:
     Active = 3,      // verde     — request reusit recent
     Idle = 4,        // oranj     — >2min fara request
     SensorFail = 5,  // rosu      — SHT30 nu raspunde
-    OtaProgress = 6, // albastru  — OTA in desfasurare
   };
 
   SystemLED(uint8_t dataPin, uint8_t enablePin, uint8_t count)
@@ -55,8 +54,6 @@ private:
       return 0xFF6000; // oranj inchis
     case Status::SensorFail:
       return 0xFF0000; // rosu
-    case Status::OtaProgress:
-      return 0x0000FF; // albastru
     case Status::Off:
     default:
       return 0x000000;

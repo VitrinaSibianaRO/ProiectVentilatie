@@ -1,136 +1,195 @@
-Ghid complet configurare Blynk
-Template: TMPL42ximIY6M — „Add agency"
-1. DATASTREAMS
-Mergi la Blynk Console → Templates → TMPL42ximIY6M → Datastreams.
+# Plan — Aliniere arhitectura ESP32 ↔ MAUI conform cerintelor
 
-Pin	Nume	Tip	Min	Max	Default	Unitate	Note
-V1	Temp Stânga	Double	-10	80	0	°C	Read-only
-V2	Umiditate Stânga	Double	0	100	0	%	Read-only
-V3	Temp Dreapta	Double	-10	80	0	°C	Read-only
-V4	Umiditate Dreapta	Double	0	100	0	%	Read-only
-V5	Vent Stânga	Integer	0	1	0	—	Bidirecțional RW
-V6	Vent Dreapta	Integer	0	1	0	—	Bidirecțional RW
-V7	Prag Temperatură	Double	20	80	45	°C	RW
-V8	Prag Umiditate	Double	20	100	60	%	RW
-V9	Interval Verificare	Integer	10	3600	300	s	RW
-V10	Reset Defaults	Integer	0	1	0	—	Push button
-V11	Marja Temperatură	Double	0	10	2	°C	RW
-V12	Marja Umiditate	Double	0	20	5	%	RW
-V20	Restart ESP32	Integer	0	1	0	—	Push button
-V21	Free Heap	Integer	0	520	0	KB	Read-only
-V22	Lock Owner	Integer	0	2	0	—	Read-only (0=none, 1=Blynk, 2=MQTT)
-V23	Firmware Build	Integer	0	9999	0	—	Read-only
-Setări critice pentru V5 și V6:
+## Context
 
-„Invalidate Value" = OFF
-„Sync with latest server value" = ON
-Asigură că nu au „Is Raw" bifat
-2. DASHBOARD — Web
-Mergi la Templates → Web Dashboard → Edit.
+Cerintele user-ului (decizii arhitecturale):
+1. **ESP32** = sursa de adevar pentru AUTOMATIZARE (praguri, histeresis, override, LED schedule salvate in NVS). Functioneaza independent de MAUI — confirmat (`VentilationZone::updateLogic()` ruleaza din `prefs`, fara dependinta MQTT).
+2. **ESP32 publica MQTT** = DOAR senzori + system info (uptime/heap/fw/lock/slave-status/led intensity). Configul (praguri, hyst, interval, LED schedule) NU mai apare in publish-ul periodic.
+3. **MAUI Settings UI** = sursa de adevar locala. Valorile raman la ce a setat user-ul, NU se suprascriu din MQTT.
+4. **MAUI Dashboard** = afiseaza senzori real-time + relee + system info din MQTT state.
+5. **Refresh button (Dashboard)** = trimite `cmd:refresh` la ESP32 + aplica LastState local imediat (zero flicker).
+6. **Startup** = subscribe la `ventilatie/state` (retained) — primeste imediat ultimii senzori publicati. Nu e nevoie de comanda explicita la pornire.
+7. **Niciodata MAUI nu trimite cmd config sau override automat.** Orice comanda care modifica state-ul ESP32 (setConfig, setLed, setLedSchedule, setOverride, reset, reboot, rebootSlave, update) se trimite EXCLUSIV la apasarea unui buton de catre user. Slidere/togle-uri ce modifica valori salveaza local in Preferences si seteaza `_dirty`; transmisia la ESP32 are loc doar pe Save. **Exceptie**: `cmd:refresh` (read-only, doar cere republish) — trimis la apasarea Refresh button din Dashboard sau System; respecta regula "user-triggered".
 
-Secțiunea SENZORI
-4 × Gauge sau Label widget:
+Problema actuala: `_publishStateNow()` din ESP32 include blocul `config` cu pragurile/hyst/interval + `led.schedEnabled`. MAUI `SettingsViewModel.OnStateReceived()` suprascrie UI-ul cu aceste valori, producand "revine la default" cand user-ul tocmai a editat ceva. Decuplam complet config-ul de stream-ul de stare.
 
-Gauge #1: V1 — „Temp Stânga" | Min -10, Max 80 | Color cyan
-Gauge #2: V2 — „Umid. Stânga" | Min 0, Max 100
-Gauge #3: V3 — „Temp Dreapta" | Min -10, Max 80
-Gauge #4: V4 — „Umid. Dreapta" | Min 0, Max 100
-Secțiunea CONTROL VENTILATOARE
-Switch #1 — „Vent Stânga":
+---
 
-Datastream: V5
-On Value: 1 | Off Value: 0
-Tip: Switch (toggle)
-Switch #2 — „Vent Dreapta":
+## Fisiere de modificat
 
-Datastream: V6
-On Value: 1 | Off Value: 0
-Secțiunea SETĂRI
-Slider — „Temp start vent" (V7):
+### ESP32 (Master)
 
-Min: 20 | Max: 80 | Step: 0.5 | Label: °C
-Slider — „Umid start vent" (V8):
+**[ESP32/MqttBridge.cpp](ESP32/MqttBridge.cpp)** — `_publishStateNow()` (liniile 323–393):
+- ELIMINA blocul `JsonObject cfg = doc["config"].to<JsonObject>()` cu `threshT, threshH, interval, ovrTimeout, hystT, hystH` (liniile 348–354)
+- ELIMINA `led["schedEnabled"] = ledSchedEnabled;` (linia 365). PASTREAZA `led["intensity"]` (read-only display in MAUI Dashboard).
+- Parametrul `bool ledSchedEnabled` din semnatura functiei: il pastram (apelantul tot il trimite, e simplu sa-l ignoram) sau il scoatem. Pastrarea = modificare minima.
+- PASTREAZA: `left{temp,hum,relay,override,errs}`, `right{temp,hum,relay,override,errs,failsafe}`, `slave{online,errors,lastSeen}`, `led{intensity}`, `lock{owner,ageMs}` (omis cand fara lock), `fw`, `uptimeSec`, `heap`.
 
-Min: 20 | Max: 100 | Step: 1 | Label: %
-Slider — „Interval verificare" (V9):
+`publishStateIfNeeded()` (linia 285) si conditiile de publish (heartbeat / relayChanged / `_publishNow`) raman neschimbate.
+Topicurile `/diag`, `/event`, `/log` raman neschimbate.
+Toate comenzile MQTT acceptate (setOverride, setConfig, setLed, setLedSchedule, refresh, reset, reboot, rebootSlave, getLog) raman functionale — ESP32 continua sa execute + sa salveze in NVS.
 
-Min: 10 | Max: 3600 | Step: 10 | Label: s
-Slider — „Marja temp" (V11):
+### MAUI
 
-Min: 0 | Max: 10 | Step: 0.5 | Label: °C
-Slider — „Marja umiditate" (V12):
+**[MobileApp/Models/VentilationState.cs](MobileApp/Models/VentilationState.cs)**:
+- `Config` proprietate (linia 17–18) → marcata cu `[JsonIgnore]` SAU stergi `ConfigState` din model. Aleg `[JsonIgnore]` pentru a evita ripple-effect in alte fisiere care eventual mai referentiaza tipul (verificare: doar SettingsViewModel.cs il foloseste).
+- `LedState.SchedEnabled` (linia 92–93) → ramane pentru deserializare safe in cazul in care firmware vechi inca publica (default false). Nu mai e citita.
 
-Min: 0 | Max: 20 | Step: 1 | Label: %
-Secțiunea SISTEM
-Button — „Reset Defaults" (V10):
+**[MobileApp/ViewModels/SettingsViewModel.cs](MobileApp/ViewModels/SettingsViewModel.cs)** — refactor:
 
-Mode: Push (nu Toggle!)
-On Value: 1 | Off Value: 0
-Button — „Restart ESP32" (V20):
+**Eliminari (decuplare de MQTT state):**
+- ELIMINA `_mqttService.OnStateReceived += OnStateReceived;` (linia 54)
+- ELIMINA blocul `if (_mqttService.LastState != null) OnStateReceived(_mqttService.LastState);` (liniile 75–76)
+- ELIMINA metoda `OnStateReceived(VentilationState state)` (liniile 79–114) complet
+- ELIMINA campurile: `_lastReceivedConfig` (linia 11), `_lastReceivedLedIntensity` (linia 22), `_lastReceivedSchedEnabled` (linia 29)
+- ELIMINA `_mqttService.OnStateReceived -= OnStateReceived;` din `Dispose()` (linia 290)
 
-Mode: Push
-On Value: 1 | Off Value: 0
-Label — „Free Heap" (V21): afișează {/v21} KB
+**Decuplare auto-send (LED intensity):**
+- ELIMINA campul `_ledDebounceCts` (linia 130)
+- `OnLedIntensityChanged()` (liniile 132–156) → rescris simplu:
+  ```csharp
+  partial void OnLedIntensityChanged(int value)
+  {
+      Preferences.Set(PrefLedIntensity, value);   // persist local imediat (acelasi pattern ca celelalte handlere LED)
+      _ledIntensityDirty = true;
+      RecomputeHasChanges();
+  }
+  ```
+  **NU mai trimite `cmd:setLed` automat** — devine parte din Save.
 
-Label — „Lock Owner" (V22): afișează {/v22} (0/1/2)
+**Dirty flags (inlocuiesc comparatia cu _lastReceivedConfig):**
+- Introduce `private bool _threshDirty;` (pentru praguri+hyst+interval)
+- Introduce `private bool _ledIntensityDirty;` (pentru sliderul LED intensity)
+- Pastreaza `_ledScheduleDirty` (deja exista, linia 30) — pentru onTime/offTime/maxI/enabled
+- Handler-ele praguri (liniile 123–127) — actualmente expression-bodied (`=> RecomputeHasChanges();`), trebuie convertite la block-body:
+  ```csharp
+  partial void OnTempThresholdChanged(float value)  { _threshDirty = true; RecomputeHasChanges(); }
+  partial void OnHumThresholdChanged(float value)   { _threshDirty = true; RecomputeHasChanges(); }
+  partial void OnIntervalSecChanged(int value)      { _threshDirty = true; RecomputeHasChanges(); }
+  partial void OnTempHysteresisChanged(float value) { _threshDirty = true; RecomputeHasChanges(); }
+  partial void OnHumHysteresisChanged(float value)  { _threshDirty = true; RecomputeHasChanges(); }
+  ```
+  Note intentional: persistenta Preferences pentru praguri ramane in `SaveAsync` (NU se salveaza in handler) — pragurile sunt commit-on-save. Slidere/togle-uri LED (intensity + onTime/offTime/maxI) salveaza imediat in Preferences pentru a pastra pozitia sliderului la navigare; ESP32 le primeste tot la Save.
+- Handler-ele LED schedule (liniile 158–185) → ramane `_ledScheduleDirty = true;` (deja face asta)
 
-Label — „Firmware Build" (V23): afișează #{/v23}
+**RecomputeHasChanges() (liniile 187–202) — simplificare:**
+```csharp
+private void RecomputeHasChanges()
+{
+    HasChanges = _threshDirty || _ledIntensityDirty || _ledScheduleDirty;
+    SaveCommand.NotifyCanExecuteChanged();
+}
+```
 
-3. DASHBOARD — Mobile (Blynk App)
-Același layout, adaptate pentru mobile. Ordinea recomandată:
+**SaveAsync() (liniile 221–267) — rescris cu trimitere conditionata:**
+```csharp
+[RelayCommand(CanExecute = nameof(CanSave))]
+private async Task SaveAsync()
+{
+    StatusMessage = "Trimit...";
+    StatusColor = Colors.Orange;
 
+    if (_threshDirty)
+    {
+        Preferences.Set(PrefThreshT,  TempThreshold);
+        Preferences.Set(PrefThreshH,  HumThreshold);
+        Preferences.Set(PrefInterval, IntervalSec);
+        Preferences.Set(PrefHystT,    TempHysteresis);
+        Preferences.Set(PrefHystH,    HumHysteresis);
+        await _mqttService.SendCommandAsync(new {
+            cmd = "setConfig", threshT = TempThreshold, threshH = HumThreshold,
+            interval = IntervalSec, hystT = TempHysteresis, hystH = HumHysteresis
+        });
+        _threshDirty = false;
+    }
 
-[Temp S: xx°C]  [Umid S: xx%]  [Temp D: xx°C]  [Umid D: xx%]
+    if (_ledScheduleDirty)
+    {
+        await _mqttService.SendCommandAsync(new {
+            cmd = "setLedSchedule",
+            onH = LedOnTime.Hours, onM = LedOnTime.Minutes,
+            offH = LedOffTime.Hours, offM = LedOffTime.Minutes,
+            maxI = LedMaxIntensity, enabled = LedScheduleEnabled
+        });
+        _ledScheduleDirty = false;
+    }
 
-[  VENT STÂNGA  ●/○  ]    [  VENT DREAPTA  ●/○  ]
+    if (_ledIntensityDirty)
+    {
+        await _mqttService.SendCommandAsync(new { cmd = "setLed", percent = LedIntensity });
+        _ledIntensityDirty = false;
+    }
 
-Temp start vent: ──●────  45.0°C
-Umid start vent: ──●────  60%
-Interval:        ──●────  300s
-Marja temp:      ──●────  2.0°C
-Marja umiditate: ──●────  5%
+    RecomputeHasChanges();
+    StatusMessage = "✓ Trimis";
+    StatusColor = Colors.LimeGreen;
+}
+```
 
-[RESET DEFAULTS]    [RESTART ESP32]
+**ResetDefaultsAsync() (liniile 269–286):**
+- Confirmat din `AppPreferences::resetToDefaults()` (ESP32) — reseteaza DOAR tempThresh/humThresh/tempHyst/humHyst/intervalSec + override. LED schedule e stocat separat (`LedConfigStorage`) si NU se reseteaza.
+- Dupa `cmd:reset`, scope-ul reset in MAUI = doar threshold-uri:
+  - Reseteaza Preferences `PrefThreshT, PrefThreshH, PrefInterval, PrefHystT, PrefHystH`
+  - Reseteaza UI props: `TempThreshold=45, HumThreshold=60, IntervalSec=300, TempHysteresis=2, HumHysteresis=5`
+  - Reseteaza `_threshDirty = false` (e in sync cu ESP32-NVS dupa reset)
+  - LED schedule + intensity raman neatinse — sunt independente de `cmd:reset`
 
-Free Heap: xxx KB  |  FW Build: #xxx  |  Lock: x
-4. EVENTS
-Mergi la Templates → Events → Add Event.
+**Simplificare IsLocked (Blynk eliminat):**
+- Campul `IsLocked` (linia 46) si `[ObservableProperty] private bool _isLocked;` — Blynk a fost eliminat din ESP32 (vezi `MqttBridge.cpp:171` "doar LOCK_MQTT acum (LOCK_BLYNK eliminat)"). MQTT lock-ul setat de ESP32 e doar pentru display Dashboard, NU pentru blocare comenzi.
+- Optiune A (minimal): pastreaza campul dar `IsLocked = false` mereu (nimic nu il mai seteaza dupa eliminarea OnStateReceived). `CanSave() => HasChanges && IsConnected` (drop `!IsLocked`).
+- Optiune B (curat): elimina complet `IsLocked` din ViewModel + binding XAML, simplifica `CanSave()`.
 
-Event Name	Code	Notificare
-Senzor eroare	sensor_error	Push ON
-Override expirat	override_expired	Push OFF
-Restart sistem	system_restart	Push ON
-Comandă respinsă	cmd_rejected	Push OFF
-5. CHECKLIST VERIFICARE
-După ce salvezi template-ul și faci Publish:
+**[MobileApp/ViewModels/DashboardViewModel.cs](MobileApp/ViewModels/DashboardViewModel.cs)** — `Refresh()` (linii curente cu doar LastState):
+- Modifica metoda Refresh inapoi la `async Task RefreshAsync()`:
+  ```csharp
+  [RelayCommand]
+  private async Task RefreshAsync()
+  {
+      if (_mqttService.LastState != null)
+          UpdateState(_mqttService.LastState);    // zero-flicker imediat din cache
+      await _mqttService.SendCommandAsync(new { cmd = "refresh" }); // fresh publish ESP32
+  }
+  ```
+- Acum e safe: Settings nu mai e abonat la state, deci publish-ul triggered de refresh NU mai afecteaza UI-ul Settings.
 
-Senzori vizibili: ESP32 conectat → V1/V2/V3/V4 se actualizează la fiecare interval
-Toggle Vent Stânga (V5): apasă ON → releul pornește → toggle rămâne ON; apasă OFF → revenire auto
-Reset Defaults: apasă butonul → ESP32 logează reset → sliderele V7/V8/V9/V11/V12 revin la valorile default (45°C / 60% / 300s / 2°C / 5%) → senzori continuă să se afișeze
-Marja temp (V11): mișcă la 3.0°C → ESP32 logează [Blynk] Hysteresis temp: 3.0°C
-Prag temp (V7): mișcă la 50°C → ESP32 confirmă → Android Settings reflectă 50°C
-6. NOTE IMPORTANTE
-Nu bifa „Is Raw" pe V5/V6 — altfel Blynk trimite valori brute și firmware-ul le poate ignora
-Butonele V10/V20 TREBUIE să fie mod „Push" nu „Toggle" — altfel rămân pe 1 și ESP32 face reset în buclă
-Sync la reconectare: firmware-ul trimite automat valorile curente la fiecare BLYNK_CONNECTED() — nu ai nevoie de „Sync" manual după repornire ESP32
-Lock owner (V22): dacă afișează 1 timp îndelungat înseamnă că lock-ul a rămas blocat pe Blynk — repornește ESP32
-pentru 1 datastreams vreau sa imi spui si ce widget sa folosesc la fiecare pin
-Datastreams + Widget recomandat pentru fiecare pin
-Pin	Nume	Tip datastream	Widget recomandat	Setări widget
-V1	Temp Stânga	Double, -10…80, °C	Gauge	Min -10, Max 80, color cyan
-V2	Umiditate Stânga	Double, 0…100, %	Gauge	Min 0, Max 100
-V3	Temp Dreapta	Double, -10…80, °C	Gauge	Min -10, Max 80, color cyan
-V4	Umiditate Dreapta	Double, 0…100, %	Gauge	Min 0, Max 100
-V5	Vent Stânga	Integer, 0…1	Switch	On=1, Off=0, mod Toggle
-V6	Vent Dreapta	Integer, 0…1	Switch	On=1, Off=0, mod Toggle
-V7	Prag Temperatură	Double, 20…80, °C	Slider	Step 0.5
-V8	Prag Umiditate	Double, 20…100, %	Slider	Step 1
-V9	Interval Verificare	Integer, 10…3600, s	Slider	Step 10
-V10	Reset Defaults	Integer, 0…1	Button	Mod Push, On=1, Off=0
-V11	Marja Temperatură	Double, 0…10, °C	Slider	Step 0.5
-V12	Marja Umiditate	Double, 0…20, %	Slider	Step 1
-V20	Restart ESP32	Integer, 0…1	Button	Mod Push, On=1, Off=0
-V21	Free Heap	Integer, 0…520, KB	Label	Format: {/v21} KB
-V22	Lock Owner	Integer, 0…2	Label	Format: {/v22}
-V23	Firmware Build	Integer, 0…9999	Label	Format: #{/v23}
-Cel mai important detaliu: V10 și V20 — mod Push, nu Toggle. Altfel ESP32 intră în reset/restart loop.
+**[MobileApp/ViewModels/SystemViewModel.cs](MobileApp/ViewModels/SystemViewModel.cs)** — **NU necesita modificari**:
+- `OnStateReceived` (liniile 112–123) citeste doar `Fw, UptimeSec, Heap, Left.Errs, Right.Errs` — toate sunt sensor/system, raman in noul publish.
+- `RefreshAsync` (linia 235) trimite deja `cmd:refresh` — ramane functional.
+- `ResetDefaultsAsync` (linia 241) — optional: la fel ca in SettingsViewModel, poate reseta si Preferences-urile MAUI dupa `cmd:reset` (consistency). Recomandat dar nu obligatoriu (Settings page e sursa primara).
+
+---
+
+## Comportament rezultat
+
+| Scenariu | Curent | Dupa modificare |
+|---|---|---|
+| User editeaza prag T in Settings, soseste state ESP32 | UI revine la valoarea ESP32 | UI ramane la valoarea user-ului |
+| Refresh in Dashboard | Doar LastState aplicat (no round-trip) | LastState aplicat + `cmd:refresh` la ESP32 → publish fresh; Settings neafectat |
+| User reinstaleaza MAUI | Settings UI populat din state ESP32 | Settings UI = default-uri din cod; user re-seteaza manual; automatizarea ESP32 continua nederanjata |
+| App pornit, ESP32 online | Retained state → Settings + Dashboard populate | Retained state → DOAR Dashboard populat (Settings = Preferences local) |
+| User: Settings → schimba interval → Save | `setConfig` trimis, asteapta echo pentru "confirmare" | `setConfig` trimis (la Save), UI afiseaza imediat "✓ Trimis" (QoS1 = livrat la broker) |
+| User misca slider LED intensity in Settings | `setLed` trimis automat dupa 300ms debounce (FARA buton) | NIMIC trimis. Valoarea salvata in Preferences local; setata `_dirty=true`. ESP32 primeste comanda doar la Save. |
+| Override din Dashboard (toggle button) | Trimite `setOverride`, ESP32 reflecta in state | Identic — buton apasat de user, comanda trimisa. Override e relay-state, ramane in publish. |
+| User: Settings → Reset Defaults | `cmd:reset` trimis, ESP32-NVS resetat (doar thresholds), MAUI-Preferences raman cu valori vechi | `cmd:reset` trimis + MAUI-Preferences reseteaza scope-ul corespunzator (doar thresholds, NU LED schedule) |
+| Reboot ESP32 (curent oprit) | Pragurile persista in NVS, MAUI primeste config in state si arata aceleasi valori | Pragurile persista in NVS (automatizare continua), MAUI nu mai afla via state — dar oricum are valorile in Preferences local |
+
+---
+
+## Verificare end-to-end
+
+1. **Build ESP32**: `cd ESP32 && ./build.sh` — fara erori, mesajul "[MQTT] State published (X bytes...)" arata X mai mic decat inainte (lipseste config block)
+2. **Build MAUI**: `cd MobileApp && dotnet build -f net10.0-android -c Debug` — 0 errors
+3. **Verificare JSON publicat** (optional, via mosquitto_sub sau MQTT Explorer pe `ventilatie/state`): payload-ul NU contine cheia `"config"` si nici `"led":{"schedEnabled":...}`
+4. **Test scenarii**:
+   - Conecteaza telefon → vezi senzori live in Dashboard (din retained state)
+   - Settings: schimba T threshold 45 → 50 → Save → revin pe Dashboard → revin pe Settings: **50 e pastrat** (anterior: revenea la 45)
+   - Refresh in Dashboard: senzori se updateaza (publish fresh ESP32), Settings neafectata
+   - Inchide app, redeschide: Settings UI arata 50 (din Preferences), Dashboard primeste retained state cu senzori actuali
+   - Reboot ESP32 (de la curent): la repornire, pragul 50 persista in NVS — verifica via Serial monitor (`[Prefs] tempThresh=50.0`)
+   - Settings → Reset Defaults → confirma → Settings UI revine la 45/60/300, ESP32 publica state cu relay-state actualizat (config nu mai apare)
+5. **Regresie**:
+   - Override left/right din Dashboard merge in continuare (override face parte din relay state)
+   - LED slider in Settings: misca-l fara sa apesi Save → MQTT inspect (mosquitto_sub pe `ventilatie/cmd`) NU arata `setLed` → apasi Save → `setLed` apare; valoarea se aplica pe slave (LED-ul fizic se schimba)
+   - System page → Reboot, Reboot Slave, OTA — toate trimit comenzile corecte (la buton)
+   - Senzorii continua sa fie actualizati in Dashboard la intervalul setat in Settings (default 300s) sau la apasarea Refresh
+6. **Verificare "no auto-send"**: in Settings, modifica fiecare parametru (T threshold, H threshold, interval, hystT, hystH, LED intensity, LED schedule on/off/maxI, schedule enabled), monitorizeaza `ventilatie/cmd` cu mosquitto_sub. Niciun mesaj nu trebuie sa apara pana la apasarea Save. Apoi Save → exact 1× `setConfig` + (daca aplicabil) 1× `setLedSchedule` + (daca aplicabil) 1× `setLed`.

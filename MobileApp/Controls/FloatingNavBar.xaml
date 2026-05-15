@@ -47,22 +47,22 @@
                 </Grid.GestureRecognizers>
             </Grid>
 
-            <!-- ===== DEVICES ===== -->
+            <!-- ===== CAMERE ===== -->
             <Grid Grid.Column="1" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
                 <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
                          Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
                          HorizontalOptions="Center" InputTransparent="True"
-                         IsVisible="{Binding IsDevicesActive, Source={x:Reference self}}" />
+                         IsVisible="{Binding IsCamerasActive, Source={x:Reference self}}" />
                 <Path Grid.Row="1"
-                      Data="M2,4 H22 V16 H2 Z M8,16 L6,20 H18 L16,16 M10,20 V22 H14"
-                      Fill="Transparent" StrokeThickness="2" InputTransparent="True"
+                      Data="M2,7 H6 L8,4 H16 L18,7 H22 V19 H2 Z M12,10 A4,4 0 1,1 12,18 A4,4 0 1,1 12,10"
+                      Fill="Transparent" StrokeThickness="1.8" InputTransparent="True"
                       HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
-                      Stroke="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
-                <Label Grid.Row="2" Text="Devices" FontSize="10" HorizontalOptions="Center" InputTransparent="True"
+                      Stroke="{Binding IsCamerasActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                <Label Grid.Row="2" Text="Camere" FontSize="10" HorizontalOptions="Center" InputTransparent="True"
                        Style="{StaticResource LabelRajdhani}"
-                       TextColor="{Binding IsDevicesActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                       TextColor="{Binding IsCamerasActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
                 <Grid.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="OnTapDevices" />
+                    <TapGestureRecognizer Tapped="OnTapCameras" />
                 </Grid.GestureRecognizers>
             </Grid>
 

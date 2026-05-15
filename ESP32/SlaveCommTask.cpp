@@ -48,13 +48,6 @@ static void taskFn(void* pvParams) {
     slaveDataRead(snap);
 
     for (;;) {
-        // Guard OTA: cat timp Master trimite firmware catre Slave, nu interfera cu Serial2.
-        if (g_otaInProgress) {
-            vTaskDelay(pdMS_TO_TICKS(500));
-            esp_task_wdt_reset();
-            continue;
-        }
-
         // --- Fetch senzor Slave ---
         float t = 0.0f, h = 0.0f;
         uint32_t slaveTs = 0;

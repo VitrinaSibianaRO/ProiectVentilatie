@@ -1,6 +1,6 @@
 // ============================================================
-//  MqttBridge.cpp — Ethernet + SSLClient + PubSubClient
-//  Comunicatie cu HiveMQ Cloud (TLS 8883) prin W5500.
+//  MqttBridge.cpp — WiFiClientSecure + PubSubClient
+//  Comunicatie cu HiveMQ Cloud (TLS 8883) prin WiFi.
 // ============================================================
 
 #include "MqttBridge.h"
@@ -11,14 +11,13 @@
 #include <ArduinoJson.h>
 
 // Definite in ESP32.ino — accesibile din .cpp via extern.
-extern bool g_ethAvailable;
 extern bool g_wifiAvailable;
 
 // Pointer static pentru rutare callback PubSubClient → instanță
 MqttBridge *MqttBridge::_instance = nullptr;
 
 MqttBridge::MqttBridge()
-    : _baseClient(nullptr), _sslClient(nullptr), _wifiSecureClient(nullptr),
+    : _wifiSecureClient(nullptr),
       _client(), _prefs(nullptr), _initialized(false), _lastReconnectMs(0),
       _backoffMs(MQTT_RECONNECT_INITIAL_MS), _lastPublishMs(0),
       _lastHeartbeatMs(0), _lockOwner(LOCK_NONE), _publishNow(false),
@@ -41,42 +40,20 @@ void MqttBridge::begin(AppPreferences *prefs) {
   _prefs = prefs;
   _instance = this;
 
-  // Cleanup transport anterior (poate fi re-apelat la comutare Eth↔WiFi).
+  // Cleanup transport anterior.
   if (_client.connected())
     _client.disconnect();
-  if (_sslClient) {
-    delete _sslClient;
-    _sslClient = nullptr;
-  }
-  if (_baseClient) {
-    delete _baseClient;
-    _baseClient = nullptr;
-  }
   if (_wifiSecureClient) {
     delete _wifiSecureClient;
     _wifiSecureClient = nullptr;
   }
 
-  // Ethernet are prioritate; WiFi e fallback.
-  if (g_ethAvailable) {
-    _baseClient = new EthernetClient();
-    _sslClient =
-        new SSLClient(*_baseClient, TrustAnchors, TrustAnchors_NUM, 34);
-    _client.setClient(*_sslClient);
-    Serial.println("[MQTT] Transport: Ethernet + SSLClient.");
-  } else {
-    // WiFiClientSecure nativ ESP32 — TLS hardware-accelerat
-    _wifiSecureClient = new WiFiClientSecure();
-    // Folosim setInsecure() pentru a evita erorile de tip rc=-2 (TLS handshake
-    // failure) cauzate de verificarea certificatelor, păstrând în același timp
-    // SNI activ.
-    _wifiSecureClient->setInsecure();
-    _wifiSecureClient->setHandshakeTimeout(30000); // 30s timeout
-
-    _client.setClient(*_wifiSecureClient);
-    Serial.println(
-        "[MQTT] Transport: WiFi + WiFiClientSecure (Insecure mode).");
-  }
+  // WiFiClientSecure nativ ESP32 — TLS hardware-accelerat
+  _wifiSecureClient = new WiFiClientSecure();
+  _wifiSecureClient->setInsecure();
+  _wifiSecureClient->setHandshakeTimeout(30000); // 30s timeout
+  _client.setClient(*_wifiSecureClient);
+  Serial.println("[MQTT] Transport: WiFi + WiFiClientSecure.");
 
   _client.setServer(MQTT_HOST, MQTT_PORT);
   _client.setBufferSize(MQTT_BUF_SIZE);
@@ -90,9 +67,6 @@ bool MqttBridge::connected() { return _initialized && _client.connected(); }
 
 void MqttBridge::loop() {
   if (!_initialized)
-    return;
-  // Daca folosim Ethernet, verificam link status
-  if (!g_wifiAvailable && Ethernet.linkStatus() != LinkON)
     return;
 
   if (!_client.connected()) {
@@ -134,8 +108,7 @@ bool MqttBridge::_connect() {
     return false;
   }
 
-  Serial.printf("[MQTT] Connecting to HiveMQ via %s... ",
-                g_ethAvailable ? "Ethernet" : "WiFi");
+  Serial.print("[MQTT] Connecting to HiveMQ via WiFi... ");
 
   char clientId[32];
   uint64_t chipId = ESP.getEfuseMac();
@@ -256,38 +229,6 @@ void MqttBridge::_handleMessage(char *topic, byte *payload,
     _mqttPending.ledOffM = doc["offM"] | 0;
     _mqttPending.ledMaxI = doc["maxI"] | 80;
     _mqttPending.ledSchedEn = doc["enabled"] | false;
-  }
-  // updateSlave — OTA Slave (Master proxy)
-  else if (strcmp(cmd, "updateSlave") == 0) {
-    const char *otaUrl = doc["url"] | "";
-    const char *otaSha = doc["sha"] | "";
-    if (strlen(otaUrl) < 10 || strlen(otaSha) != 64) {
-      Serial.println("[MQTT] updateSlave: url sau sha invalid.");
-      _lockOwner = LOCK_NONE;
-      return;
-    }
-    strncpy(_mqttPending.slaveOtaUrl, otaUrl,
-            sizeof(_mqttPending.slaveOtaUrl) - 1);
-    _mqttPending.slaveOtaUrl[sizeof(_mqttPending.slaveOtaUrl) - 1] = '\0';
-    strncpy(_mqttPending.slaveOtaSha, otaSha,
-            sizeof(_mqttPending.slaveOtaSha) - 1);
-    _mqttPending.slaveOtaSha[sizeof(_mqttPending.slaveOtaSha) - 1] = '\0';
-    _mqttPending.updateSlave = true;
-  }
-  // update — OTA Master
-  else if (strcmp(cmd, "update") == 0) {
-    const char *otaUrl = doc["url"] | "";
-    const char *otaSha = doc["sha"] | "";
-    if (strlen(otaUrl) < 10 || strlen(otaSha) != 64) {
-      Serial.println("[MQTT] update: url sau sha invalid.");
-      _lockOwner = LOCK_NONE;
-      return;
-    }
-    strncpy(_mqttPending.otaUrl, otaUrl, sizeof(_mqttPending.otaUrl) - 1);
-    _mqttPending.otaUrl[sizeof(_mqttPending.otaUrl) - 1] = '\0';
-    strncpy(_mqttPending.otaSha, otaSha, sizeof(_mqttPending.otaSha) - 1);
-    _mqttPending.otaSha[sizeof(_mqttPending.otaSha) - 1] = '\0';
-    _mqttPending.update = true;
   } else {
     Serial.printf("[MQTT] Cmd '%s' necunoscută.\n", cmd);
     _lockOwner = LOCK_NONE;
@@ -331,8 +272,7 @@ bool MqttBridge::hasPendingCommands() const {
          _mqttPending.setOverrideR || _mqttPending.setConfig ||
          _mqttPending.resetDefaults || _mqttPending.reboot ||
          _mqttPending.rebootSlave || _mqttPending.getLog ||
-         _mqttPending.setLedNow || _mqttPending.setLedSched ||
-         _mqttPending.update || _mqttPending.updateSlave;
+         _mqttPending.setLedNow || _mqttPending.setLedSched;
 }
 
 MqttPending &MqttBridge::getPending() { return _mqttPending; }
@@ -404,13 +344,9 @@ void MqttBridge::_publishStateNow(const VentilationZone &l,
   right["errs"] = r.getConsecErrors();
   right["failsafe"] = r.isInFailsafe();
 
-  JsonObject cfg = doc["config"].to<JsonObject>();
-  cfg["threshT"] = _prefs->tempThresh;
-  cfg["threshH"] = _prefs->humThresh;
-  cfg["interval"] = _prefs->intervalSec;
-  cfg["ovrTimeout"] = _prefs->overrideTimeoutMin;
-  cfg["hystT"] = _prefs->tempHyst;
-  cfg["hystH"] = _prefs->humHyst;
+  // Config NU mai e inclus in state publish.
+  // MAUI Settings UI = sursa locala (Preferences). ESP32 ramane sursa pentru NVS
+  // si automatizare, dar nu echoeaza config-ul inapoi pentru a evita overwrite UI.
 
   // Slave status
   JsonObject slave = doc["slave"].to<JsonObject>();
@@ -418,10 +354,9 @@ void MqttBridge::_publishStateNow(const VentilationZone &l,
   slave["errors"] = slaveErrors;
   slave["lastSeen"] = (uint32_t)(slaveLastSuccessMs / 1000UL);
 
-  // LED status (from Slave)
+  // LED status (from Slave) — doar intensitatea, NU schedEnabled
   JsonObject led = doc["led"].to<JsonObject>();
   led["intensity"] = ledIntensity;
-  led["schedEnabled"] = ledSchedEnabled;
 
   // Lock object
   if (_lockOwner != LOCK_NONE) {
@@ -476,7 +411,6 @@ void MqttBridge::_publishDiag() {
   doc["uptimeSec"] = (uint32_t)(millis() / 1000);
   doc["heap"] = ESP.getFreeHeap();
   doc["minHeap"] = ESP.getMinFreeHeap();
-  doc["ethLink"] = (Ethernet.linkStatus() == LinkON);
   doc["mqttOk"] = _client.connected();
   doc["fw"] = (int)FW_BUILD_NUMBER;
   doc["slaveErr"] = _lastSlaveErrors;

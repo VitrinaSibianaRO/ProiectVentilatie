@@ -51,6 +51,20 @@
                     </HorizontalStackLayout>
                 </Border>
 
+                <!-- REBOOT WARNING BANNER -->
+                <Border IsVisible="{Binding RebootWarningVisible}"
+                        Margin="14,6,14,0" Padding="12,8"
+                        BackgroundColor="#1Fffb347"
+                        Stroke="#55ffb347" StrokeThickness="1"
+                        StrokeShape="RoundRectangle 10">
+                    <HorizontalStackLayout Spacing="8">
+                        <Label Text="⚠" TextColor="#FFB347" FontSize="13" VerticalOptions="Center"/>
+                        <Label Text="{Binding RebootWarningText}"
+                               TextColor="#FFB347" FontSize="12" VerticalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
+                    </HorizontalStackLayout>
+                </Border>
+
                 <!-- SYSTEM STATUS CARD -->
                 <Border Style="{StaticResource IndustrialCard}" Margin="14,10,14,0">
                     <Grid ColumnDefinitions="*,Auto">
@@ -209,7 +223,13 @@
                                     <Label Text="{Binding RelayRightText}"
                                            FontSize="13" FontAttributes="Bold"
                                            TextColor="{Binding RightRelay, Converter={StaticResource BoolToColorConverter}}"
-                                           Style="{StaticResource LabelRajdhani}" />
+                                           Style="{StaticResource LabelRajdhani}">
+                                        <Label.Triggers>
+                                            <DataTrigger TargetType="Label" Binding="{Binding RightFailsafe}" Value="True">
+                                                <Setter Property="TextColor" Value="Red" />
+                                            </DataTrigger>
+                                        </Label.Triggers>
+                                    </Label>
                                 </VerticalStackLayout>
                             </Grid>
 

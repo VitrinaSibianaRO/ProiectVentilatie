@@ -61,7 +61,6 @@ struct SlaveCommand {
 extern SemaphoreHandle_t g_slaveDataMutex;
 extern QueueHandle_t     g_slaveCommandQueue;
 extern SlaveData*        g_slaveData;           // alocat in PSRAM
-extern volatile bool     g_otaInProgress;       // guard SlaveOtaProxy
 
 // ============================================================
 //  Thread-safe accessors

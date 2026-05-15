@@ -20,32 +20,12 @@
 #define SHT30_MIN_READ_MS 60000UL // 1 minut cooldown
 #define SHT30_RETRY_COUNT 3
 
-// W5500 SPI (HSPI — singurul port SPI hardware expus pe Carbon V3)
-// GPIO18/GPIO23 NU sunt disponibili pe Carbon V3!
-// Modulul W5500 montat e CLONA: raspunde corect doar pe SPI_MODE1 (CPHA=1),
-// nu pe MODE0/MODE3 cum cere datasheet-ul oficial WIZnet. Patch aplicat in
-// ~/Arduino/libraries/Ethernet/src/utility/w5100.h (re-aplica la update lib).
-#define W5500_MOSI_PIN 13
-#define W5500_MISO_PIN 12
-#define W5500_SCK_PIN 14
-#define W5500_CS_PIN 15
-#define W5500_RST_PIN 33
-#define W5500_SPI_FREQ_HZ                                                      \
-  4000000UL // 4 MHz operation
-#define W5500_PROBE_SPI_FREQ_HZ                                                \
-  1000000UL // proba lenta pentru recovery dupa reseturi rapide
-#define W5500_RESET_LOW_MS 10
-#define W5500_RESET_READY_MS 150
-
-// Depanare hardware: lasa boot-ul normal sa continue chiar dupa reseturi
-// rapide. Pune 0 dupa ce termini testele W5500.
 #define BOOTGUARD_SAFE_MODE_ENABLED 1
 
 // UART2 catre Slave
 #define SLAVE_UART_TX_PIN 19
 #define SLAVE_UART_RX_PIN 32
 #define SLAVE_UART_BAUD 115200UL
-#define OTA_UART_BAUD 460800UL // baud inalt pentru OTA Slave
 #define SLAVE_REQ_TIMEOUT_MS 1000
 #define SLAVE_REBOOT_TIMEOUT_MS 500
 #define SLAVE_RETRY_PER_FETCH 2
@@ -65,7 +45,6 @@
 #define DEFAULT_TEMP_THRESH 45.0f
 #define DEFAULT_HUM_THRESH 60.0f
 #define DEFAULT_INTERVAL_SEC 300
-#define DEFAULT_OVERRIDE_TIMEOUT_MIN 120
 #define DEFAULT_TEMP_HYST 2.0f
 #define DEFAULT_HUM_HYST 5.0f
 
@@ -79,7 +58,6 @@
 #define MIN_HUM_HYST 0.0f
 #define MAX_HUM_HYST 20.0f
 #define WDT_TIMEOUT_SEC 60
-#define ETH_HOTPLUG_CHECK_MS 60000UL // interval verificare hot-plug W5500 (ms)
 
 // ============================================================
 //  HIVEMQ CLOUD (MQTT TLS 8883)
@@ -109,12 +87,6 @@
 #define MQTT_RECONNECT_MAX_MS 10000UL
 
 // ============================================================
-//  ETHERNET
-// ============================================================
-#define ETH_DHCP_TIMEOUT_MS 15000
-#define ETH_DOWN_RESTART_MS 600000UL // 10 min link down → restart preventiv
-
-// ============================================================
 //  NTP
 // ============================================================
 #define NTP_TIMEZONE "EET-2EEST,M3.5.0/3,M10.5.0/4" // Europa/București
@@ -140,12 +112,6 @@
 #define SLAVE_CMD_QUEUE_DEPTH 8
 // Cadenta fetch Slave (ms) — mai rapida decat intervalul sensor (min 10min).
 #define SLAVE_COMM_CADENCE_MS 500
-
-// ============================================================
-//  OTA
-// ============================================================
-#define OTA_URL_WHITELIST1 "https://github.com/"
-#define OTA_URL_WHITELIST2 "https://objects.githubusercontent.com/"
 
 // ============================================================
 //  EVENT LOG

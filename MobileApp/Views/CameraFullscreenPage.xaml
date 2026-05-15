@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+             xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
+             x:Class="ProiectVentilatie.Mobile.Views.CameraFullscreenPage"
+             x:DataType="vm:CameraFullscreenViewModel"
+             BackgroundColor="Black"
+             Shell.NavBarIsVisible="False">
+
+    <ContentPage.Resources>
+        <converters:NetworkScopeToColorConverter x:Key="ScopeToColor" />
+        <converters:InverseBoolConverter x:Key="InverseBool" />
+    </ContentPage.Resources>
+
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Video fullscreen -->
+        <ContentView Grid.Row="0"
+                     Content="{Binding PlayerView}"
+                     BackgroundColor="Black" />
+
+        <!-- Buffering overlay -->
+        <Grid Grid.Row="0" IsVisible="{Binding IsBuffering}" BackgroundColor="#AA000010">
+            <ActivityIndicator IsRunning="True" Color="White"
+                              HorizontalOptions="Center" VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Error overlay -->
+        <Grid Grid.Row="0"
+              IsVisible="{Binding LastError, Converter={StaticResource StringNotNullConverter}}"
+              BackgroundColor="#AA200000">
+            <Label Text="{Binding LastError}" TextColor="#FF5555" FontSize="13"
+                   HorizontalOptions="Center" VerticalOptions="Center"
+                   HorizontalTextAlignment="Center" Margin="24" />
+        </Grid>
+
+        <!-- Controls overlay (top) -->
+        <Grid Grid.Row="0" VerticalOptions="Start" Padding="12,48,12,12">
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <!-- Back button -->
+                <Border Grid.Column="0" Padding="10,6" StrokeShape="RoundRectangle 8"
+                        BackgroundColor="#88000010" Stroke="#4400e6ff">
+                    <Label Text="← INAPOI" FontSize="12" TextColor="White"
+                           Style="{StaticResource LabelRajdhani}" />
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="OnBackTapped" />
+                    </Border.GestureRecognizers>
+                </Border>
+
+                <!-- Camera name + scope badge -->
+                <VerticalStackLayout Grid.Column="1" HorizontalOptions="Center">
+                    <Label Text="{Binding CameraName}" FontSize="16" FontAttributes="Bold"
+                           TextColor="White" HorizontalOptions="Center"
+                           Style="{StaticResource LabelRajdhani}" />
+                    <HorizontalStackLayout HorizontalOptions="Center" Spacing="6">
+                        <BoxView WidthRequest="8" HeightRequest="8" CornerRadius="4"
+                                 VerticalOptions="Center"
+                                 Color="{Binding ActiveScope, Converter={StaticResource ScopeToColor}}" />
+                        <Label Text="{Binding ActiveScope}" FontSize="10" TextColor="#AACCFF"
+                               Style="{StaticResource LabelRajdhani}" VerticalOptions="Center" />
+                    </HorizontalStackLayout>
+                </VerticalStackLayout>
+
+                <!-- Disk free indicator -->
+                <Label Grid.Column="2" FontSize="9" TextColor="#AACCFF"
+                       Text="{Binding DiskFreeBytes, StringFormat='{0:N0} B free'}"
+                       VerticalOptions="Center" />
+            </Grid>
+        </Grid>
+
+        <!-- Controls overlay (bottom) -->
+        <Grid Grid.Row="0" VerticalOptions="End" Padding="16,12">
+            <HorizontalStackLayout HorizontalOptions="Center" Spacing="16">
+
+                <!-- Mute toggle -->
+                <Border Padding="14,10" StrokeShape="RoundRectangle 10"
+                        BackgroundColor="#88000010" Stroke="#4400e6ff">
+                    <Label FontSize="22" VerticalOptions="Center">
+                        <Label.Triggers>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsAudioMuted}" Value="True">
+                                <Setter Property="Text" Value="🔇" />
+                            </DataTrigger>
+                            <DataTrigger TargetType="Label" Binding="{Binding IsAudioMuted}" Value="False">
+                                <Setter Property="Text" Value="🔊" />
+                            </DataTrigger>
+                        </Label.Triggers>
+                    </Label>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleMuteCommand}" />
+                    </Border.GestureRecognizers>
+                </Border>
+
+                <!-- Snapshot -->
+                <Border Padding="14,10" StrokeShape="RoundRectangle 10"
+                        BackgroundColor="#88000010" Stroke="#4400e6ff">
+                    <Label Text="📷" FontSize="22" VerticalOptions="Center" />
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding TakeSnapshotCommand}" />
+                    </Border.GestureRecognizers>
+                </Border>
+
+                <!-- Record -->
+                <Border Padding="14,10" StrokeShape="RoundRectangle 10"
+                        BackgroundColor="#88000010" Stroke="#4400e6ff">
+                    <HorizontalStackLayout Spacing="6">
+                        <BoxView WidthRequest="10" HeightRequest="10" CornerRadius="5"
+                                 VerticalOptions="Center">
+                            <BoxView.Triggers>
+                                <DataTrigger TargetType="BoxView" Binding="{Binding IsRecording}" Value="True">
+                                    <Setter Property="Color" Value="Red" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="BoxView" Binding="{Binding IsRecording}" Value="False">
+                                    <Setter Property="Color" Value="Gray" />
+                                </DataTrigger>
+                            </BoxView.Triggers>
+                        </BoxView>
+                        <Label FontSize="14" VerticalOptions="Center" Style="{StaticResource LabelRajdhani}">
+                            <Label.Triggers>
+                                <DataTrigger TargetType="Label" Binding="{Binding IsRecording}" Value="True">
+                                    <Setter Property="Text" Value="STOP" />
+                                    <Setter Property="TextColor" Value="Red" />
+                                </DataTrigger>
+                                <DataTrigger TargetType="Label" Binding="{Binding IsRecording}" Value="False">
+                                    <Setter Property="Text" Value="REC" />
+                                    <Setter Property="TextColor" Value="White" />
+                                </DataTrigger>
+                            </Label.Triggers>
+                        </Label>
+                    </HorizontalStackLayout>
+                    <Border.GestureRecognizers>
+                        <TapGestureRecognizer Command="{Binding ToggleRecordCommand}" />
+                    </Border.GestureRecognizers>
+                </Border>
+            </HorizontalStackLayout>
+        </Grid>
+
+        <!-- Disk warning banner -->
+        <Border Grid.Row="0" VerticalOptions="Start" Margin="14,100,14,0"
+                IsVisible="{Binding DiskWarning}"
+                Padding="12,6" StrokeShape="RoundRectangle 8"
+                BackgroundColor="#AA400000" Stroke="#55FF4444">
+            <Label Text="⚠ Spatiu liber sub 500 MB. Elibereaza spatiu." FontSize="11"
+                   TextColor="#FF6666" HorizontalOptions="Center"
+                   Style="{StaticResource LabelRajdhani}" />
+        </Border>
+
+    </Grid>
+</ContentPage>

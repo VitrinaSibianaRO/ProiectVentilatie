@@ -26,6 +26,9 @@ public class MqttService : IMqttService, IDisposable
     // Backoff reconnect — citit din settings
     private int _reconnectDelayMs;
 
+    // Comenzi trimise cat timp suntem deconectati — flush la reconect
+    private readonly Queue<string> _pendingCommandQueue = new();
+
     public event Action<VentilationState>? OnStateReceived;
     public event Action<bool>? OnConnectionChanged;
     public event Action<string>? OnOnlineStatusChanged;
@@ -78,21 +81,44 @@ public class MqttService : IMqttService, IDisposable
 
     public async Task SendCommandAsync(object command)
     {
+        var json = JsonSerializer.Serialize(command);
+
         if (_client == null || !_client.IsConnected())
         {
-            Console.WriteLine("[MQTT] SendCommand skipped — not connected.");
+            _pendingCommandQueue.Enqueue(json);
+            Console.WriteLine($"[MQTT] SendCommand queued (offline): {json}");
             return;
         }
 
         try
         {
-            var json = JsonSerializer.Serialize(command);
             await _client.PublishAsync(_settings.CommandTopic, json,
                 QualityOfService.AtLeastOnceDelivery);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[MQTT] Send error: {ex.Message}");
+            _pendingCommandQueue.Enqueue(json);
+        }
+    }
+
+    private async Task FlushPendingCommandsAsync()
+    {
+        while (_pendingCommandQueue.Count > 0 && _client?.IsConnected() == true)
+        {
+            var json = _pendingCommandQueue.Dequeue();
+            try
+            {
+                await _client.PublishAsync(_settings.CommandTopic, json,
+                    QualityOfService.AtLeastOnceDelivery);
+                Console.WriteLine($"[MQTT] Flushed queued command: {json}");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[MQTT] Flush error: {ex.Message}");
+                _pendingCommandQueue.Enqueue(json); // re-queue on failure
+                break;
+            }
         }
     }
 
@@ -141,6 +167,7 @@ public class MqttService : IMqttService, IDisposable
             _reconnectDelayMs = _settings.ReconnectInitialMs; // Reset backoff
             MainThread.BeginInvokeOnMainThread(() => OnConnectionChanged?.Invoke(true));
             Console.WriteLine("[MQTT] Connected + subscribed.");
+            await FlushPendingCommandsAsync();
         }
         catch (Exception ex)
         {

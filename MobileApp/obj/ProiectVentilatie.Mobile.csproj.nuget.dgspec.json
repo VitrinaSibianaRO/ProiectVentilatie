@@ -58,6 +58,10 @@
               "target": "Package",
               "version": "[0.9.0, )"
             },
+            "LibVLCSharp.MAUI": {
+              "target": "Package",
+              "version": "[3.*, )"
+            },
             "Microsoft.Extensions.Configuration.Json": {
               "target": "Package",
               "version": "[8.0.0, )"
@@ -91,6 +95,10 @@
             "SkiaSharp.Views.Maui.Controls": {
               "target": "Package",
               "version": "[3.116.1, )"
+            },
+            "VideoLAN.LibVLC.Android": {
+              "target": "Package",
+              "version": "[3.*, )"
             }
           },
           "imports": [
@@ -393,6 +401,9 @@
         }
       },
       "runtimes": {
+        "android-arm64": {
+          "#import": []
+        },
         "android-x64": {
           "#import": []
         }

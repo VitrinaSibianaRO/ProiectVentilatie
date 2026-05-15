@@ -13,7 +13,7 @@ public partial class FloatingNavBar : ContentView
     }
 
     public bool IsDashboardActive => CurrentPage == "Dashboard";
-    public bool IsDevicesActive   => CurrentPage == "Devices";
+    public bool IsCamerasActive   => CurrentPage == "Camere";
     public bool IsSettingsActive  => CurrentPage == "Settings";
     public bool IsSystemActive    => CurrentPage == "System";
 
@@ -24,9 +24,17 @@ public partial class FloatingNavBar : ContentView
     }
 
     private void OnTapDashboard(object? sender, TappedEventArgs e) => _ = NavigateToPage("Dashboard");
-    private void OnTapDevices  (object? sender, TappedEventArgs e) => _ = NavigateToPage("Devices");
+    private void OnTapCameras  (object? sender, TappedEventArgs e) => _ = NavigateToPage("Camere");
     private void OnTapSettings (object? sender, TappedEventArgs e) => _ = NavigateToPage("Settings");
     private void OnTapSystem   (object? sender, TappedEventArgs e) => _ = NavigateToPage("System");
+
+    private static readonly Dictionary<string, string> PageRoutes = new()
+    {
+        ["Dashboard"] = "//DashboardPage",
+        ["Camere"]    = "//CamerasPage",
+        ["Settings"]  = "//SettingsPage",
+        ["System"]    = "//SystemPage"
+    };
 
     private async Task NavigateToPage(string page)
     {
@@ -38,7 +46,11 @@ public partial class FloatingNavBar : ContentView
             return;
         }
 
-        var route = $"//{page}Page";
+        if (!PageRoutes.TryGetValue(page, out var route))
+        {
+            route = $"//{page}Page";
+        }
+
         try
         {
             await Shell.Current.GoToAsync(route, animate: false);
@@ -53,7 +65,7 @@ public partial class FloatingNavBar : ContentView
     private void UpdateVisualState()
     {
         OnPropertyChanged(nameof(IsDashboardActive));
-        OnPropertyChanged(nameof(IsDevicesActive));
+        OnPropertyChanged(nameof(IsCamerasActive));
         OnPropertyChanged(nameof(IsSettingsActive));
         OnPropertyChanged(nameof(IsSystemActive));
     }

@@ -57,11 +57,6 @@ constexpr bool SENSOR_SERIAL_TELEMETRY = true;
 #endif
 
 // ============================================================
-//  PSRAM (ESP32-S2FN4R2 — 2MB QSPI PSRAM integrata)
-// ============================================================
-constexpr size_t OTA_CHUNK_BUF_SIZE = 1024; // OtaReceiver::_chunkBuf in PSRAM
-
-// ============================================================
 //  FREERTOS — ESP32-S2 SINGLE-CORE
 // ============================================================
 // SensorTask si loopTask ruleaza pe Core 0 prin time-slicing FreeRTOS.
@@ -77,15 +72,6 @@ constexpr uint32_t SENSOR_READ_PERIOD_MS = 30000;
 // ============================================================
 constexpr uint32_t LOOP_TICK_MS = 10;
 constexpr uint32_t WDT_TIMEOUT_SEC = 60;
-
-// Baud rate inalt pentru OTA (optional — reduce transfer time ~4x)
-constexpr uint32_t OTA_UART_BAUD = 460800UL;
-// Timeout citire chunk OTA (ms per chunk de 1024 bytes)
-constexpr uint32_t OTA_CHUNK_TIMEOUT_MS = 2000;
-// Dimensiune maxima firmware Slave (1.5 MB)
-constexpr size_t OTA_MAX_FW_SIZE = 1500 * 1024;
-// Dimensiune minima firmware valida (100 KB)
-constexpr size_t OTA_MIN_FW_SIZE = 100 * 1024;
 
 // ============================================================
 //  FIRMWARE VERSION (auto-generat de scripts/bump_build.sh)

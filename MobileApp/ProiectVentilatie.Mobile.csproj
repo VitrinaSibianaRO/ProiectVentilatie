@@ -37,6 +37,8 @@
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.116.1" />
 		<PackageReference Include="CommunityToolkit.Maui" Version="9.1.0" />
+		<PackageReference Include="LibVLCSharp.MAUI" Version="3.*" />
+		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.*" />
 	</ItemGroup>
 
 	<ItemGroup>

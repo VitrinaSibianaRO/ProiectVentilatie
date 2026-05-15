@@ -143,66 +143,6 @@ namespace I2CRecovery {
 }
 
 // ============================================================
-//  ETHERNET LINK MONITOR — reset W5500 după 10min link-down
-//  MAC cached la setup() prin setMac() — supravietuieste reset-ului.
-// ============================================================
-class EthLinkMonitor {
-public:
-    static constexpr unsigned long RESET_AFTER_MS = 600000UL;  // 10 min
-
-    // Apelat o singura data in setup() dupa getEthernetMac().
-    // Cache local pentru re-init la link recovery.
-    static void setMac(const byte mac[6]) {
-        memcpy(_cachedMac, mac, 6);
-        _macSet = true;
-    }
-
-    static void check(uint8_t rstPin) {
-        bool linkUp = (Ethernet.linkStatus() == LinkON);
-
-        if (linkUp) {
-            _linkDownSince = 0;
-            return;
-        }
-
-        unsigned long now = millis();
-        if (_linkDownSince == 0) {
-            _linkDownSince = now;
-            Serial.println("[Eth] Link DOWN detected");
-            return;
-        }
-
-        if (now - _linkDownSince > RESET_AFTER_MS) {
-            if (!_macSet) {
-                Serial.println("[Eth] Link DOWN >10min, MAC nesetat. Rulam fara retea.");
-            } else {
-                Serial.println("[Eth] Link DOWN >10min — resetting W5500");
-                // Hardware reset W5500
-                pinMode(rstPin, OUTPUT);
-                digitalWrite(rstPin, LOW);
-                delay(50);
-                digitalWrite(rstPin, HIGH);
-                delay(200);
-
-                // Re-init Ethernet cu MAC-ul cached (DHCP retry)
-                if (Ethernet.begin(_cachedMac, ETH_DHCP_TIMEOUT_MS) == 0) {
-                    Serial.println("[Eth] DHCP retry esuat dupa reset W5500. Rulam offline in continuare.");
-                } else {
-                    Serial.print("[Eth] Recuperat dupa reset, IP: ");
-                    Serial.println(Ethernet.localIP());
-                    _linkDownSince = 0;
-                }
-            }
-        }
-    }
-
-private:
-    static inline unsigned long _linkDownSince = 0;
-    static inline byte _cachedMac[6] = {0};
-    static inline bool _macSet = false;
-};
-
-// ============================================================
 //  PREVENTIVE REBOOT — Master: duminică 03:00–03:04 UTC, weekly
 //  Fereastra 5min ca sa nu ratam minutul exact (verificam la 60s).
 //  Uptime > 6 zile evita loop de restart si protejeaza la deploy.
