@@ -229,6 +229,23 @@ void MqttBridge::_handleMessage(char *topic, byte *payload,
     _mqttPending.ledOffM = doc["offM"] | 0;
     _mqttPending.ledMaxI = doc["maxI"] | 80;
     _mqttPending.ledSchedEn = doc["enabled"] | false;
+  } else if (strcmp(cmd, "setLedMode") == 0) {
+    int id = doc["mode"] | -1;
+    int p1 = doc["p1"]  |  0;
+    int p2 = doc["p2"]  |  0;
+    int p3 = doc["p3"]  |  0;
+    int p4 = doc["p4"]  |  0;
+    if (id < 0 || id >= 12) {
+      Serial.println("[MQTT] setLedMode: id invalid.");
+      _lockOwner = LOCK_NONE;
+      return;
+    }
+    _mqttPending.setLedMode = true;
+    _mqttPending.ledModeId  = (uint8_t)id;
+    _mqttPending.ledModeP1  = (uint16_t)p1;
+    _mqttPending.ledModeP2  = (uint16_t)p2;
+    _mqttPending.ledModeP3  = (uint16_t)p3;
+    _mqttPending.ledModeP4  = (uint16_t)p4;
   } else {
     Serial.printf("[MQTT] Cmd '%s' necunoscută.\n", cmd);
     _lockOwner = LOCK_NONE;
@@ -272,7 +289,8 @@ bool MqttBridge::hasPendingCommands() const {
          _mqttPending.setOverrideR || _mqttPending.setConfig ||
          _mqttPending.resetDefaults || _mqttPending.reboot ||
          _mqttPending.rebootSlave || _mqttPending.getLog ||
-         _mqttPending.setLedNow || _mqttPending.setLedSched;
+         _mqttPending.setLedNow || _mqttPending.setLedSched ||
+         _mqttPending.setLedMode;
 }
 
 MqttPending &MqttBridge::getPending() { return _mqttPending; }

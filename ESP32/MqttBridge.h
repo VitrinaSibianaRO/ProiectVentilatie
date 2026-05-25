@@ -59,6 +59,13 @@ struct MqttPending {
     uint8_t ledMaxI     = 0;
     bool    ledSchedEn  = false;
 
+    bool     setLedMode = false;
+    uint8_t  ledModeId  = 0;
+    uint16_t ledModeP1  = 0;
+    uint16_t ledModeP2  = 0;
+    uint16_t ledModeP3  = 0;
+    uint16_t ledModeP4  = 0;
+
 };
 
 class MqttBridge {

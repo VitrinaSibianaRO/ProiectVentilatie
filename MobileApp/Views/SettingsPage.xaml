@@ -4,11 +4,14 @@
              xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
              xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
              xmlns:converters="clr-namespace:ProiectVentilatie.Mobile.Converters"
+             xmlns:models="clr-namespace:ProiectVentilatie.Mobile.Models"
              x:Class="ProiectVentilatie.Mobile.Views.SettingsPage"
              x:DataType="vm:SettingsViewModel">
 
     <ContentPage.Resources>
         <converters:InverseBoolConverter x:Key="InverseBoolConverter" />
+        <converters:PatternIdToVisibilityConverter x:Key="PatternIdVis" />
+        <converters:LedPatternToNameConverter x:Key="PatternToName" />
     </ContentPage.Resources>
 
     <Grid RowDefinitions="*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
@@ -32,228 +35,551 @@
                         Stroke="#55ff7a45"
                         StrokeThickness="1"
                         StrokeShape="RoundRectangle 10">
-                    <Label Text="⚠  Setările sunt blocate — Blynk activ"
+                    <Label Text="⚠  Setările sunt blocate"
                            TextColor="{StaticResource PrimaryOrange}" FontSize="13"
                            Style="{StaticResource LabelRajdhani}" />
                 </Border>
 
-                <!-- THRESHOLDS CARD -->
-                <Border Style="{StaticResource IndustrialCard}">
-                    <VerticalStackLayout Spacing="18">
-                        <HorizontalStackLayout Spacing="8">
-                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryOrange}" CornerRadius="2" />
-                            <Label Text="Praguri Declanșare" FontSize="16" FontAttributes="Bold"
-                                   Style="{StaticResource LabelRajdhani}" />
-                        </HorizontalStackLayout>
+                <!-- THRESHOLDS — colapsabil -->
+                <controls:CollapsibleSection Title="Praguri Declanșare"
+                                             IsExpanded="{Binding ThresholdsExpanded}">
+                    <controls:CollapsibleSection.InnerContent>
+                        <VerticalStackLayout Spacing="18">
 
-                        <!-- Temperature threshold -->
-                        <VerticalStackLayout Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Prag Temperatură" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <Label Grid.Column="1"
-                                       Text="{Binding TempThreshold, StringFormat='{0:0.0}°C'}"
-                                       FontSize="18" FontAttributes="Bold"
-                                       TextColor="{StaticResource PrimaryOrange}"
-                                       Style="{StaticResource LabelShareTech}" />
-                            </Grid>
-                            <Slider Value="{Binding TempThreshold}" Minimum="10" Maximum="60"
-                                    ThumbColor="{StaticResource PrimaryOrange}"
-                                    MinimumTrackColor="{StaticResource PrimaryOrange}"
-                                    IsEnabled="{Binding IsLocked, Converter={StaticResource InverseBoolConverter}}" />
-                            <Label Text="Ventilația pornește automat când temperatura depășește pragul."
-                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
-                        </VerticalStackLayout>
-
-                        <!-- Humidity threshold -->
-                        <VerticalStackLayout Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Prag Umiditate" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <Label Grid.Column="1"
-                                       Text="{Binding HumThreshold, StringFormat='{0:0.0}%'}"
-                                       FontSize="18" FontAttributes="Bold"
-                                       TextColor="{StaticResource PrimaryCyan}"
-                                       Style="{StaticResource LabelShareTech}" />
-                            </Grid>
-                            <Slider Value="{Binding HumThreshold}" Minimum="10" Maximum="100"
-                                    ThumbColor="{StaticResource PrimaryCyan}"
-                                    MinimumTrackColor="{StaticResource PrimaryCyan}" />
-                            <Label Text="Ventilația pornește automat când umiditatea depășește pragul."
-                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
-                        </VerticalStackLayout>
-
-                        <!-- Hysteresis Temp -->
-                        <VerticalStackLayout Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Histerezis Temperatură" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <Label Grid.Column="1"
-                                       Text="{Binding TempHysteresis, StringFormat='{0:0.0}°C'}"
-                                       FontSize="18" FontAttributes="Bold"
-                                       TextColor="{StaticResource PrimaryOrange}"
-                                       Opacity="0.7"
-                                       Style="{StaticResource LabelShareTech}" />
-                            </Grid>
-                            <Slider Value="{Binding TempHysteresis}" Minimum="0" Maximum="10"
-                                    ThumbColor="{StaticResource PrimaryOrange}"
-                                    MinimumTrackColor="{StaticResource PrimaryOrange}" />
-                            <Label Text="Releul se oprește când temp scade cu această valoare sub prag."
-                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
-                        </VerticalStackLayout>
-
-                        <!-- Hysteresis Hum -->
-                        <VerticalStackLayout Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Histerezis Umiditate" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <Label Grid.Column="1"
-                                       Text="{Binding HumHysteresis, StringFormat='{0:0.0}%'}"
-                                       FontSize="18" FontAttributes="Bold"
-                                       TextColor="{StaticResource PrimaryCyan}"
-                                       Opacity="0.7"
-                                       Style="{StaticResource LabelShareTech}" />
-                            </Grid>
-                            <Slider Value="{Binding HumHysteresis}" Minimum="0" Maximum="20"
-                                    ThumbColor="{StaticResource PrimaryCyan}"
-                                    MinimumTrackColor="{StaticResource PrimaryCyan}" />
-                            <Label Text="Releul se oprește când umiditatea scade cu această valoare sub prag."
-                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
-                        </VerticalStackLayout>
-                    </VerticalStackLayout>
-                </Border>
-
-                <!-- TIMING CARD -->
-                <Border Style="{StaticResource IndustrialCard}">
-                    <VerticalStackLayout Spacing="16">
-                        <HorizontalStackLayout Spacing="8">
-                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryCyan}" CornerRadius="2" />
-                            <Label Text="Timing Senzori" FontSize="16" FontAttributes="Bold"
-                                   Style="{StaticResource LabelRajdhani}" />
-                        </HorizontalStackLayout>
-
-                        <Grid ColumnDefinitions="*,Auto">
-                            <Label Text="Interval citire senzori" FontSize="13" VerticalOptions="Center"
-                                   Style="{StaticResource LabelRajdhani}" />
-                            <Label Grid.Column="1"
-                                   Text="{Binding IntervalSec, StringFormat='{0}s'}"
-                                   FontSize="18" FontAttributes="Bold"
-                                   TextColor="{StaticResource PrimaryCyan}"
-                                   Style="{StaticResource LabelShareTech}" />
-                        </Grid>
-                        <Slider Value="{Binding IntervalSec}" Minimum="10" Maximum="3600"
-                                ThumbColor="{StaticResource PrimaryCyan}"
-                                MinimumTrackColor="{StaticResource PrimaryCyan}" />
-                        <Label Text="Intervalul la care ESP32 citește și publică datele senzorilor."
-                               FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
-
-                        <!-- Preset buttons -->
-                        <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="6">
-                            <Button Grid.Column="0" Text="10s" Style="{StaticResource CyberButton}"
-                                    HeightRequest="34" Padding="0" FontSize="11"
-                                    Command="{Binding SetInterval10Command}" />
-                            <Button Grid.Column="1" Text="1m" Style="{StaticResource CyberButton}"
-                                    HeightRequest="34" Padding="0" FontSize="11"
-                                    Command="{Binding SetInterval60Command}" />
-                            <Button Grid.Column="2" Text="5m" Style="{StaticResource CyberButton}"
-                                    HeightRequest="34" Padding="0" FontSize="11"
-                                    Command="{Binding SetInterval300Command}" />
-                            <Button Grid.Column="3" Text="15m" Style="{StaticResource CyberButton}"
-                                    HeightRequest="34" Padding="0" FontSize="11"
-                                    Command="{Binding SetInterval900Command}" />
-                            <Button Grid.Column="4" Text="1h" Style="{StaticResource CyberButton}"
-                                    HeightRequest="34" Padding="0" FontSize="11"
-                                    Command="{Binding SetInterval3600Command}" />
-                        </Grid>
-                    </VerticalStackLayout>
-                </Border>
-
-                <!-- LED CONTROL CARD -->
-                <Border Style="{StaticResource IndustrialCard}">
-                    <VerticalStackLayout Spacing="18">
-                        <HorizontalStackLayout Spacing="8">
-                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryOrange}" CornerRadius="2" />
-                            <Label Text="Control Iluminat LED" FontSize="16" FontAttributes="Bold"
-                                   Style="{StaticResource LabelRajdhani}" />
-                        </HorizontalStackLayout>
-
-                        <!-- Intensity slider -->
-                        <VerticalStackLayout Spacing="6">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Intensitate curentă" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <Label Grid.Column="1"
-                                       Text="{Binding LedIntensity, StringFormat='{0}%'}"
-                                       FontSize="18" FontAttributes="Bold"
-                                       TextColor="{StaticResource PrimaryOrange}"
-                                       Style="{StaticResource LabelShareTech}" />
-                            </Grid>
-                            <Slider Value="{Binding LedIntensity}" Minimum="0" Maximum="100"
-                                    ThumbColor="{StaticResource PrimaryOrange}"
-                                    MinimumTrackColor="{StaticResource PrimaryOrange}" />
-                            <Label Text="Controlează imediat dimerul MOSFET al benzii LED."
-                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
-                        </VerticalStackLayout>
-
-                        <!-- Divider -->
-                        <BoxView HeightRequest="1" Opacity="0.1" BackgroundColor="White" />
-
-                        <!-- Schedule -->
-                        <VerticalStackLayout Spacing="12">
-                            <Label Text="Program Automat" FontSize="14" FontAttributes="Bold"
-                                   Opacity="0.75" Style="{StaticResource LabelRajdhani}" />
-
-                            <!-- Toggle -->
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Activare program" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <Switch Grid.Column="1"
-                                        IsToggled="{Binding LedScheduleEnabled}"
-                                        OnColor="{StaticResource PrimaryOrange}" />
-                            </Grid>
-
-                            <!-- On time -->
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Oră pornire" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <TimePicker Grid.Column="1"
-                                            Time="{Binding LedOnTime}"
-                                            TextColor="{StaticResource PrimaryOrange}"
-                                            FontSize="15" />
-                            </Grid>
-
-                            <!-- Off time -->
-                            <Grid ColumnDefinitions="*,Auto">
-                                <Label Text="Oră oprire" FontSize="13" VerticalOptions="Center"
-                                       Style="{StaticResource LabelRajdhani}" />
-                                <TimePicker Grid.Column="1"
-                                            Time="{Binding LedOffTime}"
-                                            TextColor="{StaticResource PrimaryOrange}"
-                                            FontSize="15" />
-                            </Grid>
-
-                            <!-- Max intensity -->
+                            <!-- Temperature threshold -->
                             <VerticalStackLayout Spacing="6">
                                 <Grid ColumnDefinitions="*,Auto">
-                                    <Label Text="Intensitate maximă program" FontSize="13" VerticalOptions="Center"
+                                    <Label Text="Prag Temperatură" FontSize="13" VerticalOptions="Center"
                                            Style="{StaticResource LabelRajdhani}" />
                                     <Label Grid.Column="1"
-                                           Text="{Binding LedMaxIntensity, StringFormat='{0}%'}"
-                                           FontSize="16" FontAttributes="Bold"
+                                           Text="{Binding TempThreshold, StringFormat='{0:0.0}°C'}"
+                                           FontSize="18" FontAttributes="Bold"
                                            TextColor="{StaticResource PrimaryOrange}"
-                                           Opacity="0.8"
                                            Style="{StaticResource LabelShareTech}" />
                                 </Grid>
-                                <Slider Value="{Binding LedMaxIntensity}" Minimum="0" Maximum="100"
+                                <Slider Value="{Binding TempThreshold}" Minimum="10" Maximum="60"
                                         ThumbColor="{StaticResource PrimaryOrange}"
-                                        MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                        MinimumTrackColor="{StaticResource PrimaryOrange}"
+                                        IsEnabled="{Binding IsLocked, Converter={StaticResource InverseBoolConverter}}" />
+                                <Label Text="Ventilația pornește automat când temperatura depășește pragul."
+                                       FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
                             </VerticalStackLayout>
 
-                            <Label Text="LED-ul se aprinde la ora de pornire și se stinge la ora de oprire."
-                                   FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                            <!-- Humidity threshold -->
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Prag Umiditate" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding HumThreshold, StringFormat='{0:0.0}%'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </Grid>
+                                <Slider Value="{Binding HumThreshold}" Minimum="10" Maximum="100"
+                                        ThumbColor="{StaticResource PrimaryCyan}"
+                                        MinimumTrackColor="{StaticResource PrimaryCyan}" />
+                                <Label Text="Ventilația pornește automat când umiditatea depășește pragul."
+                                       FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                            </VerticalStackLayout>
+
+                            <!-- Hysteresis Temp -->
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Histerezis Temperatură" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding TempHysteresis, StringFormat='{0:0.0}°C'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryOrange}" Opacity="0.7"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </Grid>
+                                <Slider Value="{Binding TempHysteresis}" Minimum="0" Maximum="10"
+                                        ThumbColor="{StaticResource PrimaryOrange}"
+                                        MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                <Label Text="Releul se oprește când temp scade cu această valoare sub prag."
+                                       FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                            </VerticalStackLayout>
+
+                            <!-- Hysteresis Hum -->
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Histerezis Umiditate" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding HumHysteresis, StringFormat='{0:0.0}%'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryCyan}" Opacity="0.7"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </Grid>
+                                <Slider Value="{Binding HumHysteresis}" Minimum="0" Maximum="20"
+                                        ThumbColor="{StaticResource PrimaryCyan}"
+                                        MinimumTrackColor="{StaticResource PrimaryCyan}" />
+                                <Label Text="Releul se oprește când umiditatea scade cu această valoare sub prag."
+                                       FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                            </VerticalStackLayout>
+
+                            <!-- Interval -->
+                            <VerticalStackLayout Spacing="8">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Interval citire senzori" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding IntervalSec, StringFormat='{0}s'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </Grid>
+                                <Slider Value="{Binding IntervalSec}" Minimum="10" Maximum="3600"
+                                        ThumbColor="{StaticResource PrimaryCyan}"
+                                        MinimumTrackColor="{StaticResource PrimaryCyan}" />
+                                <Grid ColumnDefinitions="*,*,*,*,*" ColumnSpacing="6">
+                                    <Button Grid.Column="0" Text="10s" Style="{StaticResource CyberButton}"
+                                            HeightRequest="34" Padding="0" FontSize="11"
+                                            Command="{Binding SetInterval10Command}" />
+                                    <Button Grid.Column="1" Text="1m" Style="{StaticResource CyberButton}"
+                                            HeightRequest="34" Padding="0" FontSize="11"
+                                            Command="{Binding SetInterval60Command}" />
+                                    <Button Grid.Column="2" Text="5m" Style="{StaticResource CyberButton}"
+                                            HeightRequest="34" Padding="0" FontSize="11"
+                                            Command="{Binding SetInterval300Command}" />
+                                    <Button Grid.Column="3" Text="15m" Style="{StaticResource CyberButton}"
+                                            HeightRequest="34" Padding="0" FontSize="11"
+                                            Command="{Binding SetInterval900Command}" />
+                                    <Button Grid.Column="4" Text="1h" Style="{StaticResource CyberButton}"
+                                            HeightRequest="34" Padding="0" FontSize="11"
+                                            Command="{Binding SetInterval3600Command}" />
+                                </Grid>
+                            </VerticalStackLayout>
+
                         </VerticalStackLayout>
-                    </VerticalStackLayout>
-                </Border>
+                    </controls:CollapsibleSection.InnerContent>
+                </controls:CollapsibleSection>
+
+                <!-- LED CONTROL — colapsabil -->
+                <controls:CollapsibleSection Title="Control Iluminat LED"
+                                             IsExpanded="{Binding LedExpanded}">
+                    <controls:CollapsibleSection.InnerContent>
+                        <VerticalStackLayout Spacing="16">
+
+                            <!-- Intensity slider -->
+                            <VerticalStackLayout Spacing="6">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Intensitate maximă" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Grid.Column="1"
+                                           Text="{Binding LedIntensity, StringFormat='{0}%'}"
+                                           FontSize="18" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryOrange}"
+                                           Style="{StaticResource LabelShareTech}" />
+                                </Grid>
+                                <Slider Value="{Binding LedIntensity}" Minimum="0" Maximum="100"
+                                        ThumbColor="{StaticResource PrimaryOrange}"
+                                        MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                <Label Text="Setează pragul superior al intensității (și STEADY-ul implicit)."
+                                       FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                            </VerticalStackLayout>
+
+                            <BoxView HeightRequest="1" Opacity="0.1" BackgroundColor="White" />
+
+                            <!-- Schedule -->
+                            <VerticalStackLayout Spacing="12">
+                                <Label Text="Program Automat" FontSize="14" FontAttributes="Bold"
+                                       Opacity="0.75" Style="{StaticResource LabelRajdhani}" />
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Activare program" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Switch Grid.Column="1"
+                                            IsToggled="{Binding LedScheduleEnabled}"
+                                            OnColor="{StaticResource PrimaryOrange}" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Oră pornire" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <TimePicker Grid.Column="1" Time="{Binding LedOnTime}"
+                                                TextColor="{StaticResource PrimaryOrange}" FontSize="15" />
+                                </Grid>
+
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <Label Text="Oră oprire" FontSize="13" VerticalOptions="Center"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <TimePicker Grid.Column="1" Time="{Binding LedOffTime}"
+                                                TextColor="{StaticResource PrimaryOrange}" FontSize="15" />
+                                </Grid>
+
+                                <VerticalStackLayout Spacing="6">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Intensitate maximă program" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding LedMaxIntensity, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}" Opacity="0.8"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding LedMaxIntensity}" Minimum="0" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <Label Text="LED-ul se aprinde la ora de pornire și se stinge la ora de oprire."
+                                       FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                            </VerticalStackLayout>
+
+                            <BoxView HeightRequest="1" Opacity="0.1" BackgroundColor="White" />
+
+                            <!-- Pattern mode picker -->
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Mod efect luminos" FontSize="14" FontAttributes="Bold"
+                                       Opacity="0.75" Style="{StaticResource LabelRajdhani}" />
+
+                                <Picker Title="Selectează modul"
+                                        ItemsSource="{Binding AvailableModes}"
+                                        SelectedItem="{Binding LedMode}"
+                                        ItemDisplayBinding="{Binding ., Converter={StaticResource PatternToName}}"
+                                        TextColor="White"
+                                        TitleColor="{StaticResource PrimaryOrange}"
+                                        FontFamily="Rajdhani"
+                                        FontSize="15" />
+
+                                <!-- BREATHING params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=1}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Minim (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding BreathingMin, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding BreathingMin}" Minimum="0" Maximum="99"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Durată ciclu (s)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding BreathingDur, StringFormat='{0}s'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding BreathingDur}" Minimum="1" Maximum="60"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <!-- TRIANGLE params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=2}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Minim (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding TriangleMin, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding TriangleMin}" Minimum="0" Maximum="99"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Durată ciclu (s)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding TriangleDur, StringFormat='{0}s'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding TriangleDur}" Minimum="1" Maximum="60"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <!-- SAWTOOTH params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=3}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Minim (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding SawtoothMin, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding SawtoothMin}" Minimum="0" Maximum="99"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Durată ciclu (s)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding SawtoothDur, StringFormat='{0}s'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding SawtoothDur}" Minimum="1" Maximum="60"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Direcție" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Switch Grid.Column="1"
+                                                IsToggled="{Binding SawtoothDirection}"
+                                                OnColor="{StaticResource PrimaryOrange}" />
+                                    </Grid>
+                                    <Label FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}"
+                                           Text="OFF = creștere lentă + scădere bruscă | ON = creștere bruscă + scădere lentă" />
+                                </VerticalStackLayout>
+
+                                <!-- STROBE params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=4}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Duty cycle (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding StrobeDuty, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding StrobeDuty}" Minimum="5" Maximum="95"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Frecvență (Hz)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding StrobeFreq, StringFormat='{0:0.0} Hz'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding StrobeFreq}" Minimum="0.5" Maximum="20.0"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <!-- Strobe safety warning -->
+                                    <Border IsVisible="{Binding IsStrobeFreqDangerous}"
+                                            Padding="12,8"
+                                            BackgroundColor="#1Fff7a45"
+                                            Stroke="#55ff7a45"
+                                            StrokeThickness="1"
+                                            StrokeShape="RoundRectangle 8">
+                                        <Label Text="⚠  Frecvențe > 3Hz pot provoca crize epileptice la persoane sensibile."
+                                               TextColor="{StaticResource PrimaryOrange}" FontSize="12"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                    </Border>
+                                </VerticalStackLayout>
+
+                                <!-- HEARTBEAT params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=5}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="BPM" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding HeartbeatBpm, StringFormat='{0} bpm'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding HeartbeatBpm}" Minimum="30" Maximum="120"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Intensitate (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding HeartbeatIntensity, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding HeartbeatIntensity}" Minimum="10" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <!-- CANDLE params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=6}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Variație (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding CandleVariation, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding CandleVariation}" Minimum="0" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Label Text="Amplitudinea fluctuațiilor aleatorii față de intensitatea maximă."
+                                           FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                                </VerticalStackLayout>
+
+                                <!-- LIGHTNING params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=7}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Fulgere / minut" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding LightningFreq, StringFormat='{0}/min'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding LightningFreq}" Minimum="1" Maximum="30"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Linie de bază (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding LightningBaseline, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding LightningBaseline}" Minimum="0" Maximum="50"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <!-- SOS MORSE params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=8}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Durată dit (ms)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding MorseDitMs, StringFormat='{0} ms'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding MorseDitMs}" Minimum="100" Maximum="500"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Label Text="Durata unui punct Morse (dah = 3×dit). Valori mici = viteză mare."
+                                           FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
+                                </VerticalStackLayout>
+
+                                <!-- SUNRISE params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=9}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Durată (minute)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding SunriseDurMin, StringFormat='{0} min'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding SunriseDurMin}" Minimum="1" Maximum="120"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Intensitate finală (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding SunriseFinal, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding SunriseFinal}" Minimum="10" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <!-- SUNSET params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=10}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Durată (minute)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding SunsetDurMin, StringFormat='{0} min'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding SunsetDurMin}" Minimum="1" Maximum="120"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Intensitate inițială (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding SunsetStart, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding SunsetStart}" Minimum="10" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                                <!-- RANDOM params -->
+                                <VerticalStackLayout Spacing="10"
+                                    IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=11}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Minim (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding RandomMin, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding RandomMin}" Minimum="0" Maximum="99"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Maxim (%)" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding RandomMax, StringFormat='{0}%'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding RandomMax}" Minimum="1" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <Label Text="Viteză tranziție" FontSize="13" VerticalOptions="Center"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Label Grid.Column="1"
+                                               Text="{Binding RandomSpeed, StringFormat='{0}'}"
+                                               FontSize="16" FontAttributes="Bold"
+                                               TextColor="{StaticResource PrimaryOrange}"
+                                               Style="{StaticResource LabelShareTech}" />
+                                    </Grid>
+                                    <Slider Value="{Binding RandomSpeed}" Minimum="1" Maximum="100"
+                                            ThumbColor="{StaticResource PrimaryOrange}"
+                                            MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                </VerticalStackLayout>
+
+                            </VerticalStackLayout>
+
+                        </VerticalStackLayout>
+                    </controls:CollapsibleSection.InnerContent>
+                </controls:CollapsibleSection>
 
                 <!-- ACTIONS -->
                 <VerticalStackLayout Spacing="10">

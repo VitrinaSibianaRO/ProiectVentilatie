@@ -37,6 +37,7 @@ struct SlaveData {
 enum SlaveCommandType : uint8_t {
     SLAVE_CMD_LED_SET,
     SLAVE_CMD_LED_SCHEDULE,
+    SLAVE_CMD_LED_MODE,
     SLAVE_CMD_REBOOT,
     SLAVE_CMD_TIME_SYNC
 };
@@ -50,6 +51,10 @@ struct SlaveCommand {
     // SLAVE_CMD_LED_SCHEDULE
     uint8_t  ledOnH, ledOnM, ledOffH, ledOffM, ledMaxI;
     bool     ledSchedEn;
+
+    // SLAVE_CMD_LED_MODE
+    uint8_t  ledModeId;
+    uint16_t ledModeP1, ledModeP2, ledModeP3, ledModeP4;
 
     // SLAVE_CMD_TIME_SYNC
     uint32_t epochSec;

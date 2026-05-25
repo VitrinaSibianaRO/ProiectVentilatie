@@ -124,8 +124,9 @@ void setup() {
 
 void loop() {
     WatchdogManager::feed();
-    g_ledCtrl.tick();       // evalueaza schedule LED (no-op daca timp nesincronizat)
-    g_dispatcher.tick();    // proceseaza UART + actualizeaza LED status
+    g_ledCtrl.tick();         // evalueaza schedule LED (no-op daca timp nesincronizat)
+    g_ledCtrl.effectTick();   // aplica pattern PWM (waveform calculat la 10ms)
+    g_dispatcher.tick();      // proceseaza UART + actualizeaza LED status
     
     // Resilience: watchdog idle & uptime monitor
     SlaveResilience::check(g_dispatcher.getLastRequestMs());

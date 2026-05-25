@@ -230,6 +230,21 @@ void processZones() {
     pending.setLedSched = false;
   }
 
+  if (pending.setLedMode) {
+    SlaveCommand cmd{};
+    cmd.type      = SLAVE_CMD_LED_MODE;
+    cmd.ledModeId = pending.ledModeId;
+    cmd.ledModeP1 = pending.ledModeP1;
+    cmd.ledModeP2 = pending.ledModeP2;
+    cmd.ledModeP3 = pending.ledModeP3;
+    cmd.ledModeP4 = pending.ledModeP4;
+    slaveCommandSend(cmd);
+    ledPrefs.saveMode(pending.ledModeId, pending.ledModeP1, pending.ledModeP2,
+                      pending.ledModeP3, pending.ledModeP4);
+    mqtt.requestPublishNow();
+    pending.setLedMode = false;
+  }
+
   if (pending.reboot) {
     mqtt.publishOnline(false);
     delay(200);

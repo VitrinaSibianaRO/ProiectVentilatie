@@ -21,6 +21,7 @@ void CommandDispatcher::tick() {
     else if (strncmp(cmd, "LED_SET ", 8) == 0)       _handleLedSet(cmd + 8);
     else if (strncmp(cmd, "LED_SCHEDULE ", 13) == 0) _handleLedSchedule(cmd + 13);
     else if (strcmp(cmd, "LED_STATUS") == 0)          _handleLedStatus();
+    else if (strncmp(cmd, "LED_MODE ", 9) == 0)      _handleLedMode(cmd + 9);
     else if (strncmp(cmd, "TIME_SYNC ", 10) == 0)    _handleTimeSync(cmd + 10);
     else                                               _handleUnknown(cmd);
 
@@ -117,6 +118,29 @@ void CommandDispatcher::_handleLedStatus() {
     s["maxI"] = sched.maxIntensity;
 
     _uart.sendJson(doc);
+}
+
+// ============================================================
+//  LED_MODE <id> <p1> <p2> <p3> <p4>
+// ============================================================
+void CommandDispatcher::_handleLedMode(const char* args) {
+    int id, p1, p2, p3, p4;
+    if (sscanf(args, "%d %d %d %d %d", &id, &p1, &p2, &p3, &p4) != 5) {
+        LOG_WARN("LED_MODE parse fail: %s", args);
+        _uart.sendLine("ERR_PARSE");
+        return;
+    }
+    if (id < 0 || id >= (int)LedController::PATTERN_COUNT ||
+        p1 < 0 || p1 > 65535 || p2 < 0 || p2 > 65535 ||
+        p3 < 0 || p3 > 65535 || p4 < 0 || p4 > 65535) {
+        LOG_WARN("LED_MODE out of range: id=%d", id);
+        _uart.sendLine("ERR_RANGE");
+        return;
+    }
+    _ledCtrl.setMode((uint8_t)id,
+                     (uint16_t)p1, (uint16_t)p2,
+                     (uint16_t)p3, (uint16_t)p4);
+    _uart.sendLine("OK");
 }
 
 // ============================================================

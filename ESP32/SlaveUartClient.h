@@ -27,6 +27,8 @@ public:
     bool sendLedSet(uint8_t percent, uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
     bool sendLedSchedule(uint8_t onH, uint8_t onM, uint8_t offH, uint8_t offM,
                          uint8_t maxI, bool enabled, uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
+    bool sendLedMode(uint8_t id, uint16_t p1, uint16_t p2, uint16_t p3, uint16_t p4,
+                     uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
     bool fetchLedStatus(uint8_t& intensity, bool& schedEnabled,
                         uint8_t& onH, uint8_t& onM, uint8_t& offH, uint8_t& offM, uint8_t& maxI,
                         uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);

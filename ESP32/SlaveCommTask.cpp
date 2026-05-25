@@ -89,6 +89,11 @@ static void taskFn(void* pvParams) {
                                            cmd.ledOffH, cmd.ledOffM,
                                            cmd.ledMaxI, cmd.ledSchedEn);
                     break;
+                case SLAVE_CMD_LED_MODE:
+                    client.sendLedMode(cmd.ledModeId, cmd.ledModeP1,
+                                       cmd.ledModeP2, cmd.ledModeP3,
+                                       cmd.ledModeP4);
+                    break;
                 case SLAVE_CMD_REBOOT:
                     client.sendReboot();
                     break;

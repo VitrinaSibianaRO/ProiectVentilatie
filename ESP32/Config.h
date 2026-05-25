@@ -62,10 +62,10 @@
 // ============================================================
 //  HIVEMQ CLOUD (MQTT TLS 8883)
 // ============================================================
-#define MQTT_HOST "3c03ab8cc05e43dfbada27542420c4fc.s1.eu.hivemq.cloud"
+#define MQTT_HOST "264f95b78b1d4733a57c7d0c6e045828.s1.eu.hivemq.cloud"
 #define MQTT_PORT 8883
 #define MQTT_USER "ventilatie_esp32"
-#define MQTT_PASS "Ceparolasapun1"
+#define MQTT_PASS "Esp32Ventil2024!"
 #define MQTT_CLIENT_PREFIX "esp32-vent-"
 
 // Topic-uri

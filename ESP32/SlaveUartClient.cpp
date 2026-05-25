@@ -198,6 +198,24 @@ bool SlaveUartClient::fetchLedStatus(uint8_t& intensity, bool& schedEnabled,
     return true;
 }
 
+bool SlaveUartClient::sendLedMode(uint8_t id, uint16_t p1, uint16_t p2,
+                                   uint16_t p3, uint16_t p4, uint32_t timeoutMs) {
+    if (!_serial) return false;
+    char cmd[80];
+    snprintf(cmd, sizeof(cmd), "LED_MODE %u %u %u %u %u", id, p1, p2, p3, p4);
+    _flushInput();
+    _sendCmd(cmd);
+    String resp = _readLine(timeoutMs);
+    if (resp.isEmpty()) return false;
+    char buf[64];
+    size_t n = (resp.length() < sizeof(buf) - 1) ? resp.length() : sizeof(buf) - 1;
+    memcpy(buf, resp.c_str(), n);
+    buf[n] = '\0';
+    if (!Crc::validate(buf)) return false;
+    Crc::stripCrc(buf);
+    return strcmp(buf, "OK") == 0;
+}
+
 // ============================================================
 //  TIME_SYNC — trimite epoch Slave-ului
 // ============================================================
