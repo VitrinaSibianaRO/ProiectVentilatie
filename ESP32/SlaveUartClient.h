@@ -32,6 +32,9 @@ public:
     bool fetchLedStatus(uint8_t& intensity, bool& schedEnabled,
                         uint8_t& onH, uint8_t& onM, uint8_t& offH, uint8_t& offM, uint8_t& maxI,
                         uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
+    bool sendLedFollowTv(bool enabled, uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
+    bool sendLedTvCap(uint8_t pct, uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
+    bool sendLedMorseText(const char* text, uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);
 
     // Time sync — trimite epoch Slave-ului
     bool sendTimeSync(uint32_t epochSec, uint32_t timeoutMs = SLAVE_REQ_TIMEOUT_MS);

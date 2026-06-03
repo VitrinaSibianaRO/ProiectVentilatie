@@ -12,6 +12,12 @@ public class ScanLineView : SKCanvasView
     private float _yPos = 0f;
     private IDispatcherTimer? _timer;
 
+    public ScanLineView()
+    {
+        EnableTouchEvents = false;  // nu inregistra touch listener in SKCanvasView
+        InputTransparent  = true;   // MAUI: seteaza Clickable=false pe native view
+    }
+
     protected override void OnHandlerChanged()
     {
         try

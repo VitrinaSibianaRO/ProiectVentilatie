@@ -60,6 +60,13 @@ public partial class CameraSettingsViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SetRegion(string region)
+    {
+        if (!string.IsNullOrEmpty(region))
+            Region = region;
+    }
+
+    [RelayCommand]
     private async Task SaveCredentialsAsync()
     {
         if (string.IsNullOrWhiteSpace(AppId) || string.IsNullOrWhiteSpace(AppSecret))

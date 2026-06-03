@@ -21,9 +21,12 @@ void CommandDispatcher::tick() {
     else if (strncmp(cmd, "LED_SET ", 8) == 0)       _handleLedSet(cmd + 8);
     else if (strncmp(cmd, "LED_SCHEDULE ", 13) == 0) _handleLedSchedule(cmd + 13);
     else if (strcmp(cmd, "LED_STATUS") == 0)          _handleLedStatus();
-    else if (strncmp(cmd, "LED_MODE ", 9) == 0)      _handleLedMode(cmd + 9);
-    else if (strncmp(cmd, "TIME_SYNC ", 10) == 0)    _handleTimeSync(cmd + 10);
-    else                                               _handleUnknown(cmd);
+    else if (strncmp(cmd, "LED_MODE ", 9) == 0)        _handleLedMode(cmd + 9);
+    else if (strncmp(cmd, "LED_FOLLOW_TV ", 14) == 0) _handleLedFollowTv(cmd + 14);
+    else if (strncmp(cmd, "LED_TV_CAP ", 11) == 0)      _handleLedTvCap(cmd + 11);
+    else if (strncmp(cmd, "LED_MORSE_TEXT ", 15) == 0)  _handleLedMorseText(cmd + 15);
+    else if (strncmp(cmd, "TIME_SYNC ", 10) == 0)       _handleTimeSync(cmd + 10);
+    else                                                _handleUnknown(cmd);
 
     _updateIdleStatus();
 }
@@ -108,8 +111,11 @@ void CommandDispatcher::_handleLedStatus() {
     const auto sched = _ledCtrl.getSchedule();
 
     JsonDocument doc;
-    doc["intensity"] = _ledCtrl.getCurrentIntensity();
-    doc["enabled"]   = sched.enabled;
+    doc["intensity"]  = _ledCtrl.getCurrentIntensity();
+    doc["enabled"]    = sched.enabled;
+    doc["followTv"]   = _ledCtrl.getFollowTv();
+    doc["tvCap"]      = _ledCtrl.getTvCap();
+    doc["morseText"]  = _ledCtrl.getMorseText();
     JsonObject s = doc["sched"].to<JsonObject>();
     s["onH"]  = sched.onHour;
     s["onM"]  = sched.onMin;
@@ -140,6 +146,42 @@ void CommandDispatcher::_handleLedMode(const char* args) {
     _ledCtrl.setMode((uint8_t)id,
                      (uint16_t)p1, (uint16_t)p2,
                      (uint16_t)p3, (uint16_t)p4);
+    _uart.sendLine("OK");
+}
+
+// ============================================================
+//  LED_FOLLOW_TV <0|1>
+// ============================================================
+void CommandDispatcher::_handleLedFollowTv(const char* args) {
+    int v = atoi(args);
+    _ledCtrl.setFollowTv(v != 0);
+    _uart.sendLine("OK");
+}
+
+// ============================================================
+//  LED_TV_CAP <0-100>
+// ============================================================
+void CommandDispatcher::_handleLedTvCap(const char* args) {
+    int pct = atoi(args);
+    if (pct < 0 || pct > 100) {
+        LOG_WARN("LED_TV_CAP out of range: %s", args);
+        _uart.sendLine("ERR_RANGE");
+        return;
+    }
+    _ledCtrl.setTvCap((uint8_t)pct);
+    _uart.sendLine("OK");
+}
+
+// ============================================================
+//  LED_MORSE_TEXT <text>
+// ============================================================
+void CommandDispatcher::_handleLedMorseText(const char* args) {
+    if (strlen(args) > 51) {
+        LOG_WARN("LED_MORSE_TEXT prea lung: %zu", strlen(args));
+        _uart.sendLine("ERR_LEN");
+        return;
+    }
+    _ledCtrl.setMorseText(args);
     _uart.sendLine("OK");
 }
 

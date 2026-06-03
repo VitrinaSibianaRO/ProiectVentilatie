@@ -22,6 +22,8 @@
 		<SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
     <MauiEnableXamlCBindingWithSourceCompilation>true</MauiEnableXamlCBindingWithSourceCompilation>
     <NoWarn>$(NoWarn);XA0101</NoWarn>
+    <!-- Embed assemblies in APK — evita crash-ul Fast Deployment la reinstalare repetata -->
+    <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
 	</PropertyGroup>
 
 
@@ -37,6 +39,7 @@
         <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="SkiaSharp.Views.Maui.Controls" Version="3.116.1" />
 		<PackageReference Include="CommunityToolkit.Maui" Version="9.1.0" />
+		<PackageReference Include="UraniumUI" Version="2.15.0" />
 		<PackageReference Include="LibVLCSharp.MAUI" Version="3.*" />
 		<PackageReference Include="VideoLAN.LibVLC.Android" Version="3.*" />
 	</ItemGroup>

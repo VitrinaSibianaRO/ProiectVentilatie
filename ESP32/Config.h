@@ -113,6 +113,10 @@
 // Cadenta fetch Slave (ms) — mai rapida decat intervalul sensor (min 10min).
 #define SLAVE_COMM_CADENCE_MS 500
 
+// TvCommTask pe Core 0 (prio joasa — TV polling ~11s, non time-critical).
+#define TV_COMM_TASK_STACK    6144
+#define TV_COMM_TASK_PRIORITY 1
+
 // ============================================================
 //  EVENT LOG
 // ============================================================
@@ -143,3 +147,20 @@
 
 // Global flag for WiFi availability
 extern bool g_wifiAvailable;
+
+// ============================================================
+//  TV CONTROL (LG 75XS4P — RS-232 over TCP port 9761)
+// ============================================================
+#define TV_TCP_PORT         9761
+#define TV_TCP_TIMEOUT_MS   1000
+#define TV_SET_ID           1
+#define TV_POLL_MS          360000UL   // 6 minute
+#define TOPIC_TV_STATE      "ventilatie/tv/state"
+
+// IP/MAC hardcoded TV. La boot, TvController::begin() TESTEAZA acest IP:
+//   - daca TV-ul raspunde la TV_DEFAULT_IP (port 9761) → foloseste hardcoded;
+//   - daca NU raspunde → foloseste IP/MAC setat din MAUI (salvat in NVS).
+// MAC-ul hardcoded e folosit pentru Wake-on-LAN cand ruleaza pe hardcoded.
+// Lasa TV_DEFAULT_IP gol ("") ca sa folosesti DOAR config-ul din MAUI.
+#define TV_DEFAULT_IP       "192.168.1.131"
+#define TV_DEFAULT_MAC      "00:A1:59:D1:3A:DC"

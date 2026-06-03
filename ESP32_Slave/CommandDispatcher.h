@@ -46,6 +46,9 @@ private:
     void _handleLedSchedule(const char* args);
     void _handleLedStatus();
     void _handleLedMode(const char* args);
+    void _handleLedFollowTv(const char* args);
+    void _handleLedTvCap(const char* args);
+    void _handleLedMorseText(const char* args);
 
     // Time sync
     void _handleTimeSync(const char* args);

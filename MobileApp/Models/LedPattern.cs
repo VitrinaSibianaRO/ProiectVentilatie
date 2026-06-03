@@ -28,7 +28,7 @@ public static class LedPatternInfo
         LedPattern.Heartbeat => "Bătaie de inimă",
         LedPattern.Candle    => "Lumânare",
         LedPattern.Lightning => "Fulgere",
-        LedPattern.SosMorse  => "SOS (Morse)",
+        LedPattern.SosMorse  => "SUGI PULA (Morse)",
         LedPattern.Sunrise   => "Răsărit",
         LedPattern.Sunset    => "Apus",
         LedPattern.Random    => "Aleator",

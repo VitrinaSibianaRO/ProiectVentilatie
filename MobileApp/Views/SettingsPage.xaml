@@ -40,11 +40,14 @@
                            Style="{StaticResource LabelRajdhani}" />
                 </Border>
 
-                <!-- THRESHOLDS — colapsabil -->
-                <controls:CollapsibleSection Title="Praguri Declanșare"
-                                             IsExpanded="{Binding ThresholdsExpanded}">
-                    <controls:CollapsibleSection.InnerContent>
-                        <VerticalStackLayout Spacing="18">
+                <!-- THRESHOLDS -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="18">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryOrange}" CornerRadius="2" />
+                            <Label Text="Praguri Declanșare" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
 
                             <!-- Temperature threshold -->
                             <VerticalStackLayout Spacing="6">
@@ -152,15 +155,31 @@
                                 </Grid>
                             </VerticalStackLayout>
 
-                        </VerticalStackLayout>
-                    </controls:CollapsibleSection.InnerContent>
-                </controls:CollapsibleSection>
+                    </VerticalStackLayout>
+                </Border>
 
-                <!-- LED CONTROL — colapsabil -->
-                <controls:CollapsibleSection Title="Control Iluminat LED"
-                                             IsExpanded="{Binding LedExpanded}">
-                    <controls:CollapsibleSection.InnerContent>
-                        <VerticalStackLayout Spacing="16">
+                <!-- LED CONTROL -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="16">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryCyan}" CornerRadius="2" />
+                            <Label Text="Control Iluminat LED" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                            <!-- Follow TV brightness toggle -->
+                            <Grid ColumnDefinitions="*,Auto" Padding="0,0,0,4">
+                                <VerticalStackLayout Grid.Column="0" Spacing="2" VerticalOptions="Center">
+                                    <Label Text="Urmărește luminozitate TV" FontSize="14"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                    <Label Text="Plafon LED = backlight TV (sync la 6 min)"
+                                           FontSize="10" Opacity="0.5"
+                                           Style="{StaticResource LabelRajdhani}" />
+                                </VerticalStackLayout>
+                                <Switch Grid.Column="1" IsToggled="{Binding FollowTvBrightness}"
+                                        VerticalOptions="Center"
+                                        OnColor="{StaticResource PrimaryCyan}" />
+                            </Grid>
 
                             <!-- Intensity slider -->
                             <VerticalStackLayout Spacing="6">
@@ -175,7 +194,17 @@
                                 </Grid>
                                 <Slider Value="{Binding LedIntensity}" Minimum="0" Maximum="100"
                                         ThumbColor="{StaticResource PrimaryOrange}"
-                                        MinimumTrackColor="{StaticResource PrimaryOrange}" />
+                                        MinimumTrackColor="{StaticResource PrimaryOrange}"
+                                        IsEnabled="{Binding IsLedIntensitySliderEnabled}">
+                                    <Slider.Triggers>
+                                        <DataTrigger TargetType="Slider" Binding="{Binding FollowTvBrightness}" Value="True">
+                                            <Setter Property="Opacity" Value="0.4" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Slider" Binding="{Binding FollowTvBrightness}" Value="False">
+                                            <Setter Property="Opacity" Value="1.0" />
+                                        </DataTrigger>
+                                    </Slider.Triggers>
+                                </Slider>
                                 <Label Text="Setează pragul superior al intensității (și STEADY-ul implicit)."
                                        FontSize="11" Opacity="0.45" Style="{StaticResource LabelRajdhani}" />
                             </VerticalStackLayout>
@@ -230,19 +259,26 @@
 
                             <BoxView HeightRequest="1" Opacity="0.1" BackgroundColor="White" />
 
-                            <!-- Pattern mode picker -->
+                            <!-- Pattern mode — selectie cu butoane Prev/Next -->
                             <VerticalStackLayout Spacing="8">
                                 <Label Text="Mod efect luminos" FontSize="14" FontAttributes="Bold"
                                        Opacity="0.75" Style="{StaticResource LabelRajdhani}" />
 
-                                <Picker Title="Selectează modul"
-                                        ItemsSource="{Binding AvailableModes}"
-                                        SelectedItem="{Binding LedMode}"
-                                        ItemDisplayBinding="{Binding ., Converter={StaticResource PatternToName}}"
-                                        TextColor="White"
-                                        TitleColor="{StaticResource PrimaryOrange}"
-                                        FontFamily="Rajdhani"
-                                        FontSize="15" />
+                                <Grid ColumnDefinitions="50,*,50" ColumnSpacing="8">
+                                    <Button Grid.Column="0" Text="◀"
+                                            Style="{StaticResource CyberButton}"
+                                            HeightRequest="44"
+                                            Command="{Binding PrevModeCommand}" />
+                                    <Label Grid.Column="1" Text="{Binding LedModeName}"
+                                           FontSize="16" FontAttributes="Bold"
+                                           TextColor="{StaticResource PrimaryCyan}"
+                                           HorizontalOptions="Center" VerticalOptions="Center"
+                                           Style="{StaticResource LabelShareTech}" />
+                                    <Button Grid.Column="2" Text="▶"
+                                            Style="{StaticResource CyberButton}"
+                                            HeightRequest="44"
+                                            Command="{Binding NextModeCommand}" />
+                                </Grid>
 
                                 <!-- BREATHING params -->
                                 <VerticalStackLayout Spacing="10"
@@ -460,6 +496,21 @@
                                 <!-- SOS MORSE params -->
                                 <VerticalStackLayout Spacing="10"
                                     IsVisible="{Binding LedMode, Converter={StaticResource PatternIdVis}, ConverterParameter=8}">
+                                    <VerticalStackLayout Spacing="4">
+                                        <Label Text="TEXT MORSE" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                        <Entry Text="{Binding MorseText}"
+                                               Placeholder="ex: BUNA ZIUA"
+                                               Keyboard="Text"
+                                               MaxLength="50"
+                                               TextTransform="Uppercase"
+                                               PlaceholderColor="#55ffffff"
+                                               TextColor="{StaticResource PrimaryCyan}"
+                                               BackgroundColor="Transparent" />
+                                        <Label Text="A-Z, 0-9, spații. Max 50 caractere. Trimis la Save."
+                                               FontSize="10" Opacity="0.45"
+                                               Style="{StaticResource LabelRajdhani}" />
+                                    </VerticalStackLayout>
                                     <Grid ColumnDefinitions="*,Auto">
                                         <Label Text="Durată dit (ms)" FontSize="13" VerticalOptions="Center"
                                                Style="{StaticResource LabelRajdhani}" />
@@ -577,9 +628,8 @@
 
                             </VerticalStackLayout>
 
-                        </VerticalStackLayout>
-                    </controls:CollapsibleSection.InnerContent>
-                </controls:CollapsibleSection>
+                    </VerticalStackLayout>
+                </Border>
 
                 <!-- ACTIONS -->
                 <VerticalStackLayout Spacing="10">

@@ -92,6 +92,26 @@
           }
         }
       },
+      "InputKit.Maui/4.6.0": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0-android36.0/InputKit.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/InputKit.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "contentFiles": {
+          "contentFiles/any/any/_._": {
+            "buildAction": "None",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          }
+        }
+      },
       "LibVLCSharp/3.9.7.1": {
         "type": "package",
         "dependencies": {
@@ -788,6 +808,19 @@
           }
         }
       },
+      "Plainer.Maui/1.8.0": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0-android36.0/Plainer.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/Plainer.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "SkiaSharp/3.116.1": {
         "type": "package",
         "dependencies": {
@@ -881,6 +914,24 @@
         },
         "runtime": {
           "lib/net8.0-android34.0/SkiaSharp.Views.Maui.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "UraniumUI/2.15.0": {
+        "type": "package",
+        "dependencies": {
+          "InputKit.Maui": "4.6.0",
+          "Microsoft.Maui.Controls": "10.0.11",
+          "Plainer.Maui": "1.8.0"
+        },
+        "compile": {
+          "lib/net10.0-android36.0/UraniumUI.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/UraniumUI.dll": {
             "related": ".pdb;.xml"
           }
         }
@@ -2974,6 +3025,26 @@
           }
         }
       },
+      "InputKit.Maui/4.6.0": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0-android36.0/InputKit.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/InputKit.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "contentFiles": {
+          "contentFiles/any/any/_._": {
+            "buildAction": "None",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          }
+        }
+      },
       "LibVLCSharp/3.9.7.1": {
         "type": "package",
         "dependencies": {
@@ -3670,6 +3741,19 @@
           }
         }
       },
+      "Plainer.Maui/1.8.0": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0-android36.0/Plainer.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/Plainer.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "SkiaSharp/3.116.1": {
         "type": "package",
         "dependencies": {
@@ -3748,6 +3832,24 @@
         },
         "runtime": {
           "lib/net8.0-android34.0/SkiaSharp.Views.Maui.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "UraniumUI/2.15.0": {
+        "type": "package",
+        "dependencies": {
+          "InputKit.Maui": "4.6.0",
+          "Microsoft.Maui.Controls": "10.0.11",
+          "Plainer.Maui": "1.8.0"
+        },
+        "compile": {
+          "lib/net10.0-android36.0/UraniumUI.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/UraniumUI.dll": {
             "related": ".pdb;.xml"
           }
         }
@@ -5841,6 +5943,26 @@
           }
         }
       },
+      "InputKit.Maui/4.6.0": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0-android36.0/InputKit.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/InputKit.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "contentFiles": {
+          "contentFiles/any/any/_._": {
+            "buildAction": "None",
+            "codeLanguage": "any",
+            "copyToOutput": false
+          }
+        }
+      },
       "LibVLCSharp/3.9.7.1": {
         "type": "package",
         "dependencies": {
@@ -6537,6 +6659,19 @@
           }
         }
       },
+      "Plainer.Maui/1.8.0": {
+        "type": "package",
+        "compile": {
+          "lib/net10.0-android36.0/Plainer.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/Plainer.Maui.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
       "SkiaSharp/3.116.1": {
         "type": "package",
         "dependencies": {
@@ -6615,6 +6750,24 @@
         },
         "runtime": {
           "lib/net8.0-android34.0/SkiaSharp.Views.Maui.Core.dll": {
+            "related": ".pdb;.xml"
+          }
+        }
+      },
+      "UraniumUI/2.15.0": {
+        "type": "package",
+        "dependencies": {
+          "InputKit.Maui": "4.6.0",
+          "Microsoft.Maui.Controls": "10.0.11",
+          "Plainer.Maui": "1.8.0"
+        },
+        "compile": {
+          "lib/net10.0-android36.0/UraniumUI.dll": {
+            "related": ".pdb;.xml"
+          }
+        },
+        "runtime": {
+          "lib/net10.0-android36.0/UraniumUI.dll": {
             "related": ".pdb;.xml"
           }
         }
@@ -8744,6 +8897,94 @@
         "lib/net6.0/HiveMQtt.xml"
       ]
     },
+    "InputKit.Maui/4.6.0": {
+      "sha512": "8WRTgufQTsU3L9Fm9rVh947+WU6Gc4z9gEWTxwOu60EZ4NcE5aSVheQNqlNZ8GCgcUXXcVPunIEUI+aP4Y/oPQ==",
+      "type": "package",
+      "path": "inputkit.maui/4.6.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "content/icon512.png",
+        "contentFiles/any/net10.0-android36.0/icon512.png",
+        "contentFiles/any/net10.0-ios26.0/icon512.png",
+        "contentFiles/any/net10.0-maccatalyst26.0/icon512.png",
+        "contentFiles/any/net10.0-windows10.0.19041/icon512.png",
+        "contentFiles/any/net10.0/icon512.png",
+        "icon512.png",
+        "inputkit.maui.4.6.0.nupkg.sha512",
+        "inputkit.maui.nuspec",
+        "lib/net10.0-android36.0/InputKit.Maui.dll",
+        "lib/net10.0-android36.0/InputKit.Maui.pdb",
+        "lib/net10.0-android36.0/InputKit.Maui.xml",
+        "lib/net10.0-ios26.0/InputKit.Maui.dll",
+        "lib/net10.0-ios26.0/InputKit.Maui.pdb",
+        "lib/net10.0-ios26.0/InputKit.Maui.xml",
+        "lib/net10.0-maccatalyst26.0/InputKit.Maui.dll",
+        "lib/net10.0-maccatalyst26.0/InputKit.Maui.pdb",
+        "lib/net10.0-maccatalyst26.0/InputKit.Maui.xml",
+        "lib/net10.0-windows10.0.19041/InputKit.Maui.dll",
+        "lib/net10.0-windows10.0.19041/InputKit.Maui.pdb",
+        "lib/net10.0-windows10.0.19041/InputKit.Maui.xml",
+        "lib/net10.0/InputKit.Maui.dll",
+        "lib/net10.0/InputKit.Maui.pdb",
+        "lib/net10.0/InputKit.Maui.xml",
+        "src/InputKit.Maui/Handlers/InputKitHandlersCollectionExtension.cs",
+        "src/InputKit.Maui/Handlers/StatefulGridHandler.cs",
+        "src/InputKit.Maui/Handlers/StatefulStackLayoutHandler.cs",
+        "src/InputKit.Maui/InputKit.Maui.csproj",
+        "src/InputKit.Maui/Platforms/Android/Handlers/StatefulGridHandler.Android.cs",
+        "src/InputKit.Maui/Platforms/Android/Handlers/StatefulStackLayoutHandler.Android.cs",
+        "src/InputKit.Maui/Platforms/MacCatalyst/Handlers/StatefulGridHandler.MacCatalyst.cs",
+        "src/InputKit.Maui/Platforms/MacCatalyst/Handlers/StatefulStackLayoutHandler.MacCatalys.cs",
+        "src/InputKit.Maui/Platforms/Windows/Handlers/StatefulGridHandler.Windows.cs",
+        "src/InputKit.Maui/Platforms/Windows/Handlers/StatefulStackLayoutHandler.Windows.cs",
+        "src/InputKit.Maui/Platforms/iOS/Handlers/StatefulGridHandler.iOS.cs",
+        "src/InputKit.Maui/Platforms/iOS/Handlers/StatefulStackLayoutHandler.iOS.cs",
+        "src/InputKit.Maui/Shared/Abstraction/ISelection.cs",
+        "src/InputKit.Maui/Shared/Abstraction/IValidatable.cs",
+        "src/InputKit.Maui/Shared/Configuration/GlobalSetting.cs",
+        "src/InputKit.Maui/Shared/Controls/AdvancedEntry.Validation.cs",
+        "src/InputKit.Maui/Shared/Controls/AdvancedEntry.cs",
+        "src/InputKit.Maui/Shared/Controls/AdvancedSlider.cs",
+        "src/InputKit.Maui/Shared/Controls/AutoCompleteEntry.cs",
+        "src/InputKit.Maui/Shared/Controls/AutoCompleteView.cs",
+        "src/InputKit.Maui/Shared/Controls/CheckBox.cs",
+        "src/InputKit.Maui/Shared/Controls/FormView.cs",
+        "src/InputKit.Maui/Shared/Controls/PredefinedShapes.cs",
+        "src/InputKit.Maui/Shared/Controls/RadioButton.cs",
+        "src/InputKit.Maui/Shared/Controls/RadioButtonGroupView.cs",
+        "src/InputKit.Maui/Shared/Controls/SelectionView.cs",
+        "src/InputKit.Maui/Shared/Enums.cs",
+        "src/InputKit.Maui/Shared/Helpers/ColorExtensions.cs",
+        "src/InputKit.Maui/Shared/Helpers/GeometryConverter.cs",
+        "src/InputKit.Maui/Shared/InputKitOptions.cs",
+        "src/InputKit.Maui/Shared/Layouts/StatefulGrid.cs",
+        "src/InputKit.Maui/Shared/Layouts/StatefulStackLayout.cs",
+        "src/InputKit.Maui/Shared/Resources/arrow_down.png",
+        "src/InputKit.Maui/Shared/Utils/PopupMenu.cs",
+        "src/InputKit.Maui/Shared/Utils/SelectedItemChangedArgs.cs",
+        "src/InputKit.Maui/Shared/Validations/ComparableTypeConverter.cs",
+        "src/InputKit.Maui/Shared/Validations/DigitsOnlyValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/IValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/LettersOnlyValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/MaxLengthValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/MaxValueValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/MinLengthValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/MinValueValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/NumericValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/RegexValidation.cs",
+        "src/InputKit.Maui/Shared/Validations/RequiredValidation.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-android/InputKit.Maui.GlobalUsings.g.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-android/__Microsoft.Android.Resource.Designer.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-ios/InputKit.Maui.GlobalUsings.g.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-ios/InputKit.Maui.nfloat.g.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-maccatalyst/InputKit.Maui.GlobalUsings.g.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-maccatalyst/InputKit.Maui.nfloat.g.cs",
+        "src/InputKit.Maui/obj/Release/net10.0-windows10.0.19041/InputKit.Maui.GlobalUsings.g.cs",
+        "src/InputKit.Maui/obj/Release/net10.0/InputKit.Maui.GlobalUsings.g.cs"
+      ]
+    },
     "LibVLCSharp/3.9.7.1": {
       "sha512": "pkntybICe0d8d6QUksQxRoqEUaIItyVe36CY+L5vrj5XD4aAcb0e8gHe5BLNMZH+uIsSgaeiki5DdNmhjvLo9Q==",
       "type": "package",
@@ -10304,6 +10545,53 @@
         "nlog.nuspec"
       ]
     },
+    "Plainer.Maui/1.8.0": {
+      "sha512": "kxA3dSJ4im80Zy2bpCjPfqOZY0GMjWaKs176SRYnkt3hRfHIqd3gXZ2MrOJmXnUkOt+KNEwsMn4UAdBLxwVsxQ==",
+      "type": "package",
+      "path": "plainer.maui/1.8.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "icon.png",
+        "lib/net10.0-android36.0/Plainer.Maui.dll",
+        "lib/net10.0-android36.0/Plainer.Maui.pdb",
+        "lib/net10.0-android36.0/Plainer.Maui.xml",
+        "lib/net10.0-ios26.0/Plainer.Maui.dll",
+        "lib/net10.0-ios26.0/Plainer.Maui.pdb",
+        "lib/net10.0-maccatalyst26.0/Plainer.Maui.dll",
+        "lib/net10.0-maccatalyst26.0/Plainer.Maui.pdb",
+        "lib/net10.0-windows10.0.19041/Plainer.Maui.dll",
+        "lib/net10.0-windows10.0.19041/Plainer.Maui.pdb",
+        "lib/net10.0/Plainer.Maui.dll",
+        "lib/net10.0/Plainer.Maui.pdb",
+        "plainer.maui.1.8.0.nupkg.sha512",
+        "plainer.maui.nuspec",
+        "src/Plainer.Maui/Controls/DatePickerView.cs",
+        "src/Plainer.Maui/Controls/EditorView.cs",
+        "src/Plainer.Maui/Controls/EntryView.cs",
+        "src/Plainer.Maui/Controls/PickerView.cs",
+        "src/Plainer.Maui/Controls/TimePickerView.cs",
+        "src/Plainer.Maui/Handlers/DatePickerViewHandler.cs",
+        "src/Plainer.Maui/Handlers/EditorViewHandler.cs",
+        "src/Plainer.Maui/Handlers/EntryViewHandler.cs",
+        "src/Plainer.Maui/Handlers/PickerViewHandler.cs",
+        "src/Plainer.Maui/Handlers/TimePickerViewHandler.cs",
+        "src/Plainer.Maui/MauiHandlerCollectionExtensions.cs",
+        "src/Plainer.Maui/Plainer.Maui.csproj",
+        "src/Plainer.Maui/Platforms/Android/PlatformClass1.cs",
+        "src/Plainer.Maui/Platforms/MacCatalyst/PlatformClass1.cs",
+        "src/Plainer.Maui/Platforms/Windows/PlatformClass1.cs",
+        "src/Plainer.Maui/Platforms/iOS/PlatformClass1.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-android/Plainer.Maui.GlobalUsings.g.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-android/__Microsoft.Android.Resource.Designer.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-ios/Plainer.Maui.GlobalUsings.g.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-ios/Plainer.Maui.nfloat.g.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-maccatalyst/Plainer.Maui.GlobalUsings.g.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-maccatalyst/Plainer.Maui.nfloat.g.cs",
+        "src/Plainer.Maui/obj/Release/net10.0-windows10.0.19041.0/Plainer.Maui.GlobalUsings.g.cs",
+        "src/Plainer.Maui/obj/Release/net10.0/Plainer.Maui.GlobalUsings.g.cs"
+      ]
+    },
     "SkiaSharp/3.116.1": {
       "sha512": "DNDwbRjP+aMo27dV2h/uHCVTcWubWWxHnPLiePNyl24f4Pv43mQ8AQQeseOrKR+J3AOCEs6t0sUjo0aa3j3RWQ==",
       "type": "package",
@@ -10463,6 +10751,41 @@
         "lib/net8.0/SkiaSharp.Views.Maui.Core.pdb",
         "skiasharp.views.maui.core.3.116.1.nupkg.sha512",
         "skiasharp.views.maui.core.nuspec"
+      ]
+    },
+    "UraniumUI/2.15.0": {
+      "sha512": "VqQILMMhfW+QtL/MYf/6p+W0m4/xwvw8b+R6d9pbRfOyr8GzVXOsRgDY4mLQJEc3UQYKHpu3lbSVD6Wi7cGq1g==",
+      "type": "package",
+      "path": "uraniumui/2.15.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "lib/net10.0-android36.0/UraniumUI.dll",
+        "lib/net10.0-android36.0/UraniumUI.pdb",
+        "lib/net10.0-android36.0/UraniumUI.xml",
+        "lib/net10.0-ios26.0/UraniumUI.dll",
+        "lib/net10.0-ios26.0/UraniumUI.pdb",
+        "lib/net10.0-maccatalyst26.0/UraniumUI.dll",
+        "lib/net10.0-maccatalyst26.0/UraniumUI.pdb",
+        "lib/net10.0-windows10.0.19041/UraniumUI.dll",
+        "lib/net10.0-windows10.0.19041/UraniumUI.pdb",
+        "lib/net10.0/UraniumUI.dll",
+        "lib/net10.0/UraniumUI.pdb",
+        "lib/net9.0-android35.0/UraniumUI.dll",
+        "lib/net9.0-android35.0/UraniumUI.pdb",
+        "lib/net9.0-android35.0/UraniumUI.xml",
+        "lib/net9.0-ios18.0/UraniumUI.dll",
+        "lib/net9.0-ios18.0/UraniumUI.pdb",
+        "lib/net9.0-maccatalyst18.0/UraniumUI.dll",
+        "lib/net9.0-maccatalyst18.0/UraniumUI.pdb",
+        "lib/net9.0-windows10.0.19041/UraniumUI.dll",
+        "lib/net9.0-windows10.0.19041/UraniumUI.pdb",
+        "lib/net9.0/UraniumUI.dll",
+        "lib/net9.0/UraniumUI.pdb",
+        "logo_128.png",
+        "uraniumui.2.15.0.nupkg.sha512",
+        "uraniumui.nuspec"
       ]
     },
     "VideoLAN.LibVLC.Android/3.6.5": {
@@ -12879,6 +13202,7 @@
       "Microsoft.NET.ILLink.Tasks >= 10.0.7",
       "Newtonsoft.Json >= 13.0.3",
       "SkiaSharp.Views.Maui.Controls >= 3.116.1",
+      "UraniumUI >= 2.15.0",
       "VideoLAN.LibVLC.Android >= 3.*"
     ]
   },
@@ -12976,6 +13300,10 @@
           "SkiaSharp.Views.Maui.Controls": {
             "target": "Package",
             "version": "[3.116.1, )"
+          },
+          "UraniumUI": {
+            "target": "Package",
+            "version": "[2.15.0, )"
           },
           "VideoLAN.LibVLC.Android": {
             "target": "Package",

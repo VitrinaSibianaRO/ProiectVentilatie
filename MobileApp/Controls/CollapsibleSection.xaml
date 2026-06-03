@@ -7,24 +7,24 @@
     <Border Style="{StaticResource IndustrialCard}">
         <VerticalStackLayout Spacing="0">
 
-            <!-- Header button -->
-            <Grid ColumnDefinitions="*,Auto" Padding="0,0,0,0">
-                <Button Grid.Column="0"
-                        Text="{Binding Title, Source={x:Reference self}}"
-                        HorizontalOptions="Start"
-                        BackgroundColor="Transparent"
-                        TextColor="White"
-                        FontSize="16"
-                        FontAttributes="Bold"
-                        FontFamily="Rajdhani"
-                        Padding="0"
-                        Command="{Binding ToggleCommand, Source={x:Reference self}}" />
+            <!-- Header row — TapGestureRecognizer (reliable on Android, unlike transparent Button) -->
+            <Grid ColumnDefinitions="*,Auto" Padding="0,4">
+                <Label Grid.Column="0"
+                       Text="{Binding Title, Source={x:Reference self}}"
+                       TextColor="White"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       FontFamily="Rajdhani"
+                       VerticalOptions="Center" />
                 <Label Grid.Column="1"
                        Text="{Binding ChevronText, Source={x:Reference self}}"
                        VerticalOptions="Center"
                        FontSize="18"
                        Opacity="0.55"
                        TextColor="White" />
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Command="{Binding ToggleCommand, Source={x:Reference self}}" />
+                </Grid.GestureRecognizers>
             </Grid>
 
             <!-- Collapsible content -->

@@ -12,10 +12,11 @@
     BackgroundColor="{StaticResource BackgroundColor}">
 
     <TabBar>
-        <ShellContent Route="DashboardPage" ContentTemplate="{DataTemplate views:DashboardPage}" />
-        <ShellContent Route="CamerasPage" ContentTemplate="{DataTemplate views:CamerasPage}" />
-        <ShellContent Route="SettingsPage" ContentTemplate="{DataTemplate views:SettingsPage}" />
-        <ShellContent Route="SystemPage" ContentTemplate="{DataTemplate views:SystemPage}" />
+        <ShellContent x:Name="DashboardTab" Route="DashboardPage" />
+        <ShellContent x:Name="CamerasTab"   Route="CamerasPage" />
+        <ShellContent x:Name="SettingsTab"  Route="SettingsPage" />
+        <ShellContent x:Name="SystemTab"    Route="SystemPage" />
+        <ShellContent x:Name="TvTab"        Route="TvPage" />
     </TabBar>
 
     <!-- Route-urile modale CameraFullscreenPage si CameraSettingsPage

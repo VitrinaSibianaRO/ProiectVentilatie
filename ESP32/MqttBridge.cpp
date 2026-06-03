@@ -132,6 +132,7 @@ bool MqttBridge::_connect() {
   _client.publish(TOPIC_ONLINE, "online", true);
   _client.subscribe(TOPIC_CMD, 1);
   Serial.println("[MQTT] Subscribed to ventilatie/cmd (QoS 1).");
+  // TV commands vin pe acelasi topic cmd, deci nu e nevoie de subscribe suplimentar.
 
   return true;
 }
@@ -246,6 +247,43 @@ void MqttBridge::_handleMessage(char *topic, byte *payload,
     _mqttPending.ledModeP2  = (uint16_t)p2;
     _mqttPending.ledModeP3  = (uint16_t)p3;
     _mqttPending.ledModeP4  = (uint16_t)p4;
+  } else if (strcmp(cmd, "setTv") == 0) {
+    const char* action = doc["action"] | "";
+    if (strlen(action) == 0 || strlen(action) >= sizeof(_mqttPending.tvAction)) {
+      Serial.println("[MQTT] setTv: action invalida.");
+      _lockOwner = LOCK_NONE;
+      return;
+    }
+    strncpy(_mqttPending.tvAction, action, sizeof(_mqttPending.tvAction) - 1);
+    _mqttPending.tvValue  = doc["value"] | 0;
+    _mqttPending.setTv    = true;
+  } else if (strcmp(cmd, "setTvConfig") == 0) {
+    const char* ip  = doc["ip"]  | "";
+    const char* mac = doc["mac"] | "";
+    if (strlen(ip) == 0 || strlen(mac) == 0) {
+      Serial.println("[MQTT] setTvConfig: ip sau mac lipsa.");
+      _lockOwner = LOCK_NONE;
+      return;
+    }
+    strncpy(_mqttPending.tvConfigIp, ip, sizeof(_mqttPending.tvConfigIp) - 1);
+    if (!TvController::parseMacString(mac, _mqttPending.tvConfigMac)) {
+      Serial.println("[MQTT] setTvConfig: MAC invalid.");
+      _lockOwner = LOCK_NONE;
+      return;
+    }
+    _mqttPending.setTvConfig = true;
+  } else if (strcmp(cmd, "setFollowTvBrightness") == 0) {
+    int v = doc["enabled"] | 0;
+    _mqttPending.setFollowTvBrightness = true;
+    _mqttPending.followTvValue         = (v != 0);
+  } else if (strcmp(cmd, "setLedMorseText") == 0) {
+    const char* t = doc["text"] | "";
+    if (strlen(t) > 51) {
+      _lockOwner = LOCK_NONE;
+      return;
+    }
+    _mqttPending.setLedMorseText = true;
+    strlcpy(_mqttPending.ledMorseText, t, sizeof(_mqttPending.ledMorseText));
   } else {
     Serial.printf("[MQTT] Cmd '%s' necunoscută.\n", cmd);
     _lockOwner = LOCK_NONE;
@@ -290,7 +328,9 @@ bool MqttBridge::hasPendingCommands() const {
          _mqttPending.resetDefaults || _mqttPending.reboot ||
          _mqttPending.rebootSlave || _mqttPending.getLog ||
          _mqttPending.setLedNow || _mqttPending.setLedSched ||
-         _mqttPending.setLedMode;
+         _mqttPending.setLedMode ||
+         _mqttPending.setTv || _mqttPending.setTvConfig ||
+         _mqttPending.setFollowTvBrightness || _mqttPending.setLedMorseText;
 }
 
 MqttPending &MqttBridge::getPending() { return _mqttPending; }
@@ -372,9 +412,11 @@ void MqttBridge::_publishStateNow(const VentilationZone &l,
   slave["errors"] = slaveErrors;
   slave["lastSeen"] = (uint32_t)(slaveLastSuccessMs / 1000UL);
 
-  // LED status (from Slave) — doar intensitatea, NU schedEnabled
+  // LED status (from Slave)
   JsonObject led = doc["led"].to<JsonObject>();
-  led["intensity"] = ledIntensity;
+  led["intensity"]  = ledIntensity;
+  led["followTv"]   = _prefs->followTvBrightness;
+  led["morseText"]  = _prefs->morseText;
 
   // Lock object
   if (_lockOwner != LOCK_NONE) {
@@ -422,6 +464,33 @@ void MqttBridge::publishLog(const char *jsonBuf, size_t len) {
     return;
   _client.publish(TOPIC_LOG, (const uint8_t *)jsonBuf, len, false);
   Serial.printf("[MQTT] Log published (%u bytes).\n", (unsigned)len);
+}
+
+void MqttBridge::publishTvState(const TvState &tv) {
+  if (!connected()) return;
+
+  JsonDocument doc;
+  doc["power"]        = tv.power;
+  doc["volume"]       = tv.volume;
+  doc["muted"]        = tv.muted;
+  doc["inputId"]      = tv.inputId;
+  doc["tempC"]        = tv.temperatureC;
+  doc["signal"]       = tv.hasSignal;
+  doc["hours"]        = tv.usageHours;
+  doc["backlight"]    = tv.backlight;
+  doc["pictureMode"]  = tv.pictureMode;
+  doc["energySaving"] = tv.energySaving;
+  doc["noSignalOff"]  = tv.noSignalPowerOff;
+  doc["serial"]       = tv.serial;
+  doc["swVersion"]    = tv.swVersion;
+  doc["reachable"]    = tv.reachable;
+
+  char buf[512];
+  size_t n = serializeJson(doc, buf, sizeof(buf));
+  if (n == 0 || n >= sizeof(buf)) return;
+
+  _client.publish(TOPIC_TV_STATE, (const uint8_t *)buf, n, true);
+  Serial.printf("[MQTT] TV state published (%u bytes).\n", (unsigned)n);
 }
 
 void MqttBridge::_publishDiag() {

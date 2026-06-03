@@ -36,3 +36,4 @@ ESP32/Version.h
 MobileApp/build_number.txt
 /ESP32_Slave/build/
 /ESP32/build/
+apk/

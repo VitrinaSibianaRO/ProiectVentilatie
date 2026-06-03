@@ -88,4 +88,10 @@ public class LedState
 
     [JsonPropertyName("schedEnabled")]
     public bool SchedEnabled { get; set; }
+
+    [JsonPropertyName("followTv")]
+    public bool FollowTv { get; set; }
+
+    [JsonPropertyName("morseText")]
+    public string MorseText { get; set; } = "SUGI PULA";
 }

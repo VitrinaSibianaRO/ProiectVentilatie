@@ -243,6 +243,49 @@
                     </Border>
                 </Grid>
 
+                <!-- TV TELEMETRIE — o singura linie, fit la latime -->
+                <Border IsVisible="{Binding TvDataVisible}"
+                        Margin="14,6,14,0" Padding="12,10"
+                        BackgroundColor="#0DFFFFFF"
+                        Stroke="#18FFFFFF"
+                        StrokeThickness="1"
+                        StrokeShape="RoundRectangle 8">
+                    <Grid ColumnDefinitions="Auto,*,*,*,*" ColumnSpacing="0">
+                        <!-- Eticheta TV -->
+                        <Label Grid.Column="0" Text="TV  " FontSize="11" Opacity="0.35"
+                               VerticalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <!-- Temperatura -->
+                        <Label Grid.Column="1"
+                               Text="{Binding TvTempText}"
+                               FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryOrange}"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               Style="{StaticResource LabelShareTech}" />
+                        <!-- Ore utilizare -->
+                        <Label Grid.Column="2"
+                               Text="{Binding TvUsageText}"
+                               FontSize="16" FontAttributes="Bold"
+                               TextColor="{StaticResource PrimaryCyan}"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               Style="{StaticResource LabelShareTech}" />
+                        <!-- Accesibil -->
+                        <Label Grid.Column="3"
+                               Text="{Binding TvReachableText}"
+                               FontSize="13" FontAttributes="Bold"
+                               TextColor="{Binding TvReachableColor}"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
+                        <!-- Power -->
+                        <Label Grid.Column="4"
+                               Text="{Binding TvPowerText}"
+                               FontSize="13" FontAttributes="Bold"
+                               TextColor="{Binding TvPowerColor}"
+                               HorizontalOptions="Center" VerticalOptions="Center"
+                               Style="{StaticResource LabelRajdhani}" />
+                    </Grid>
+                </Border>
+
                 <!-- Spacer -->
                 <BoxView HeightRequest="8" />
 

@@ -1,0 +1,284 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:controls="clr-namespace:ProiectVentilatie.Mobile.Controls"
+             xmlns:vm="clr-namespace:ProiectVentilatie.Mobile.ViewModels"
+x:Class="ProiectVentilatie.Mobile.Views.TvPage"
+             x:DataType="vm:TvViewModel">
+
+    <Grid RowDefinitions="*,Auto" BackgroundColor="{StaticResource BackgroundColor}">
+        <controls:ScanLineView Grid.Row="0" InputTransparent="True" ZIndex="100" />
+
+        <ScrollView Grid.Row="0" Padding="0,0,0,12">
+            <VerticalStackLayout Spacing="16" Padding="14,20">
+
+                <!-- HEADER -->
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="DISPLAY CONTROL" FontSize="9" CharacterSpacing="2" Opacity="0.4"
+                           Style="{StaticResource LabelRajdhani}" />
+                    <Label Text="LG 75XS4P SIGNAGE" FontSize="22" FontAttributes="Bold"
+                           Style="{StaticResource LabelRajdhani}" />
+                </VerticalStackLayout>
+
+                <!-- STATUS + TELEMETRIE -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryCyan}" CornerRadius="2" />
+                            <Label Text="Telemetrie &amp; Status" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Stare + Accesibilitate -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Text="STARE" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="{Binding StatusText}" FontSize="15" FontAttributes="Bold"
+                                       Style="{StaticResource LabelShareTech}"
+                                       TextColor="{StaticResource PrimaryCyan}" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1">
+                                <Label Text="REȚEA TCP" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label FontSize="13" Style="{StaticResource LabelShareTech}">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding TvReachable}" Value="True">
+                                            <Setter Property="Text" Value="ACCESIBIL" />
+                                            <Setter Property="TextColor" Value="{StaticResource PrimaryGreen}" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Label" Binding="{Binding TvReachable}" Value="False">
+                                            <Setter Property="Text" Value="OFFLINE" />
+                                            <Setter Property="TextColor" Value="{StaticResource PrimaryOrange}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- Temperatura + Semnal -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Text="TEMP. PANOU" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="{Binding TvTemperatureC, StringFormat='{0}°C'}" FontSize="18"
+                                           Style="{StaticResource LabelShareTech}" TextColor="{StaticResource PrimaryOrange}" />
+                                </HorizontalStackLayout>
+                                <Label Text="DEPASIRE TERMICA" FontSize="9" TextColor="{StaticResource PrimaryOrange}"
+                                       IsVisible="{Binding IsTvOverheating}" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1">
+                                <Label Text="SEMNAL HDMI" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label FontSize="13" Style="{StaticResource LabelShareTech}">
+                                    <Label.Triggers>
+                                        <DataTrigger TargetType="Label" Binding="{Binding TvHasSignal}" Value="True">
+                                            <Setter Property="Text" Value="ACTIV" />
+                                            <Setter Property="TextColor" Value="{StaticResource PrimaryGreen}" />
+                                        </DataTrigger>
+                                        <DataTrigger TargetType="Label" Binding="{Binding TvHasSignal}" Value="False">
+                                            <Setter Property="Text" Value="NO SIGNAL" />
+                                            <Setter Property="TextColor" Value="{StaticResource PrimaryOrange}" />
+                                        </DataTrigger>
+                                    </Label.Triggers>
+                                </Label>
+                            </VerticalStackLayout>
+                        </Grid>
+
+                        <!-- Ore utilizare -->
+                        <VerticalStackLayout>
+                            <Label Text="ORE UTILIZARE PANOU" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                            <Label Text="{Binding TvUsageHours, StringFormat='{0} ore'}" FontSize="13"
+                                   Style="{StaticResource LabelShareTech}" TextColor="{StaticResource PrimaryCyan}" />
+                        </VerticalStackLayout>
+
+                        <!-- Serial + SW -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <VerticalStackLayout Grid.Column="0">
+                                <Label Text="SERIAL" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="{Binding TvSerialNumber}" FontSize="11"
+                                       Style="{StaticResource LabelShareTech}" Opacity="0.7" />
+                            </VerticalStackLayout>
+                            <VerticalStackLayout Grid.Column="1">
+                                <Label Text="SW VERSION" FontSize="9" Opacity="0.4" Style="{StaticResource LabelRajdhani}" />
+                                <Label Text="{Binding TvSoftwareVersion}" FontSize="11"
+                                       Style="{StaticResource LabelShareTech}" Opacity="0.7" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- CONTROL RAPID -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="14">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryOrange}" CornerRadius="2" />
+                            <Label Text="Control Rapid" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Power buttons -->
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <Button Grid.Column="0" Text="PORNIT" Style="{StaticResource CyberButton}"
+                                    HeightRequest="44" Command="{Binding PowerOnCommand}" />
+                            <Button Grid.Column="1" Text="OPRIT" Style="{StaticResource CyberButtonOrange}"
+                                    HeightRequest="44" Command="{Binding PowerOffCommand}" />
+                        </Grid>
+
+                        <!-- Volum -->
+                        <VerticalStackLayout Spacing="4">
+                            <HorizontalStackLayout Spacing="8">
+                                <Label Text="VOLUM" FontSize="9" Opacity="0.4"
+                                       Style="{StaticResource LabelRajdhani}" VerticalOptions="Center" />
+                                <Label Text="{Binding TvVolume, StringFormat='{0}%'}" FontSize="13"
+                                       Style="{StaticResource LabelShareTech}"
+                                       TextColor="{StaticResource PrimaryCyan}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Slider x:Name="VolumeSlider" Minimum="0" Maximum="100" Value="{Binding TvVolume}"
+                                    DragCompleted="OnVolumeDragCompleted"
+                                    ThumbColor="{StaticResource PrimaryCyan}"
+                                    MinimumTrackColor="{StaticResource PrimaryCyan}"
+                                    MaximumTrackColor="#33ffffff" />
+                        </VerticalStackLayout>
+
+                        <!-- Mute toggle -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Silențios (Mute)" FontSize="14"
+                                   Style="{StaticResource LabelRajdhani}" VerticalOptions="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding TvMute}"
+                                    Toggled="OnMuteToggled"
+                                    OnColor="{StaticResource PrimaryOrange}" />
+                        </Grid>
+
+                        <!-- Intrare semnal -->
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="INTRARE SEMNAL" FontSize="9" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <Label Text="{Binding TvInputSelected}" FontSize="15"
+                                   Style="{StaticResource LabelShareTech}"
+                                   TextColor="{StaticResource PrimaryCyan}" />
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- SETARI AVANSATE -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="14">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryBlue}" CornerRadius="2" />
+                            <Label Text="Setări Avansate" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <!-- Backlight -->
+                        <VerticalStackLayout Spacing="4">
+                            <HorizontalStackLayout Spacing="8">
+                                <Label Text="BACKLIGHT" FontSize="9" Opacity="0.4"
+                                       Style="{StaticResource LabelRajdhani}" VerticalOptions="Center" />
+                                <Label Text="{Binding TvBacklight, StringFormat='{0}%'}" FontSize="13"
+                                       Style="{StaticResource LabelShareTech}"
+                                       TextColor="{StaticResource PrimaryCyan}" VerticalOptions="Center" />
+                            </HorizontalStackLayout>
+                            <Slider Minimum="0" Maximum="100" Value="{Binding TvBacklight}"
+                                    DragCompleted="OnBacklightDragCompleted"
+                                    ThumbColor="{StaticResource PrimaryCyan}"
+                                    MinimumTrackColor="{StaticResource PrimaryCyan}"
+                                    MaximumTrackColor="#33ffffff" />
+                        </VerticalStackLayout>
+
+                        <!-- Mod imagine -->
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="MOD IMAGINE" FontSize="9" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <Grid ColumnDefinitions="50,*,50" ColumnSpacing="8">
+                                <Button Grid.Column="0" Text="◀"
+                                        Style="{StaticResource CyberButton}"
+                                        HeightRequest="40"
+                                        Command="{Binding PrevPictureModeCommand}" />
+                                <Label Grid.Column="1" Text="{Binding TvPictureModeSelected}"
+                                       FontSize="15" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryCyan}"
+                                       HorizontalOptions="Center" VerticalOptions="Center"
+                                       Style="{StaticResource LabelShareTech}" />
+                                <Button Grid.Column="2" Text="▶"
+                                        Style="{StaticResource CyberButton}"
+                                        HeightRequest="40"
+                                        Command="{Binding NextPictureModeCommand}" />
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <!-- Economie energie -->
+                        <VerticalStackLayout Spacing="6">
+                            <Label Text="ECONOMIE ENERGIE" FontSize="9" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <Grid ColumnDefinitions="50,*,50" ColumnSpacing="8">
+                                <Button Grid.Column="0" Text="◀"
+                                        Style="{StaticResource CyberButton}"
+                                        HeightRequest="40"
+                                        Command="{Binding PrevEnergySavingCommand}" />
+                                <Label Grid.Column="1" Text="{Binding TvEnergySavingSelected}"
+                                       FontSize="15" FontAttributes="Bold"
+                                       TextColor="{StaticResource PrimaryCyan}"
+                                       HorizontalOptions="Center" VerticalOptions="Center"
+                                       Style="{StaticResource LabelShareTech}" />
+                                <Button Grid.Column="2" Text="▶"
+                                        Style="{StaticResource CyberButton}"
+                                        HeightRequest="40"
+                                        Command="{Binding NextEnergySavingCommand}" />
+                            </Grid>
+                        </VerticalStackLayout>
+
+                        <!-- Oprire la lipsa semnal -->
+                        <Grid ColumnDefinitions="*,Auto">
+                            <Label Grid.Column="0" Text="Oprire la lipsă semnal (15 min)"
+                                   FontSize="14" Style="{StaticResource LabelRajdhani}" VerticalOptions="Center" />
+                            <Switch Grid.Column="1" IsToggled="{Binding TvNoSignalPowerOff}"
+                                    Toggled="OnNoSignalOffToggled"
+                                    OnColor="{StaticResource PrimaryOrange}" />
+                        </Grid>
+
+                    </VerticalStackLayout>
+                </Border>
+
+                <!-- CONFIGURARE TV (IP + MAC) -->
+                <Border Style="{StaticResource IndustrialCard}">
+                    <VerticalStackLayout Spacing="12">
+                        <HorizontalStackLayout Spacing="8">
+                            <BoxView WidthRequest="3" HeightRequest="16" Color="{StaticResource PrimaryBlue}" CornerRadius="2" />
+                            <Label Text="Configurare Dispozitiv" FontSize="16" FontAttributes="Bold"
+                                   Style="{StaticResource LabelRajdhani}" />
+                        </HorizontalStackLayout>
+
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="ADRESĂ IP TV" FontSize="9" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <Entry Text="{Binding TvIpAddress}"
+                                   Placeholder="ex: 192.168.1.100"
+                                   Keyboard="Url"
+                                   PlaceholderColor="#55ffffff"
+                                   TextColor="{StaticResource PrimaryCyan}" />
+                        </VerticalStackLayout>
+
+                        <VerticalStackLayout Spacing="4">
+                            <Label Text="ADRESĂ MAC TV (pentru WoL)" FontSize="9" Opacity="0.4"
+                                   Style="{StaticResource LabelRajdhani}" />
+                            <Entry Text="{Binding TvMacAddress}"
+                                   Placeholder="ex: AA:BB:CC:DD:EE:FF"
+                                   Keyboard="Text"
+                                   PlaceholderColor="#55ffffff"
+                                   TextColor="{StaticResource PrimaryCyan}" />
+                        </VerticalStackLayout>
+
+                        <Label Text="IP static sau rezervare DHCP necesara in router." FontSize="11"
+                               Opacity="0.5" Style="{StaticResource LabelRajdhani}" />
+
+                        <Button Text="SALVEAZA CONFIGURARE"
+                                Style="{StaticResource CyberButton}"
+                                HeightRequest="44"
+                                Command="{Binding SaveTvConfigCommand}" />
+                    </VerticalStackLayout>
+                </Border>
+
+            </VerticalStackLayout>
+        </ScrollView>
+
+        <controls:FloatingNavBar Grid.Row="1" CurrentPage="Tv" />
+    </Grid>
+</ContentPage>

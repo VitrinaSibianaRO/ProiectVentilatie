@@ -33,7 +33,10 @@ public:
         _patternMode(0), _patternStateMs(0),
         _nextLightningMs(0), _lightningFlashing(false),
         _candleLastChangeMs(0), _candlePrevTarget(0), _candleCurTarget(0),
-        _randomLastChangeMs(0), _randomPrevTarget(0), _randomCurTarget(0) {
+        _randomLastChangeMs(0), _randomPrevTarget(0), _randomCurTarget(0),
+        _followTvEnabled(false), _tvCap(100), _currentCap(0),
+        _morseSlotsLen(0) {
+    _morseText[0] = '\0';
     _initPatternDefaults();
   }
 
@@ -149,9 +152,17 @@ public:
       _applyPwmRaw(0);
       return;
     }
+    // Aplicam plafonul TV daca follow-TV e activ
+    _currentCap = (_followTvEnabled && _tvCap < _targetPercent)
+                ? _tvCap
+                : _targetPercent;
+    if (_currentCap == 0) {
+      _applyPwmRaw(0);
+      return;
+    }
     uint8_t b;
     switch (_patternMode) {
-      case 0:  b = _targetPercent;         break;
+      case 0:  b = _currentCap;            break;
       case 1:  b = _computeBreathing();    break;
       case 2:  b = _computeTriangle();     break;
       case 3:  b = _computeSawtooth();     break;
@@ -159,11 +170,11 @@ public:
       case 5:  b = _computeHeartbeat();    break;
       case 6:  b = _computeCandle();       break;
       case 7:  b = _computeLightning();    break;
-      case 8:  b = _computeMorseSos();     break;
+      case 8:  b = _computeMorseText();     break;
       case 9:  b = _computeSunrise();      break;
       case 10: b = _computeSunset();       break;
       case 11: b = _computeRandom();       break;
-      default: b = _targetPercent;         break;
+      default: b = _currentCap;            break;
     }
     _applyPwmRaw(b);
   }
@@ -177,13 +188,57 @@ public:
   Schedule getSchedule() const { return _schedule; }
   bool hasTimeSync() const { return _syncedEpoch > 1700000000UL; }
 
+  // Text Morse dinamic
+  void setMorseText(const char* text) {
+    strlcpy(_morseText, text ? text : "SUGI PULA", sizeof(_morseText));
+    for (char* c = _morseText; *c; c++) *c = toupper((unsigned char)*c);
+    _buildMorseSlots();
+    Preferences p;
+    p.begin("led", false);
+    p.putString("mtxt", _morseText);
+    p.end();
+    LOG_INFO("Morse text setat: %s (%u sloturi)", _morseText, _morseSlotsLen);
+  }
+
+  const char* getMorseText() const { return _morseText; }
+
+  // Follow TV brightness
+  void setFollowTv(bool enabled) {
+    _followTvEnabled = enabled;
+    Preferences p;
+    p.begin("led", false);
+    p.putBool("ftv", enabled);
+    p.end();
+    LOG_INFO("LED followTv=%d (persistent)", enabled);
+  }
+
+  void setTvCap(uint8_t pct) {
+    if (pct > 100) pct = 100;
+    _tvCap = pct;
+    // Nu persistam — se re-trimite la fiecare poll TV (6 min)
+  }
+
+  bool    getFollowTv() const { return _followTvEnabled; }
+  uint8_t getTvCap()    const { return _tvCap; }
+
 private:
+  // Tabel de lookup ITU Morse: index 0-25=A-Z, 26-35=0-9
+  static const char* const MORSE_TABLE[36];
+
+  static constexpr uint16_t MORSE_SLOTS_MAX = 1000;
+  char     _morseText[52];                  // text curent (uppercase, max 51 + null)
+  uint8_t  _morseSlots[MORSE_SLOTS_MAX];    // 1=ON, 0=OFF, 1 slot = 1 dit
+  uint16_t _morseSlotsLen;
   uint8_t  _targetPercent;  // cap curent (setat de schedule sau manual)
   Schedule _schedule;
   uint32_t _syncedEpoch;
   bool     _manualOverride;
   uint8_t  _manualIntensity;
   bool     _wasInWindow;
+
+  bool     _followTvEnabled;  // toggle utilizator (persistent NVS "ftv")
+  uint8_t  _tvCap;            // ultim backlight TV (0-100, default 100, NU persistent)
+  uint8_t  _currentCap;       // calculat la fiecare effectTick() = min(_targetPercent, _tvCap)
 
   uint8_t       _patternMode;
   PatternConfig _patterns[PATTERN_COUNT];
@@ -228,43 +283,43 @@ private:
   uint8_t _computeBreathing() {
     const auto& cfg = _patterns[1];
     uint8_t minP = (uint8_t)constrain((int)cfg.p1, 0, 100);
-    if (minP >= _targetPercent || cfg.p2 == 0) return _targetPercent;
+    if (minP >= _currentCap || cfg.p2 == 0) return _currentCap;
     float t = (float)(millis() - _patternStateMs) / 1000.0f;
     float phase = fmodf(t, (float)cfg.p2) / (float)cfg.p2;
     float f = 0.5f - 0.5f * cosf(2.0f * (float)M_PI * phase);
-    return (uint8_t)((float)minP + (float)(_targetPercent - minP) * f);
+    return (uint8_t)((float)minP + (float)(_currentCap - minP) * f);
   }
 
   uint8_t _computeTriangle() {
     const auto& cfg = _patterns[2];
     uint8_t minP = (uint8_t)constrain((int)cfg.p1, 0, 100);
-    if (minP >= _targetPercent || cfg.p2 == 0) return _targetPercent;
+    if (minP >= _currentCap || cfg.p2 == 0) return _currentCap;
     float t = (float)(millis() - _patternStateMs) / 1000.0f;
     float phase = fmodf(t, (float)cfg.p2) / (float)cfg.p2;
     float f = (phase < 0.5f) ? (phase * 2.0f) : (2.0f - phase * 2.0f);
-    return (uint8_t)((float)minP + (float)(_targetPercent - minP) * f);
+    return (uint8_t)((float)minP + (float)(_currentCap - minP) * f);
   }
 
   uint8_t _computeSawtooth() {
     const auto& cfg = _patterns[3];
     uint8_t minP = (uint8_t)constrain((int)cfg.p1, 0, 100);
-    if (minP >= _targetPercent || cfg.p2 == 0) return _targetPercent;
+    if (minP >= _currentCap || cfg.p2 == 0) return _currentCap;
     float t = (float)(millis() - _patternStateMs) / 1000.0f;
     float phase = fmodf(t, (float)cfg.p2) / (float)cfg.p2;
     float f = (cfg.p3 == 0) ? phase : (1.0f - phase);
-    return (uint8_t)((float)minP + (float)(_targetPercent - minP) * f);
+    return (uint8_t)((float)minP + (float)(_currentCap - minP) * f);
   }
 
   uint8_t _computeStrobe() {
     const auto& cfg = _patterns[4];
-    if (cfg.p2 == 0) return _targetPercent;
+    if (cfg.p2 == 0) return _currentCap;
     float freqHz = (float)cfg.p2 / 10.0f;
-    if (freqHz <= 0.0f) return _targetPercent;
+    if (freqHz <= 0.0f) return _currentCap;
     float periodMs = 1000.0f / freqHz;
     float elapsed = (float)(millis() - _patternStateMs);
     float phase = fmodf(elapsed, periodMs) / periodMs;
     float duty = (float)cfg.p1 / 100.0f;
-    return (phase < duty) ? _targetPercent : 0;
+    return (phase < duty) ? _currentCap : 0;
   }
 
   uint8_t _computeHeartbeat() {
@@ -275,7 +330,7 @@ private:
     float elapsed = (float)(millis() - _patternStateMs);
     float phase = fmodf(elapsed, periodMs) / periodMs;
     uint8_t maxB = (uint8_t)constrain((int)cfg.p2, 0, 100);
-    uint8_t cap = (maxB > _targetPercent) ? _targetPercent : maxB;
+    uint8_t cap = (maxB > _currentCap) ? _currentCap : maxB;
     if (phase < 0.10f)      return (uint8_t)(cap * (phase / 0.10f));
     if (phase < 0.15f)      return (uint8_t)(cap * (1.0f - (phase - 0.10f) / 0.05f));
     if (phase < 0.20f)      return (uint8_t)(cap * 0.7f * ((phase - 0.15f) / 0.05f));
@@ -287,16 +342,16 @@ private:
     const auto& cfg = _patterns[6];
     const uint32_t now = millis();
     if (_candleLastChangeMs == 0) {
-      _candlePrevTarget = _targetPercent;
-      _candleCurTarget  = _targetPercent;
+      _candlePrevTarget = _currentCap;
+      _candleCurTarget  = _currentCap;
       _candleLastChangeMs = now;
     }
     uint32_t intervalMs = 80 + (uint32_t)random(40);
     if (now - _candleLastChangeMs >= intervalMs) {
       _candlePrevTarget = _candleCurTarget;
       int variation = constrain((int)cfg.p1, 0, 100);
-      int delta = (int)random(-variation, variation + 1) * (int)_targetPercent / 100;
-      int newT = constrain((int)_targetPercent + delta, 0, (int)_targetPercent);
+      int delta = (int)random(-variation, variation + 1) * (int)_currentCap / 100;
+      int newT = constrain((int)_currentCap + delta, 0, (int)_currentCap);
       _candleCurTarget = (uint8_t)newT;
       _candleLastChangeMs = now;
       return _candleCurTarget;
@@ -323,49 +378,91 @@ private:
         _lightningFlashing = false;
         _nextLightningMs = now + (uint32_t)random(avgIntervalMs / 2, avgIntervalMs);
       } else {
-        return _targetPercent;
+        return _currentCap;
       }
     } else if (now >= _nextLightningMs) {
       _lightningFlashing = true;
       _nextLightningMs = now + 200 + (uint32_t)random(50);
-      return _targetPercent;
+      return _currentCap;
     }
 
     uint8_t baseline = (uint8_t)constrain((int)cfg.p2, 0, 100);
-    return (baseline > _targetPercent) ? _targetPercent : baseline;
+    return (baseline > _currentCap) ? _currentCap : baseline;
   }
 
-  uint8_t _computeMorseSos() {
-    const auto& cfg = _patterns[8];
-    static const uint8_t SOS[] = {
-      1,0,1,0,1,0,0,0,3,0,3,0,3,0,0,0,1,0,1,0,1,0,0,0,0,0,0,0
+  void _buildMorseSlots() {
+    _morseSlotsLen = 0;
+    if (!_morseText[0]) {
+      // Text gol — fallback la 7 OFF
+      for (int i = 0; i < 7; i++) _morseSlots[_morseSlotsLen++] = 0;
+      return;
+    }
+
+    auto add = [&](uint8_t v, int n) {
+      for (int i = 0; i < n && _morseSlotsLen < MORSE_SLOTS_MAX; i++)
+        _morseSlots[_morseSlotsLen++] = v;
     };
-    static constexpr uint8_t SOS_LEN = sizeof(SOS);
+
+    bool firstWord = true;
+    const char* p = _morseText;
+    while (*p && _morseSlotsLen < MORSE_SLOTS_MAX - 20) {
+      // Sarim spatiile initiale ale cuvantului
+      while (*p == ' ') p++;
+      if (!*p) break;
+
+      if (!firstWord) add(0, 7);  // inter-word gap
+      firstWord = false;
+
+      bool firstChar = true;
+      while (*p && *p != ' ' && _morseSlotsLen < MORSE_SLOTS_MAX - 20) {
+        char c = (char)toupper((unsigned char)*p++);
+        const char* m = nullptr;
+        if (c >= 'A' && c <= 'Z') m = MORSE_TABLE[c - 'A'];
+        else if (c >= '0' && c <= '9') m = MORSE_TABLE[26 + (c - '0')];
+        if (!m) continue;  // caracter necunoscut — ignorat
+
+        if (!firstChar) add(0, 3);  // inter-char gap
+        firstChar = false;
+
+        bool firstSym = true;
+        for (const char* s = m; *s; s++) {
+          if (!firstSym) add(0, 1);  // inter-element gap
+          firstSym = false;
+          add(1, (*s == '.') ? 1 : 3);
+        }
+      }
+    }
+    add(0, 7);  // end gap pentru loop curat
+  }
+
+  uint8_t _computeMorseText() {
+    if (_morseSlotsLen == 0) return 0;
+    const auto& cfg = _patterns[8];
     uint16_t dit = cfg.p1 < 50 ? 50 : cfg.p1;
     uint32_t elapsed = millis() - _patternStateMs;
-    uint32_t idx = (elapsed / dit) % SOS_LEN;
-    return (SOS[idx] != 0) ? _targetPercent : 0;
+    uint32_t idx = (elapsed / dit) % _morseSlotsLen;
+    return (_morseSlots[idx] != 0) ? _currentCap : 0;
   }
 
   uint8_t _computeSunrise() {
     const auto& cfg = _patterns[9];
-    if (cfg.p1 == 0) return _targetPercent;
+    if (cfg.p1 == 0) return _currentCap;
     uint32_t durMs = (uint32_t)cfg.p1 * 60000UL;
     uint32_t elapsed = (millis() - _patternStateMs) % durMs;
     float t = (float)elapsed / (float)durMs;
     uint8_t finalP = (uint8_t)constrain((int)cfg.p2, 0, 100);
-    uint8_t cap = (finalP > _targetPercent) ? _targetPercent : finalP;
+    uint8_t cap = (finalP > _currentCap) ? _currentCap : finalP;
     return (uint8_t)((float)cap * t);
   }
 
   uint8_t _computeSunset() {
     const auto& cfg = _patterns[10];
-    if (cfg.p1 == 0) return _targetPercent;
+    if (cfg.p1 == 0) return _currentCap;
     uint32_t durMs = (uint32_t)cfg.p1 * 60000UL;
     uint32_t elapsed = (millis() - _patternStateMs) % durMs;
     float t = (float)elapsed / (float)durMs;
     uint8_t startP = (uint8_t)constrain((int)cfg.p2, 0, 100);
-    uint8_t cap = (startP > _targetPercent) ? _targetPercent : startP;
+    uint8_t cap = (startP > _currentCap) ? _currentCap : startP;
     return (uint8_t)((float)cap * (1.0f - t));
   }
 
@@ -387,7 +484,7 @@ private:
     if (now - _randomLastChangeMs >= intervalMs) {
       _randomPrevTarget = _randomCurTarget;
       uint8_t newT = (uint8_t)random(minP, (long)maxP + 1);
-      if (newT > _targetPercent) newT = _targetPercent;
+      if (newT > _currentCap) newT = _currentCap;
       _randomCurTarget = newT;
       _randomLastChangeMs = now;
       return _randomCurTarget;
@@ -434,7 +531,15 @@ private:
       _initPatternDefaults();
       LOG_WARN("LED patterns NVS blob corrupt, using defaults");
     }
+    _followTvEnabled = p.getBool("ftv", false);
+    _tvCap           = 100;   // nu persistam — re-trimis la fiecare poll TV
+    {
+      String txt = p.getString("mtxt", "SUGI PULA");
+      strlcpy(_morseText, txt.c_str(), sizeof(_morseText));
+      for (char* c = _morseText; *c; c++) *c = toupper((unsigned char)*c);
+    }
     p.end();
+    _buildMorseSlots();
   }
 
   void _saveManToNvs() const {

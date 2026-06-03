@@ -25,8 +25,8 @@
             </Border.Background>
         </Border>
 
-        <!-- Tap layer: Grid cu 4 celule SOLIDE care primesc tap -->
-        <Grid ColumnDefinitions="*,*,*,*" Padding="6,0">
+        <!-- Tap layer: Grid cu 5 celule SOLIDE care primesc tap -->
+        <Grid ColumnDefinitions="*,*,*,*,*" Padding="6,0">
 
             <!-- ===== DASHBOARD ===== -->
             <Grid Grid.Column="0" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
@@ -66,8 +66,27 @@
                 </Grid.GestureRecognizers>
             </Grid>
 
-            <!-- ===== SETTINGS ===== -->
+            <!-- ===== TV ===== -->
             <Grid Grid.Column="2" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
+                <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
+                         Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
+                         HorizontalOptions="Center" InputTransparent="True"
+                         IsVisible="{Binding IsTvActive, Source={x:Reference self}}" />
+                <Path Grid.Row="1"
+                      Data="M2,7 H22 V20 H2 Z M7,4 L12,7 L17,4 M8,20 L6,23 M16,20 L18,23 M6,23 H18"
+                      Fill="Transparent" StrokeThickness="2" InputTransparent="True"
+                      HeightRequest="22" WidthRequest="22" HorizontalOptions="Center" Aspect="Uniform"
+                      Stroke="{Binding IsTvActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                <Label Grid.Row="2" Text="TV" FontSize="10" HorizontalOptions="Center" InputTransparent="True"
+                       Style="{StaticResource LabelRajdhani}"
+                       TextColor="{Binding IsTvActive, Source={x:Reference self}, Converter={StaticResource NavBoolToColor}, ConverterParameter=cyan}" />
+                <Grid.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="OnTapTv" />
+                </Grid.GestureRecognizers>
+            </Grid>
+
+            <!-- ===== SETTINGS ===== -->
+            <Grid Grid.Column="3" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
                 <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
                          Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
                          HorizontalOptions="Center" InputTransparent="True"
@@ -86,7 +105,7 @@
             </Grid>
 
             <!-- ===== SYSTEM ===== -->
-            <Grid Grid.Column="3" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
+            <Grid Grid.Column="4" BackgroundColor="#02FFFFFF" RowDefinitions="3,Auto,Auto" RowSpacing="3" Padding="0,4">
                 <BoxView Grid.Row="0" HeightRequest="3" WidthRequest="22"
                          Color="{StaticResource PrimaryCyan}" CornerRadius="0,0,2,2"
                          HorizontalOptions="Center" InputTransparent="True"

@@ -7,17 +7,19 @@ public partial class App : Application
 {
     private readonly IMqttService _mqtt;
     private readonly CamerasViewModel _cameras;
+    private readonly IServiceProvider _services;
 
-    public App(IMqttService mqttService, CamerasViewModel camerasViewModel)
+    public App(IMqttService mqttService, CamerasViewModel camerasViewModel, IServiceProvider services)
     {
         InitializeComponent();
-        _mqtt    = mqttService;
-        _cameras = camerasViewModel;
+        _mqtt     = mqttService;
+        _cameras  = camerasViewModel;
+        _services = services;
     }
 
     protected override Window CreateWindow(IActivationState? activationState)
     {
-        return new Window(new AppShell());
+        return new Window(new AppShell(_services));
     }
 
     protected override void OnSleep()

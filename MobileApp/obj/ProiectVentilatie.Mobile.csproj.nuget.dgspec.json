@@ -96,6 +96,10 @@
               "target": "Package",
               "version": "[3.116.1, )"
             },
+            "UraniumUI": {
+              "target": "Package",
+              "version": "[2.15.0, )"
+            },
             "VideoLAN.LibVLC.Android": {
               "target": "Package",
               "version": "[3.*, )"

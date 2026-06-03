@@ -217,6 +217,62 @@ bool SlaveUartClient::sendLedMode(uint8_t id, uint16_t p1, uint16_t p2,
 }
 
 // ============================================================
+//  LED_FOLLOW_TV + LED_TV_CAP — follow TV brightness feature
+// ============================================================
+
+bool SlaveUartClient::sendLedFollowTv(bool enabled, uint32_t timeoutMs) {
+    if (!_serial) return false;
+    char cmd[32];
+    snprintf(cmd, sizeof(cmd), "LED_FOLLOW_TV %d", enabled ? 1 : 0);
+    _flushInput();
+    _sendCmd(cmd);
+    String resp = _readLine(timeoutMs);
+    if (resp.isEmpty()) return false;
+    char buf[64];
+    size_t n = (resp.length() < sizeof(buf) - 1) ? resp.length() : sizeof(buf) - 1;
+    memcpy(buf, resp.c_str(), n);
+    buf[n] = '\0';
+    if (!Crc::validate(buf)) return false;
+    Crc::stripCrc(buf);
+    return strcmp(buf, "OK") == 0;
+}
+
+bool SlaveUartClient::sendLedTvCap(uint8_t pct, uint32_t timeoutMs) {
+    if (!_serial) return false;
+    if (pct > 100) pct = 100;
+    char cmd[32];
+    snprintf(cmd, sizeof(cmd), "LED_TV_CAP %u", pct);
+    _flushInput();
+    _sendCmd(cmd);
+    String resp = _readLine(timeoutMs);
+    if (resp.isEmpty()) return false;
+    char buf[64];
+    size_t n = (resp.length() < sizeof(buf) - 1) ? resp.length() : sizeof(buf) - 1;
+    memcpy(buf, resp.c_str(), n);
+    buf[n] = '\0';
+    if (!Crc::validate(buf)) return false;
+    Crc::stripCrc(buf);
+    return strcmp(buf, "OK") == 0;
+}
+
+bool SlaveUartClient::sendLedMorseText(const char* text, uint32_t timeoutMs) {
+    if (!_serial) return false;
+    char cmd[80];  // "LED_MORSE_TEXT " (15) + max 50 chars + null
+    snprintf(cmd, sizeof(cmd), "LED_MORSE_TEXT %.50s", text ? text : "");
+    _flushInput();
+    _sendCmd(cmd);
+    String resp = _readLine(timeoutMs);
+    if (resp.isEmpty()) return false;
+    char buf[64];
+    size_t n = (resp.length() < sizeof(buf) - 1) ? resp.length() : sizeof(buf) - 1;
+    memcpy(buf, resp.c_str(), n);
+    buf[n] = '\0';
+    if (!Crc::validate(buf)) return false;
+    Crc::stripCrc(buf);
+    return strcmp(buf, "OK") == 0;
+}
+
+// ============================================================
 //  TIME_SYNC — trimite epoch Slave-ului
 // ============================================================
 

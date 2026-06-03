@@ -22,6 +22,11 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     // ── LED intensitate ──────────────────────────────
     [ObservableProperty] private int _ledIntensity = 0;
 
+    // ── Follow TV brightness ─────────────────────────
+    [ObservableProperty] private bool _followTvBrightness = false;
+
+    public bool IsLedIntensitySliderEnabled => !FollowTvBrightness;
+
     // ── LED schedule ─────────────────────────────────
     [ObservableProperty] private TimeSpan _ledOnTime  = new TimeSpan(18, 0, 0);
     [ObservableProperty] private TimeSpan _ledOffTime = new TimeSpan(23, 30, 0);
@@ -57,6 +62,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     // SOS Morse
     [ObservableProperty] private int _morseDitMs = 200;
+    [ObservableProperty] private string _morseText = "SUGI PULA";
 
     // Sunrise / Sunset
     [ObservableProperty] private int _sunriseDurMin = 30;
@@ -83,14 +89,16 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     // Strobe safety computed property
     public bool IsStrobeFreqDangerous => StrobeFreq > 3.0;
 
-    // Picker source
-    public LedPattern[] AvailableModes => LedPatternInfo.All;
+    // Current mode display name
+    public string LedModeName => LedPatternInfo.DisplayName(LedMode);
 
     // Dirty flags
     private bool _threshDirty;
     private bool _ledIntensityDirty;
     private bool _ledScheduleDirty;
     private bool _ledModeDirty;
+    private bool _followTvDirty;
+    private bool _morseTextDirty;
 
     // ── Preference keys ──────────────────────────────
     private const string PrefThreshT  = "cfg_threshT";
@@ -106,8 +114,10 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     private const string PrefLedSchedEn    = "led_schedEn";
     private const string PrefLedIntensity  = "led_intensity";
     private const string PrefLedMode       = "led_mode";
-    private const string PrefThresholdsExp = "ui_threshExp";
-    private const string PrefLedExp        = "ui_ledExp";
+    private const string PrefThresholdsExp  = "ui_threshExp";
+    private const string PrefLedExp         = "ui_ledExp";
+    private const string PrefFollowTv       = "follow_tv_brightness";
+    private const string PrefMorseText      = "led_morse_text";
 
     public SettingsViewModel(IMqttService mqttService)
     {
@@ -129,6 +139,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         LedMaxIntensity    = Preferences.Get(PrefLedMaxI, 80);
         LedScheduleEnabled = Preferences.Get(PrefLedSchedEn, false);
         LedIntensity       = Preferences.Get(PrefLedIntensity, 0);
+        FollowTvBrightness = Preferences.Get(PrefFollowTv, false);
+        MorseText          = Preferences.Get(PrefMorseText, "SUGI PULA");
 
         // Pattern mode from Preferences
         LedMode = (LedPattern)Preferences.Get(PrefLedMode, (int)LedPattern.Steady);
@@ -143,6 +155,8 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
         _ledIntensityDirty = false;
         _ledScheduleDirty = false;
         _ledModeDirty = false;
+        _followTvDirty = false;
+        _morseTextDirty = false;
         HasChanges = false;
     }
 
@@ -164,6 +178,15 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         Preferences.Set(PrefLedIntensity, value);
         _ledIntensityDirty = true;
+        RecomputeHasChanges();
+    }
+
+    // ── Follow TV brightness ─────────────────────────
+    partial void OnFollowTvBrightnessChanged(bool value)
+    {
+        Preferences.Set(PrefFollowTv, value);
+        _followTvDirty = true;
+        OnPropertyChanged(nameof(IsLedIntensitySliderEnabled));
         RecomputeHasChanges();
     }
 
@@ -203,7 +226,27 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     {
         Preferences.Set(PrefLedMode, (int)value);
         _ledModeDirty = true;
+        OnPropertyChanged(nameof(LedModeName));
         RecomputeHasChanges();
+        System.Diagnostics.Debug.WriteLine($"[Settings] LedMode -> {value} (index={(int)value})");
+    }
+
+    [RelayCommand]
+    private void PrevMode()
+    {
+        int total = LedPatternInfo.All.Count();
+        int v = (int)LedMode - 1;
+        if (v < 0) v = total - 1;
+        LedMode = (LedPattern)v;
+    }
+
+    [RelayCommand]
+    private void NextMode()
+    {
+        int total = LedPatternInfo.All.Count();
+        int v = (int)LedMode + 1;
+        if (v >= total) v = 0;
+        LedMode = (LedPattern)v;
     }
 
     // ── Pattern param handlers (auto-persist) ────────
@@ -227,7 +270,13 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
     partial void OnCandleVariationChanged(int v)     { Preferences.Set("led_p6_p1", v); _ledModeDirty = true; RecomputeHasChanges(); }
     partial void OnLightningFreqChanged(int v)       { Preferences.Set("led_p7_p1", v); _ledModeDirty = true; RecomputeHasChanges(); }
     partial void OnLightningBaselineChanged(int v)   { Preferences.Set("led_p7_p2", v); _ledModeDirty = true; RecomputeHasChanges(); }
-    partial void OnMorseDitMsChanged(int v)          { Preferences.Set("led_p8_p1", v); _ledModeDirty = true; RecomputeHasChanges(); }
+    partial void OnMorseDitMsChanged(int v)           { Preferences.Set("led_p8_p1", v); _ledModeDirty = true; RecomputeHasChanges(); }
+    partial void OnMorseTextChanged(string v)
+    {
+        Preferences.Set(PrefMorseText, v);
+        _morseTextDirty = true;
+        RecomputeHasChanges();
+    }
     partial void OnSunriseDurMinChanged(int v)       { Preferences.Set("led_p9_p1", v); _ledModeDirty = true; RecomputeHasChanges(); }
     partial void OnSunriseFinalChanged(int v)        { Preferences.Set("led_p9_p2", v); _ledModeDirty = true; RecomputeHasChanges(); }
     partial void OnSunsetDurMinChanged(int v)        { Preferences.Set("led_p10_p1", v); _ledModeDirty = true; RecomputeHasChanges(); }
@@ -242,7 +291,7 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
 
     private void RecomputeHasChanges()
     {
-        HasChanges = _threshDirty || _ledIntensityDirty || _ledScheduleDirty || _ledModeDirty;
+        HasChanges = _threshDirty || _ledIntensityDirty || _ledScheduleDirty || _ledModeDirty || _followTvDirty || _morseTextDirty;
         SaveCommand.NotifyCanExecuteChanged();
     }
 
@@ -312,6 +361,26 @@ public partial class SettingsViewModel : ObservableObject, IDisposable
                 p1, p2, p3, p4
             });
             _ledModeDirty = false;
+        }
+
+        if (_followTvDirty)
+        {
+            await _mqttService.SendCommandAsync(new
+            {
+                cmd     = "setFollowTvBrightness",
+                enabled = FollowTvBrightness ? 1 : 0
+            });
+            _followTvDirty = false;
+        }
+
+        if (_morseTextDirty && LedMode == LedPattern.SosMorse)
+        {
+            await _mqttService.SendCommandAsync(new
+            {
+                cmd  = "setLedMorseText",
+                text = MorseText.ToUpperInvariant()
+            });
+            _morseTextDirty = false;
         }
 
         RecomputeHasChanges();

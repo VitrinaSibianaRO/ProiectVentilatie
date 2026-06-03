@@ -80,16 +80,25 @@
                                    FontFamily="Rajdhani" FontSize="14" />
                         </Border>
 
-                        <Label Text="Region" FontSize="10" Opacity="0.6"
+                        <Label Text="REGIUNE CLOUD" FontSize="10" Opacity="0.6"
                                Style="{StaticResource LabelRajdhani}" />
-                        <Picker SelectedItem="{Binding Region}" TextColor="White"
-                                BackgroundColor="#08111C" FontFamily="Rajdhani">
-                            <Picker.Items>
-                                <x:String>eu</x:String>
-                                <x:String>us</x:String>
-                                <x:String>ap</x:String>
-                            </Picker.Items>
-                        </Picker>
+                        <Grid ColumnDefinitions="*,*,*" ColumnSpacing="6">
+                            <Button Grid.Column="0" Text="EU"
+                                    Command="{Binding SetRegionCommand}" CommandParameter="eu"
+                                    HeightRequest="38" FontSize="13" FontFamily="Rajdhani"
+                                    Style="{StaticResource CyberButton}" />
+                            <Button Grid.Column="1" Text="US"
+                                    Command="{Binding SetRegionCommand}" CommandParameter="us"
+                                    HeightRequest="38" FontSize="13" FontFamily="Rajdhani"
+                                    Style="{StaticResource CyberButton}" />
+                            <Button Grid.Column="2" Text="AP"
+                                    Command="{Binding SetRegionCommand}" CommandParameter="ap"
+                                    HeightRequest="38" FontSize="13" FontFamily="Rajdhani"
+                                    Style="{StaticResource CyberButton}" />
+                        </Grid>
+                        <Label Text="{Binding Region, StringFormat='Selectat: {0}'}"
+                               FontSize="11" Opacity="0.5"
+                               Style="{StaticResource LabelRajdhani}" />
 
                         <Label Text="{Binding TokenStatus, StringFormat='Token: {0}'}"
                                FontSize="10" Opacity="0.5"

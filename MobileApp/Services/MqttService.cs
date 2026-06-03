@@ -34,8 +34,10 @@ public class MqttService : IMqttService, IDisposable
     public event Action<string>? OnOnlineStatusChanged;
     public event Action<string>? OnEventReceived;
     public event Action<string>? OnLogReceived;
+    public event Action<TvState>? OnTvStateReceived;
 
     public VentilationState? LastState { get; private set; }
+    public TvState? LastTvState { get; private set; }
     public DateTime? LastStateReceivedAt { get; private set; }
     public bool IsConnected => _client?.IsConnected() ?? false;
 
@@ -159,10 +161,11 @@ public class MqttService : IMqttService, IDisposable
 
             // Subscribe la toate topic-urile relevante.
             // State + Online sunt retained → primim imediat ultimele valori.
-            await _client.SubscribeAsync(_settings.StateTopic,   QualityOfService.AtMostOnceDelivery);
-            await _client.SubscribeAsync(_settings.OnlineTopic,  QualityOfService.AtLeastOnceDelivery);
-            await _client.SubscribeAsync(_settings.EventTopic,   QualityOfService.AtMostOnceDelivery);
-            await _client.SubscribeAsync(_settings.LogTopic,     QualityOfService.AtLeastOnceDelivery);
+            await _client.SubscribeAsync(_settings.StateTopic,    QualityOfService.AtMostOnceDelivery);
+            await _client.SubscribeAsync(_settings.OnlineTopic,   QualityOfService.AtLeastOnceDelivery);
+            await _client.SubscribeAsync(_settings.EventTopic,    QualityOfService.AtMostOnceDelivery);
+            await _client.SubscribeAsync(_settings.LogTopic,      QualityOfService.AtLeastOnceDelivery);
+            await _client.SubscribeAsync(_settings.TvStateTopic,  QualityOfService.AtMostOnceDelivery);
 
             _reconnectDelayMs = _settings.ReconnectInitialMs; // Reset backoff
             MainThread.BeginInvokeOnMainThread(() => OnConnectionChanged?.Invoke(true));
@@ -232,6 +235,15 @@ public class MqttService : IMqttService, IDisposable
             else if (topic == _settings.LogTopic)
             {
                 MainThread.BeginInvokeOnMainThread(() => OnLogReceived?.Invoke(payload));
+            }
+            else if (topic == _settings.TvStateTopic)
+            {
+                var tvState = JsonSerializer.Deserialize<TvState>(payload);
+                if (tvState != null)
+                {
+                    LastTvState = tvState;
+                    MainThread.BeginInvokeOnMainThread(() => OnTvStateReceived?.Invoke(tvState));
+                }
             }
         }
         catch (Exception ex)

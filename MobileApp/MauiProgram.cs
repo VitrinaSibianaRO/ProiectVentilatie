@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using SkiaSharp.Views.Maui.Controls.Hosting;
 using CommunityToolkit.Maui;
+using UraniumUI;
 using LibVLCSharp.Shared;
 using ProiectVentilatie.Mobile.Models;
 using ProiectVentilatie.Mobile.Services;
@@ -20,6 +21,7 @@ public static class MauiProgram
             .UseMauiApp<App>()
             .UseSkiaSharp()
             .UseMauiCommunityToolkit()
+            .UseUraniumUI()
             .ConfigureFonts(fonts =>
             {
                 fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
@@ -72,17 +74,19 @@ public static class MauiProgram
         builder.Services.AddTransient<INetworkProbeService, NetworkProbeService>();
 
         // ViewModels
-        builder.Services.AddTransient<ViewModels.DashboardViewModel>();
-        builder.Services.AddTransient<ViewModels.SettingsViewModel>();
-        builder.Services.AddTransient<ViewModels.SystemViewModel>();
-        builder.Services.AddSingleton<ViewModels.CamerasViewModel>();      // Singleton: evita re-attach VideoView
+        builder.Services.AddSingleton<ViewModels.DashboardViewModel>();   // Singleton: evita re-connect la fiecare tab switch
+        builder.Services.AddSingleton<ViewModels.SettingsViewModel>();    // Singleton: evita re-incarcare Preferences
+        builder.Services.AddSingleton<ViewModels.SystemViewModel>();      // Singleton: evita re-subscribe MQTT
+        builder.Services.AddSingleton<ViewModels.TvViewModel>();          // Singleton: evita re-subscribe MQTT
+        builder.Services.AddSingleton<ViewModels.CamerasViewModel>();     // Singleton: evita re-attach VideoView
         builder.Services.AddTransient<ViewModels.CameraFullscreenViewModel>();
         builder.Services.AddTransient<ViewModels.CameraSettingsViewModel>();
 
         // Views
-        builder.Services.AddTransient<Views.DashboardPage>();
-        builder.Services.AddTransient<Views.SettingsPage>();
-        builder.Services.AddTransient<Views.SystemPage>();
+        builder.Services.AddSingleton<Views.DashboardPage>();             // Singleton: evita XAML re-inflate + lag
+        builder.Services.AddSingleton<Views.SettingsPage>();              // Singleton: evita XAML re-inflate + lag
+        builder.Services.AddSingleton<Views.SystemPage>();                // Singleton: evita XAML re-inflate + lag
+        builder.Services.AddSingleton<Views.TvPage>();                    // Singleton: evita XAML re-inflate + lag
         builder.Services.AddSingleton<Views.CamerasPage>();               // Singleton: pereche cu VM
         builder.Services.AddTransient<Views.CameraFullscreenPage>();
         builder.Services.AddTransient<Views.CameraSettingsPage>();

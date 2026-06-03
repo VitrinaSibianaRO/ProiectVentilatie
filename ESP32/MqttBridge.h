@@ -18,6 +18,7 @@
 
 #include "AppPreferences.h"
 #include "VentilationZone.h"
+#include "TvController.h"
 
 // Lock owner: cine controlează sistemul în acest moment
 // LOCK_BLYNK eliminat — nu mai există interfață Blynk
@@ -66,6 +67,24 @@ struct MqttPending {
     uint16_t ledModeP3  = 0;
     uint16_t ledModeP4  = 0;
 
+    // TV control
+    bool    setTv        = false;
+    char    tvAction[16] = {};   // "power_on","power_off","volume","mute","input",
+                                 // "backlight","pictureMode","energySaving","noSignalOff"
+    int     tvValue      = 0;
+
+    // TV config (IP + MAC)
+    bool    setTvConfig  = false;
+    char    tvConfigIp[16] = {};
+    uint8_t tvConfigMac[6] = {};
+
+    // Follow TV brightness
+    bool    setFollowTvBrightness = false;
+    bool    followTvValue         = false;
+
+    // Text Morse dinamic
+    bool    setLedMorseText       = false;
+    char    ledMorseText[52]      = {};
 };
 
 class MqttBridge {
@@ -105,6 +124,9 @@ public:
 
     // Publicare log JSON pe ventilatie/log (QoS 1, not retained)
     void publishLog(const char* jsonBuf, size_t len);
+
+    // Publicare TV state pe ventilatie/tv/state (retained)
+    void publishTvState(const TvState& tv);
 
     // Verificare dacă există comenzi MQTT pending de procesat
     bool hasPendingCommands() const;

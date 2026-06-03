@@ -16,6 +16,7 @@ public class MqttSettings
     public string OnlineTopic { get; set; } = "ventilatie/online";
     public string EventTopic { get; set; } = "ventilatie/event";
     public string LogTopic { get; set; } = "ventilatie/log";
+    public string TvStateTopic { get; set; } = "ventilatie/tv/state";
 
     public int ReconnectInitialMs { get; set; } = 1000;
     public int ReconnectMaxMs { get; set; } = 30000;

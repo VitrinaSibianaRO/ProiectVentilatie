@@ -20,6 +20,8 @@ public:
     int     intervalSec;
     bool    overrideLeft;
     bool    overrideRight;
+    bool    followTvBrightness;
+    char    morseText[52];
 
     void begin() {
         _prefs.begin(NVS_PREFS_NAMESPACE, false);
@@ -34,6 +36,11 @@ public:
         intervalSec         = _prefs.getInt  ("intervalSec",  DEFAULT_INTERVAL_SEC);
         overrideLeft        = _prefs.getBool ("ovrLeft",      false);
         overrideRight       = _prefs.getBool ("ovrRight",     false);
+        followTvBrightness  = _prefs.getBool ("ftv",          false);
+        {
+            String s = _prefs.getString("mtxt", "SUGI PULA");
+            strlcpy(morseText, s.c_str(), sizeof(morseText));
+        }
         _validateOrFallback();
     }
 
@@ -88,6 +95,16 @@ public:
         _prefs.putBool("ovrRight", v);
     }
 
+    void saveFollowTvBrightness(bool v) {
+        followTvBrightness = v;
+        _prefs.putBool("ftv", v);
+    }
+
+    void saveMorseText(const char* t) {
+        strlcpy(morseText, t ? t : "", sizeof(morseText));
+        _prefs.putString("mtxt", morseText);
+    }
+
     void resetToDefaults() {
         _prefs.clear();
         tempThresh         = DEFAULT_TEMP_THRESH;
@@ -97,6 +114,7 @@ public:
         intervalSec        = DEFAULT_INTERVAL_SEC;
         overrideLeft       = false;
         overrideRight      = false;
+        followTvBrightness = false;
         // Re-salvăm explicit ca NVS să fie consistent
         _prefs.putFloat("tempThresh",  tempThresh);
         _prefs.putFloat("humThresh",   humThresh);
@@ -105,6 +123,7 @@ public:
         _prefs.putInt  ("intervalSec", intervalSec);
         _prefs.putBool ("ovrLeft",     false);
         _prefs.putBool ("ovrRight",    false);
+        _prefs.putBool ("ftv",         false);
         _prefs.remove  ("ovrTimeout");  // cleanup legacy key dupa upgrade firmware
         Serial.println("[Prefs] Reset la valorile default.");
     }

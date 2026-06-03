@@ -60,12 +60,22 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [ObservableProperty] private int _heapBytes;
     [ObservableProperty] private string _ledIntensityText = "—";
 
+    // ── TV telemetrie ────────────────────────────────
+    [ObservableProperty] private string _tvTempText = "—";
+    [ObservableProperty] private string _tvUsageText = "—";
+    [ObservableProperty] private string _tvReachableText = "—";
+    [ObservableProperty] private Color  _tvReachableColor = Colors.Gray;
+    [ObservableProperty] private string _tvPowerText = "—";
+    [ObservableProperty] private Color  _tvPowerColor = Colors.Gray;
+    [ObservableProperty] private bool _tvDataVisible = true;
+
     public DashboardViewModel(IMqttService mqttService)
     {
         _mqttService = mqttService;
         _mqttService.OnStateReceived += UpdateState;
         _mqttService.OnConnectionChanged += UpdateConnection;
         _mqttService.OnOnlineStatusChanged += UpdateOnlineStatus;
+        _mqttService.OnTvStateReceived += UpdateTvState;
 
         // Timer periodic 10s pentru actualizare "ago" text
         try
@@ -89,6 +99,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         // Aplica ultimul state cunoscut imediat (evita flash de valori default la creare VM)
         if (_mqttService.LastState != null)
             UpdateState(_mqttService.LastState);
+        if (_mqttService.LastTvState != null)
+            UpdateTvState(_mqttService.LastTvState);
     }
 
     private async Task ConnectAsync()
@@ -212,8 +224,7 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task RefreshAsync()
     {
-        // Aplica imediat LastState din cache (zero-flicker UI),
-        // apoi cere ESP32 sa publice state fresh.
+        System.Diagnostics.Debug.WriteLine("[Dashboard] CMD refresh");
         if (_mqttService.LastState != null)
             UpdateState(_mqttService.LastState);
         await _mqttService.SendCommandAsync(new { cmd = "refresh" });
@@ -222,8 +233,8 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private async Task ToggleLeftAsync()
     {
-        // Toggle override: dacă e activ → clear (2), dacă e oprit → ON (1)
         int value = LeftOverride ? 2 : 1;
+        System.Diagnostics.Debug.WriteLine($"[Dashboard] CMD setOverride left value={value}");
         await _mqttService.SendCommandAsync(new { cmd = "setOverride", zone = "left", value });
     }
 
@@ -231,7 +242,19 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
     private async Task ToggleRightAsync()
     {
         int value = RightOverride ? 2 : 1;
+        System.Diagnostics.Debug.WriteLine($"[Dashboard] CMD setOverride right value={value}");
         await _mqttService.SendCommandAsync(new { cmd = "setOverride", zone = "right", value });
+    }
+
+    private void UpdateTvState(TvState tv)
+    {
+        TvDataVisible    = true;
+        TvTempText       = tv.Reachable ? $"{tv.TemperatureC}°C" : "—";
+        TvUsageText      = tv.Reachable ? $"{tv.UsageHours} ore" : "—";
+        TvReachableText  = tv.Reachable ? "ACCESIBIL" : "INACCESIBIL";
+        TvReachableColor = tv.Reachable ? Colors.LimeGreen : Colors.Red;
+        TvPowerText      = tv.Reachable ? (tv.Power ? "PORNIT" : "STANDBY") : "—";
+        TvPowerColor     = tv.Reachable && tv.Power ? Colors.LimeGreen : Colors.Gray;
     }
 
     public void Dispose()
@@ -240,5 +263,6 @@ public partial class DashboardViewModel : ObservableObject, IDisposable
         _mqttService.OnStateReceived -= UpdateState;
         _mqttService.OnConnectionChanged -= UpdateConnection;
         _mqttService.OnOnlineStatusChanged -= UpdateOnlineStatus;
+        _mqttService.OnTvStateReceived -= UpdateTvState;
     }
 }

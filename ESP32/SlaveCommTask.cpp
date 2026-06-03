@@ -94,6 +94,15 @@ static void taskFn(void* pvParams) {
                                        cmd.ledModeP2, cmd.ledModeP3,
                                        cmd.ledModeP4);
                     break;
+                case SLAVE_CMD_LED_FOLLOW_TV:
+                    client.sendLedFollowTv(cmd.followTvEnabled);
+                    break;
+                case SLAVE_CMD_LED_TV_CAP:
+                    client.sendLedTvCap(cmd.tvCapPercent);
+                    break;
+                case SLAVE_CMD_LED_MORSE_TEXT:
+                    client.sendLedMorseText(cmd.morseText);
+                    break;
                 case SLAVE_CMD_REBOOT:
                     client.sendReboot();
                     break;

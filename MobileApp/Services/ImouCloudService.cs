@@ -122,7 +122,7 @@ public class ImouCloudService : IImouCloudService
                 {
                     DeviceId  = item["deviceId"]?.GetValue<string>()  ?? string.Empty,
                     Name      = item["name"]?.GetValue<string>()       ?? string.Empty,
-                    IsOnline  = item["status"]?.GetValue<string>()     == "1",
+                    IsOnline  = item["status"]?.GetValue<string>()     == "online",
                     Model     = item["deviceCatalog"]?.GetValue<string>() ?? string.Empty,
                     Firmware  = item["version"]?.GetValue<string>()    ?? string.Empty,
                     LocalIp   = item["apInfo"]?["ipAddr"]?.GetValue<string>() ?? string.Empty,
@@ -145,24 +145,30 @@ public class ImouCloudService : IImouCloudService
 
         await EnsureTokenAsync();
 
-        // bindDeviceLive
+        // bindDeviceLive — streamId: 0=HD, 1=SD
         var bindParams = new JsonObject
         {
-            ["deviceId"]       = deviceId,
-            ["channelId"]      = (channelId - 1).ToString(), // 0-based
-            ["ihdStreamType"]  = mainStream ? 0 : 1
+            ["deviceId"]  = deviceId,
+            ["channelId"] = (channelId - 1).ToString(), // 0-based
+            ["streamId"]  = mainStream ? 0 : 1
         };
         var bindBody = BuildRequest("bindDeviceLive", bindParams);
         var bindJson = await PostAsync("bindDeviceLive", bindBody);
-        var liveToken = bindJson?["data"]?["params"]?["token"]?.GetValue<string>()
-            ?? throw new ImouApiException("bindDeviceLive: token missing", "ERR_PARSE");
 
-        // getLiveStreamInfo — protocol 2 = HLS
-        var streamParams = new JsonObject { ["token"] = liveToken, ["protocol"] = 2 };
-        var streamBody = BuildRequest("getLiveStreamInfo", streamParams);
-        var streamJson = await PostAsync("getLiveStreamInfo", streamBody);
-        var hlsUrl = streamJson?["data"]?["streams"]?[0]?["streamUrl"]?.GetValue<string>()
-            ?? throw new ImouApiException("getLiveStreamInfo: streamUrl missing", "ERR_PARSE");
+        // bindDeviceLive response contains HLS URL directly in streams[0].hls
+        var hlsUrl = bindJson?["data"]?["streams"]?[0]?["hls"]?.GetValue<string>();
+        if (string.IsNullOrEmpty(hlsUrl))
+        {
+            // Fallback: use getLiveStreamInfo if bindDeviceLive didn't return streams
+            var liveToken = bindJson?["data"]?["params"]?["token"]?.GetValue<string>()
+                ?? throw new ImouApiException("bindDeviceLive: no streams or token", "ERR_PARSE");
+
+            var streamParams = new JsonObject { ["deviceId"] = deviceId, ["channelId"] = (channelId - 1).ToString() };
+            var streamBody = BuildRequest("getLiveStreamInfo", streamParams);
+            var streamJson = await PostAsync("getLiveStreamInfo", streamBody);
+            hlsUrl = streamJson?["data"]?["streams"]?[0]?["hls"]?.GetValue<string>()
+                ?? throw new ImouApiException("getLiveStreamInfo: hls url missing", "ERR_PARSE");
+        }
 
         var uri = new Uri(hlsUrl);
         _hlsCache[key] = (uri, DateTime.UtcNow);
@@ -229,16 +235,16 @@ public class ImouCloudService : IImouCloudService
         return new string(Enumerable.Range(0, 10).Select(_ => chars[Random.Shared.Next(chars.Length)]).ToArray());
     }
 
-    private static string Md5Sign(string appId, string appSecret, long time)
+    // Formula corecta: MD5("time:{time},nonce:{nonce},appSecret:{secret}") — fara appId in hash
+    private static string Md5Sign(string appSecret, long time, string nonce)
     {
-        var input = $"appId:{appId},appSecret:{appSecret},time:{time}";
+        var input = $"time:{time},nonce:{nonce},appSecret:{appSecret}";
         var hash = MD5.HashData(Encoding.UTF8.GetBytes(input));
         return Convert.ToHexString(hash).ToLowerInvariant();
     }
 
     private JsonObject BuildRequest(string endpoint, JsonObject @params, ImouCredentials? credsOverride = null)
     {
-        // IMOU API necesita sign (MD5) in system pentru TOATE request-urile
         var effective = credsOverride ?? _cachedCredentials
             ?? throw new ImouApiException("Credentiale IMOU lipsesc — salveaza AppId/AppSecret in Settings", "ERR_NO_CREDS");
 
@@ -246,17 +252,23 @@ public class ImouCloudService : IImouCloudService
         if (CurrentToken != null && endpoint != "accessToken" && !@params.ContainsKey("token"))
             @params["token"] = CurrentToken.AccessToken;
 
-        var time = ServerTime;
+        var time  = ServerTime;
+        var nonce = Nonce();
         var system = new JsonObject
         {
             ["ver"]   = "1.0",
             ["appId"] = effective.AppId,
-            ["sign"]  = Md5Sign(effective.AppId, effective.AppSecret, time),
+            ["sign"]  = Md5Sign(effective.AppSecret, time, nonce),
             ["time"]  = time,
-            ["nonce"] = Nonce()
+            ["nonce"] = nonce
         };
 
-        return new JsonObject { ["system"] = system, ["params"] = @params };
+        return new JsonObject
+        {
+            ["system"] = system,
+            ["id"]     = Guid.NewGuid().ToString("N")[..16],
+            ["params"] = @params
+        };
     }
 
     private async Task<JsonNode?> PostAsync(string endpoint, JsonObject body)
@@ -272,7 +284,7 @@ public class ImouCloudService : IImouCloudService
         if (code != "0")
         {
             var msg = json?["result"]?["msg"]?.GetValue<string>() ?? "IMOU API error";
-            if (code == "TS1018") // token expired
+            if (code == "TK1002") // token expired
             {
                 CurrentToken = null;
                 throw new ImouApiException("Token expirat — reconectare necesară", code);

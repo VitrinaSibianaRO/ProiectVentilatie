@@ -16,6 +16,7 @@ public partial class FloatingNavBar : ContentView
     public bool IsCamerasActive   => CurrentPage == "Camere";
     public bool IsSettingsActive  => CurrentPage == "Settings";
     public bool IsSystemActive    => CurrentPage == "System";
+    public bool IsTvActive        => CurrentPage == "Tv";
 
     public FloatingNavBar()
     {
@@ -27,13 +28,15 @@ public partial class FloatingNavBar : ContentView
     private void OnTapCameras  (object? sender, TappedEventArgs e) => _ = NavigateToPage("Camere");
     private void OnTapSettings (object? sender, TappedEventArgs e) => _ = NavigateToPage("Settings");
     private void OnTapSystem   (object? sender, TappedEventArgs e) => _ = NavigateToPage("System");
+    private void OnTapTv       (object? sender, TappedEventArgs e) => _ = NavigateToPage("Tv");
 
     private static readonly Dictionary<string, string> PageRoutes = new()
     {
         ["Dashboard"] = "//DashboardPage",
         ["Camere"]    = "//CamerasPage",
         ["Settings"]  = "//SettingsPage",
-        ["System"]    = "//SystemPage"
+        ["System"]    = "//SystemPage",
+        ["Tv"]        = "//TvPage"
     };
 
     private async Task NavigateToPage(string page)
@@ -68,5 +71,6 @@ public partial class FloatingNavBar : ContentView
         OnPropertyChanged(nameof(IsCamerasActive));
         OnPropertyChanged(nameof(IsSettingsActive));
         OnPropertyChanged(nameof(IsSystemActive));
+        OnPropertyChanged(nameof(IsTvActive));
     }
 }

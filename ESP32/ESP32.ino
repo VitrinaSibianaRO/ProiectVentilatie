@@ -27,7 +27,9 @@
 #include "SlaveCommTask.h"
 #include "SlaveUartClient.h"
 #include "SystemLED.h"
+#include "TvCommTask.h"
 #include "TimeSync.h"
+#include "TvController.h"
 #include "VentilationZone.h"
 
 // ============================================================
@@ -41,6 +43,7 @@ SlaveUartClient slaveClient; // UART2 → Slave
 SystemLED statusLed(LED_COUNT, LED_PIN, LED_ENABLE_PIN);
 MqttBridge mqtt;
 EventLog eventLog;
+TvController tvCtrl;
 
 // Zone: stânga = senzor local, dreapta = senzor remote (Slave)
 VentilationZone leftZone(&sensorLocal, RELAY_LEFT_PIN, "STANGA");
@@ -49,7 +52,7 @@ VentilationZone rightZone(RELAY_RIGHT_PIN, "DREAPTA");
 // ============================================================
 //  TIMER simplu (înlocuiește SimpleTimer cu o logică minimală)
 // ============================================================
-unsigned long lastProcessMs = 0;
+unsigned long lastProcessMs  = 0;
 unsigned long lastTimeSyncMs = 0;
 
 // LED status cache (fetched from Slave)
@@ -66,6 +69,11 @@ char *g_logBuf = nullptr;
 SemaphoreHandle_t g_slaveDataMutex = nullptr;
 QueueHandle_t g_slaveCommandQueue = nullptr;
 SlaveData *g_slaveData = nullptr; // alocat in PSRAM
+
+// TvCommTask (Core 0) ↔ loopTask (Core 1)
+SemaphoreHandle_t g_tvDataMutex = nullptr;
+TvData *g_tvData = nullptr;       // alocat in PSRAM
+
 bool g_wifiAvailable = false;
 
 // ============================================================
@@ -245,6 +253,67 @@ void processZones() {
     pending.setLedMode = false;
   }
 
+  if (pending.setFollowTvBrightness) {
+    prefs.saveFollowTvBrightness(pending.followTvValue);
+    // Trimite LED_FOLLOW_TV la Slave
+    SlaveCommand ftvCmd{};
+    ftvCmd.type            = SLAVE_CMD_LED_FOLLOW_TV;
+    ftvCmd.followTvEnabled = pending.followTvValue;
+    slaveCommandSend(ftvCmd);
+    // Daca activam si avem deja un poll TV valid, trimitem cap-ul imediat
+    if (pending.followTvValue) {
+      TvData tv{};
+      if (tvDataRead(tv) && tv.reachable) {
+        SlaveCommand capCmd{};
+        capCmd.type         = SLAVE_CMD_LED_TV_CAP;
+        capCmd.tvCapPercent = tv.backlight;
+        slaveCommandSend(capCmd);
+      }
+    }
+    mqtt.requestPublishNow();
+    pending.setFollowTvBrightness = false;
+  }
+
+  if (pending.setLedMorseText) {
+    prefs.saveMorseText(pending.ledMorseText);
+    SlaveCommand cmd{};
+    cmd.type = SLAVE_CMD_LED_MORSE_TEXT;
+    strlcpy(cmd.morseText, pending.ledMorseText, sizeof(cmd.morseText));
+    slaveCommandSend(cmd);
+    mqtt.requestPublishNow();
+    pending.setLedMorseText = false;
+  }
+
+  if (pending.setTvConfig) {
+    tvCtrl.configure(pending.tvConfigIp, pending.tvConfigMac);
+    Serial.printf("[TV] Config updated: IP=%s\n", pending.tvConfigIp);
+    // Citim device info la prima configurare (serial + fw version)
+    tvCtrl.readDeviceInfo();
+    mqtt.publishTvState(tvCtrl.state());
+    pending.setTvConfig = false;
+  }
+
+  if (pending.setTv) {
+    const char* action = pending.tvAction;
+    int val = pending.tvValue;
+    bool cmdOk = false;
+
+    if (strcmp(action, "power_on") == 0)         cmdOk = tvCtrl.powerOn();
+    else if (strcmp(action, "power_off") == 0)   cmdOk = tvCtrl.powerOff();
+    else if (strcmp(action, "volume") == 0)      cmdOk = tvCtrl.setVolume((uint8_t)val);
+    else if (strcmp(action, "mute") == 0)        cmdOk = tvCtrl.setMute(val != 0);
+    else if (strcmp(action, "input") == 0)       cmdOk = tvCtrl.setInput((uint8_t)val);
+    else if (strcmp(action, "backlight") == 0)   cmdOk = tvCtrl.setBacklight((uint8_t)val);
+    else if (strcmp(action, "pictureMode") == 0) cmdOk = tvCtrl.setPictureMode((uint8_t)val);
+    else if (strcmp(action, "energySaving") == 0) cmdOk = tvCtrl.setEnergySaving((uint8_t)val);
+    else if (strcmp(action, "noSignalOff") == 0) cmdOk = tvCtrl.setNoSignalPowerOff(val != 0);
+
+    Serial.printf("[TV] Action '%s' val=%d → %s\n", action, val, cmdOk ? "OK" : "FAIL");
+    // Publish state imediat dupa comanda (cu datele curente, nu poll complet)
+    mqtt.publishTvState(tvCtrl.state());
+    pending.setTv = false;
+  }
+
   if (pending.reboot) {
     mqtt.publishOnline(false);
     delay(200);
@@ -273,12 +342,6 @@ void processZones() {
   mqtt.publishStateIfNeeded(leftZone, rightZone, slaveOnline, slaveErrors,
                             snap.lastSuccessMs, g_ledIntensity,
                             g_ledSchedEnabled);
-
-  if (pending.reboot) {
-    mqtt.publishOnline(false);
-    delay(200);
-    ESP.restart();
-  }
 
   // 8. Status LED update
   bool mqttOk = mqtt.connected();
@@ -420,11 +483,30 @@ void setup() {
   // 11. Pornire SlaveCommTask pe Core 0 (detine Serial2 / SlaveUartClient)
   SlaveCommTask::start(slaveClient);
 
+  // 11b. PSRAM + mutex pentru TvData (TvCommTask Core 0 ↔ loopTask Core 1)
+  g_tvData = (TvData *)ps_malloc(sizeof(TvData));
+  if (!g_tvData) g_tvData = new TvData();
+  memset(g_tvData, 0, sizeof(TvData));
+  g_tvDataMutex = xSemaphoreCreateMutex();
+  if (!g_tvDataMutex) {
+    Serial.println("[FATAL] g_tvDataMutex create failed");
+    delay(500);
+    ESP.restart();
+  }
+  TvCommTask::start(tvCtrl);
+
   // 12. WiFiManager — singura cale de rețea
+  // Portal de configurare doar daca nu exista credentiale salvate (first-run).
+  // La reboot dupa pica de curent, portalul e dezactivat (setConfigPortalTimeout=1)
+  // ca sa nu blocheze automatizarea zeci de secunde.
   {
     WiFiManager wm;
     wm.setConnectTimeout(WIFI_CONNECT_TIMEOUT_MS / 1000);
-    wm.setConfigPortalTimeout(180);
+
+    // Daca exista credentiale salvate, nu deschidem portal — incercam direct si
+    // daca nu reusim in timeout, mergem offline. Automatizarea porneste imediat.
+    bool hasSavedCredentials = (strlen(WiFi.SSID().c_str()) > 0);
+    wm.setConfigPortalTimeout(hasSavedCredentials ? 1 : 180);
 
     wm.setAPCallback([](WiFiManager* wm) {
         Serial.println("[WiFi] Config portal activ.");
@@ -445,7 +527,7 @@ void setup() {
         TimeSync::begin();
         mqtt.begin(&prefs);
     } else {
-        Serial.println("[WiFi] Portal timeout — running offline.");
+        Serial.println("[WiFi] No WiFi — running offline, automation active.");
         WiFi.mode(WIFI_OFF);
     }
   }
@@ -459,7 +541,15 @@ void setup() {
 
   // WDT configurat si loopTask subscris anterior (pas 10).
 
-  // 14. Prima citire senzori
+  // 15. TV controller — incarca IP/MAC din NVS, citeste device info o data
+  tvCtrl.begin();
+  if (tvCtrl.state().configured && g_wifiAvailable) {
+    tvCtrl.readDeviceInfo();
+    Serial.printf("[TV] Device info: serial=%s sw=%s\n",
+                  tvCtrl.state().serial, tvCtrl.state().swVersion);
+  }
+
+  // 16. Prima citire senzori
   leftZone.readSensor(true); // force = true la boot
 
   statusLed.setColor(0, 180, 0); // verde = boot OK
@@ -494,6 +584,21 @@ void loop() {
   if ((now - lastProcessMs >= intervalMs) ||
       (g_wifiAvailable && mqtt.hasPendingCommands())) {
     processZones();
+  }
+
+  // Consum rezultat poll TV (scris de TvCommTask pe Core 0)
+  // PubSubClient nu e thread-safe — publish se face DOAR din loopTask (Core 1).
+  TvData tv{};
+  if (tvDataRead(tv) && tv.newValueReady) {
+    mqtt.publishTvState(tvCtrl.state());
+    if (prefs.followTvBrightness && tv.reachable) {
+      SlaveCommand capCmd{};
+      capCmd.type         = SLAVE_CMD_LED_TV_CAP;
+      capCmd.tvCapPercent = tv.backlight;
+      slaveCommandSend(capCmd);
+    }
+    tv.newValueReady = false;
+    tvDataWrite(tv);
   }
 
   // Diagnostic logging

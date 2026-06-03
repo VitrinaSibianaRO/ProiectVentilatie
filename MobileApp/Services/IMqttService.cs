@@ -19,6 +19,9 @@ public interface IMqttService
     /// <summary>Log JSON de pe ventilatie/log (răspuns la cmd:getLog).</summary>
     event Action<string>? OnLogReceived;
 
+    /// <summary>TV state primit de pe ventilatie/tv/state.</summary>
+    event Action<TvState>? OnTvStateReceived;
+
     /// <summary>Conectare la broker HiveMQ.</summary>
     Task ConnectAsync();
 
@@ -28,8 +31,11 @@ public interface IMqttService
     /// <summary>Trimite comandă JSON pe ventilatie/cmd.</summary>
     Task SendCommandAsync(object command);
 
-    /// <summary>Ultima stare primită (cached din retained).</summary>
+    /// <summary>Ultima stare ventilatie primită (cached din retained).</summary>
     VentilationState? LastState { get; }
+
+    /// <summary>Ultima stare TV primită (cached din retained).</summary>
+    TvState? LastTvState { get; }
 
     /// <summary>Timestamp local al ultimei state primite (pentru "ago" indicator).</summary>
     DateTime? LastStateReceivedAt { get; }

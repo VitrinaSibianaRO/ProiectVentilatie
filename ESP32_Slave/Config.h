@@ -2,6 +2,8 @@
 // NICIUN magic number in alte fisiere — toate valorile vin de aici.
 #pragma once
 
+#include <Arduino.h>
+
 // ============================================================
 //  HARDWARE PINS
 // ============================================================

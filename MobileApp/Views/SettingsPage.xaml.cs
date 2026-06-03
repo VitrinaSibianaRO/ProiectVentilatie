@@ -4,9 +4,12 @@ namespace ProiectVentilatie.Mobile.Views;
 
 public partial class SettingsPage : ContentPage
 {
+    private readonly SettingsViewModel _vm;
+
     public SettingsPage(SettingsViewModel viewModel)
     {
         InitializeComponent();
-        BindingContext = viewModel;
+        BindingContext = _vm = viewModel;
     }
+
 }

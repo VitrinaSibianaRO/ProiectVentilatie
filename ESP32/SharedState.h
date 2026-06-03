@@ -32,12 +32,26 @@ struct SlaveData {
 };
 
 // ============================================================
+//  Date TV — scrise de TvCommTask (Core 0), citite de loopTask (Core 1)
+// ============================================================
+struct TvData {
+    bool     reachable;
+    bool     power;
+    uint8_t  backlight;      // 0-100 — sursa pentru LED cap
+    uint32_t lastPollMs;     // millis() ultimul poll reuşit
+    bool     newValueReady;  // flag setat de TvCommTask, consumat de loopTask
+};
+
+// ============================================================
 //  Comenzi catre Slave — trimise din Core 1 prin queue
 // ============================================================
 enum SlaveCommandType : uint8_t {
     SLAVE_CMD_LED_SET,
     SLAVE_CMD_LED_SCHEDULE,
     SLAVE_CMD_LED_MODE,
+    SLAVE_CMD_LED_FOLLOW_TV,   // setează _followTvEnabled pe Slave
+    SLAVE_CMD_LED_TV_CAP,      // trimite backlight TV ca plafon
+    SLAVE_CMD_LED_MORSE_TEXT,  // text Morse dinamic
     SLAVE_CMD_REBOOT,
     SLAVE_CMD_TIME_SYNC
 };
@@ -58,6 +72,15 @@ struct SlaveCommand {
 
     // SLAVE_CMD_TIME_SYNC
     uint32_t epochSec;
+
+    // SLAVE_CMD_LED_FOLLOW_TV
+    bool     followTvEnabled;
+
+    // SLAVE_CMD_LED_TV_CAP
+    uint8_t  tvCapPercent;
+
+    // SLAVE_CMD_LED_MORSE_TEXT
+    char     morseText[52];
 };
 
 // ============================================================
@@ -66,6 +89,9 @@ struct SlaveCommand {
 extern SemaphoreHandle_t g_slaveDataMutex;
 extern QueueHandle_t     g_slaveCommandQueue;
 extern SlaveData*        g_slaveData;           // alocat in PSRAM
+
+extern SemaphoreHandle_t g_tvDataMutex;
+extern TvData*           g_tvData;              // alocat in PSRAM
 
 // ============================================================
 //  Thread-safe accessors
@@ -94,4 +120,24 @@ inline bool slaveDataWrite(const SlaveData& in) {
 inline bool slaveCommandSend(const SlaveCommand& cmd) {
     if (!g_slaveCommandQueue) return false;
     return xQueueSend(g_slaveCommandQueue, &cmd, 0) == pdTRUE;
+}
+
+// ============================================================
+//  Thread-safe accessors pentru TvData (TvCommTask ↔ loopTask)
+// ============================================================
+
+inline bool tvDataRead(TvData& out) {
+    if (!g_tvDataMutex || !g_tvData) return false;
+    if (xSemaphoreTake(g_tvDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) return false;
+    memcpy(&out, g_tvData, sizeof(TvData));
+    xSemaphoreGive(g_tvDataMutex);
+    return true;
+}
+
+inline bool tvDataWrite(const TvData& in) {
+    if (!g_tvDataMutex || !g_tvData) return false;
+    if (xSemaphoreTake(g_tvDataMutex, pdMS_TO_TICKS(10)) != pdTRUE) return false;
+    memcpy(g_tvData, &in, sizeof(TvData));
+    xSemaphoreGive(g_tvDataMutex);
+    return true;
 }
