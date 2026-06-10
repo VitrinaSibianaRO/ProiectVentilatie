@@ -524,12 +524,23 @@ void setup() {
         Serial.printf("[WiFi] Connected: %s\n",
                       WiFi.localIP().toString().c_str());
         g_wifiAvailable = true;
-        TimeSync::begin();
-        mqtt.begin(&prefs);
     } else {
-        Serial.println("[WiFi] No WiFi — running offline, automation active.");
-        WiFi.mode(WIFI_OFF);
+        Serial.println("[WiFi] No WiFi la boot — WifiWatchdog reincearca la 10 min.");
+        g_wifiAvailable = false;
+        // NU oprim WiFi (fara WIFI_OFF): pastram modul STA ca WiFi.reconnect()
+        // din WifiWatchdog sa functioneze ulterior.
     }
+
+    // Auto-reconnect nativ al stack-ului — acopera caderile scurte intre
+    // ferestrele de 10 min; WifiWatchdog ramane backstop-ul garantat.
+    WiFi.setAutoReconnect(true);
+
+    // MQTT + NTP se initializeaza NECONDITIONAT (recuperare completa la boot):
+    // begin() nu necesita WiFi activ. Cand WifiWatchdog ridica WiFi-ul, loop()
+    // (gate-uit de g_wifiAvailable) le conecteaza singur; SNTP se sincronizeaza
+    // in fundal odata ce apare reteaua.
+    TimeSync::begin();
+    mqtt.begin(&prefs);
   }
 
   // 14. PSRAM buffer pentru log dump (4KB — prea mare pentru stack)
@@ -566,6 +577,7 @@ void loop() {
   // Resilience monitoring
   HeapMonitor::check();
   BootLoopGuard::tick();
+  WifiWatchdog::tick();   // sync g_wifiAvailable + reconectare WiFi la 10 min
 
   // Network-dependent operations
   if (g_wifiAvailable) {

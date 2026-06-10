@@ -6,7 +6,9 @@
 #include <Arduino.h>
 #include <Preferences.h>
 #include <Wire.h>
+#include <WiFi.h>
 #include <esp_system.h>
+#include <esp_task_wdt.h>
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "Config.h"
@@ -201,4 +203,56 @@ public:
 
 private:
     static inline int _failures = 0;
+};
+
+// ============================================================
+//  WIFI WATCHDOG — reconectare periodica, FARA reboot
+//  Apelat din loop() la fiecare iteratie:
+//   1. sync ieftin g_wifiAvailable = (status == WL_CONNECTED). In pana,
+//      flag-ul devine false imediat → MQTT e suspendat in loop() →
+//      MqttReconnectGuard NU acumuleaza esecuri → niciun reboot.
+//   2. daca WiFi e jos, la fiecare WIFI_WATCHDOG_INTERVAL_MS (10 min) ruleaza
+//      un burst de WIFI_WATCHDOG_MAX_ATTEMPTS incercari de reconectare, fiecare
+//      asteptand pana la WIFI_WATCHDOG_ATTEMPT_TIMEOUT_MS. Esec → reia peste
+//      inca un interval, la infinit. WDT alimentat in timpul asteptarii.
+// ============================================================
+class WifiWatchdog {
+public:
+    static void tick() {
+        // (1) Sync ieftin la fiecare loop.
+        const bool connected = (WiFi.status() == WL_CONNECTED);
+        g_wifiAvailable = connected;
+
+        // (2) Verificare/burst doar la cadenta de INTERVAL.
+        const unsigned long now = millis();
+        if (_lastCheckMs == 0) _lastCheckMs = now;          // lazy-init la boot
+        if (now - _lastCheckMs < WIFI_WATCHDOG_INTERVAL_MS) return;
+        _lastCheckMs = now;
+
+        if (connected) return;                               // conectat → nimic
+
+        for (int i = 1; i <= WIFI_WATCHDOG_MAX_ATTEMPTS; i++) {
+            Serial.printf("[WifiWatchdog] WiFi down — reconnect %d/%d\n",
+                          i, WIFI_WATCHDOG_MAX_ATTEMPTS);
+            WiFi.mode(WIFI_STA);
+            WiFi.reconnect();   // foloseste credentialele persistate de WiFiManager
+
+            const unsigned long start = millis();
+            while (millis() - start < WIFI_WATCHDOG_ATTEMPT_TIMEOUT_MS) {
+                if (WiFi.status() == WL_CONNECTED) {
+                    g_wifiAvailable = true;
+                    Serial.printf("[WifiWatchdog] Reconnected: %s\n",
+                                  WiFi.localIP().toString().c_str());
+                    return;
+                }
+                esp_task_wdt_reset();   // alimenteaza WDT (60s) in asteptare
+                delay(250);
+            }
+        }
+        Serial.println("[WifiWatchdog] All attempts failed — retry in 10 min");
+        // g_wifiAvailable ramane false → MQTT gated off → niciun reboot
+    }
+
+private:
+    static inline unsigned long _lastCheckMs = 0;
 };

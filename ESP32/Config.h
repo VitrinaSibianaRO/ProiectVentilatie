@@ -145,6 +145,13 @@
 #define WIFI_CONNECT_TIMEOUT_MS 15000
 #define WIFI_MAX_ATTEMPTS 5
 
+// WiFi watchdog — reconectare periodica (vezi WifiWatchdog in Resilience.h).
+// La fiecare INTERVAL, daca WiFi e jos: MAX_ATTEMPTS incercari de cate
+// ATTEMPT_TIMEOUT fiecare. Esec → reia peste un INTERVAL, la infinit (fara reboot).
+#define WIFI_WATCHDOG_INTERVAL_MS        600000UL  // 10 min intre verificari
+#define WIFI_WATCHDOG_MAX_ATTEMPTS       3
+#define WIFI_WATCHDOG_ATTEMPT_TIMEOUT_MS 15000UL   // 15s / incercare
+
 // Global flag for WiFi availability
 extern bool g_wifiAvailable;
 
