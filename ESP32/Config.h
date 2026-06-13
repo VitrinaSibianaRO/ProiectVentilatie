@@ -60,6 +60,16 @@
 #define WDT_TIMEOUT_SEC 60
 
 // ============================================================
+//  ANTI-CHATTERING relee (protectie comutari rapide / oscilatii la prag)
+// ============================================================
+// Histerezis minim EFECTIV impus chiar daca userul seteaza H=0 din MAUI —
+// banda moarta sub prag nu dispare niciodata.
+#define MIN_EFFECTIVE_TEMP_HYST 0.5f
+#define MIN_EFFECTIVE_HUM_HYST  2.0f
+// Timp minim intre doua comutari ale aceluiasi releu (protejeaza contactele).
+#define RELAY_MIN_SWITCH_MS 30000UL  // 30s
+
+// ============================================================
 //  HIVEMQ CLOUD (MQTT TLS 8883)
 // ============================================================
 #define MQTT_HOST "264f95b78b1d4733a57c7d0c6e045828.s1.eu.hivemq.cloud"
@@ -67,6 +77,12 @@
 #define MQTT_USER "ventilatie_esp32"
 #define MQTT_PASS "Esp32Ventil2024!"
 #define MQTT_CLIENT_PREFIX "esp32-vent-"
+
+// Timeouts TLS/TCP/socket — valori in SECUNDE (WiFiClientSecure/PubSubClient API).
+// Bound blocarea loopTask la worst-case ~13s/incercare (8+5), sub WDT 60s.
+#define MQTT_HANDSHAKE_TIMEOUT_S  8UL   // mbedTLS handshake (era 30000 = 30000s BUG)
+#define MQTT_TCP_TIMEOUT_S        5UL   // TCP connect (WiFiClientSecure::setTimeout)
+#define MQTT_SOCKET_TIMEOUT_S     4UL   // PubSubClient read (default 15s)
 
 // Topic-uri
 #define TOPIC_STATE "ventilatie/state"
@@ -78,13 +94,17 @@
 
 // Buffer size pentru PubSubClient (default e doar 256B — prea mic pentru log).
 #define MQTT_BUF_SIZE 4096
-// Heartbeat: publicare state forțată la fiecare interval
-#define MQTT_HEARTBEAT_MS 3600000UL // 1h
+// Heartbeat: publicare state de liveness la fiecare interval
+#define MQTT_HEARTBEAT_MS 240000UL // 4 min (era 1h) — dashboard mereu proaspat
 // Throttle hard între publicări consecutive (anti-flood)
 #define MQTT_PUBLISH_MIN_INTERVAL_MS 500UL
+// Debounce publicari "la cerere": chiar cu pushNow, nu mai des de atat (anti-flood)
+#define MQTT_ONDEMAND_MIN_MS 2000UL
 // Reconnect MQTT (backoff)
+// MAX mai mare: ESP32 facea ~360 tentative/ora la 10s max → rate-limit HiveMQ.
+// La 60s max: ~60 tentative/ora, sub limita free tier (100 sesiuni/ora).
 #define MQTT_RECONNECT_INITIAL_MS 5000UL
-#define MQTT_RECONNECT_MAX_MS 10000UL
+#define MQTT_RECONNECT_MAX_MS 60000UL
 
 // ============================================================
 //  NTP
@@ -117,6 +137,16 @@
 #define TV_COMM_TASK_STACK    6144
 #define TV_COMM_TASK_PRIORITY 1
 
+// taskNetwork pe Core 0 — WiFi + MQTT. TLS handshake cere stack generos
+// (loopTask actual = 8192 si merge); luam headroom peste.
+#define NET_TASK_STACK     12288
+#define NET_TASK_PRIORITY  1          // sub SlaveCommTask(2); control = loopTask (Core 1)
+#define CONTROL_LOOP_POLL_MS 50       // cadenta poll comenzi control (fara busy-spin)
+
+// Adancime cozi control/TV (comenzi rare, declansate de user).
+#define CONTROL_CMD_QUEUE_DEPTH 8
+#define TV_CMD_QUEUE_DEPTH      8
+
 // ============================================================
 //  EVENT LOG
 // ============================================================
@@ -148,9 +178,13 @@
 // WiFi watchdog — reconectare periodica (vezi WifiWatchdog in Resilience.h).
 // La fiecare INTERVAL, daca WiFi e jos: MAX_ATTEMPTS incercari de cate
 // ATTEMPT_TIMEOUT fiecare. Esec → reia peste un INTERVAL, la infinit (fara reboot).
-#define WIFI_WATCHDOG_INTERVAL_MS        600000UL  // 10 min intre verificari
+#define WIFI_WATCHDOG_INTERVAL_MS        300000UL  // 5 min intre verificari (era 10 min)
 #define WIFI_WATCHDOG_MAX_ATTEMPTS       3
 #define WIFI_WATCHDOG_ATTEMPT_TIMEOUT_MS 15000UL   // 15s / incercare
+
+// Last-resort reboot dupa WiFi jos continuu — SINGURA cauza de reboot de retea.
+// MQTT picat singur NU reporneste placa. 6h = suficient pentru recuperare normala.
+#define WIFI_DOWN_REBOOT_MS  21600000UL  // 6h
 
 // Global flag for WiFi availability
 extern bool g_wifiAvailable;

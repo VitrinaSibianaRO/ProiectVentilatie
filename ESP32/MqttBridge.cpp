@@ -18,13 +18,13 @@ MqttBridge *MqttBridge::_instance = nullptr;
 
 MqttBridge::MqttBridge()
     : _wifiSecureClient(nullptr),
-      _client(), _prefs(nullptr), _initialized(false), _lastReconnectMs(0),
-      _backoffMs(MQTT_RECONNECT_INITIAL_MS), _lastPublishMs(0),
-      _lastHeartbeatMs(0), _lockOwner(LOCK_NONE), _publishNow(false),
+      _client(), _prefs(nullptr), _initialized(false), _wasConnected(false),
+      _lastReconnectMs(0),
+      _backoffMs(MQTT_RECONNECT_INITIAL_MS),
+      _nextDelayMs(MQTT_RECONNECT_INITIAL_MS), _lastPublishMs(0),
+      _lastHeartbeatMs(0), _lastSeq(0), _lockOwner(LOCK_NONE), _publishNow(false),
       _lockSetAtMs(0), _lastDiagMs(0), _lastSlaveErrors(0),
       _lastSlaveOnline(false), _stateBuf(nullptr), _diagBuf(nullptr) {
-  _lastRelayState[0] = false;
-  _lastRelayState[1] = false;
 
   // Alocare PSRAM cu fallback pe heap intern — o singura data la constructie.
   _stateBuf = (char *)ps_malloc(PSRAM_STAT_BUF_SIZE);
@@ -51,8 +51,12 @@ void MqttBridge::begin(AppPreferences *prefs) {
   // WiFiClientSecure nativ ESP32 — TLS hardware-accelerat
   _wifiSecureClient = new WiFiClientSecure();
   _wifiSecureClient->setInsecure();
-  _wifiSecureClient->setHandshakeTimeout(30000); // 30s timeout
+  // Timeouts reale in SECUNDE — bound blocarea loopTask sub WDT 60s.
+  // setHandshakeTimeout(30000) era in secunde (=30000s ~8h), BUG-ul fix-uit.
+  _wifiSecureClient->setHandshakeTimeout(MQTT_HANDSHAKE_TIMEOUT_S); // 8s
+  _wifiSecureClient->setTimeout(MQTT_TCP_TIMEOUT_S);                 // 5s TCP
   _client.setClient(*_wifiSecureClient);
+  _client.setSocketTimeout(MQTT_SOCKET_TIMEOUT_S);                   // 4s read
   Serial.println("[MQTT] Transport: WiFi + WiFiClientSecure.");
 
   _client.setServer(MQTT_HOST, MQTT_PORT);
@@ -69,25 +73,47 @@ void MqttBridge::loop() {
   if (!_initialized)
     return;
 
+  // WiFi jos: elibereaza contextul TLS (mbedTLS ~30KB) la prima detectie,
+  // apoi iesi imediat — fara incercari blocante de reconectare fara IP.
+  if (WiFi.status() != WL_CONNECTED) {
+    if (_wasConnected || _client.connected()) {
+      _client.disconnect();
+      if (_wifiSecureClient) _wifiSecureClient->stop();
+      _wasConnected = false;
+      _backoffMs = MQTT_RECONNECT_INITIAL_MS; // reset backoff la revenire WiFi
+      Serial.println("[MQTT] WiFi down — conexiune+TLS eliberate.");
+    }
+    return;
+  }
+
+  // WiFi conectat dar fara IP valid — skip, evita DNS/TCP blocant.
+  if ((uint32_t)WiFi.localIP() == 0) return;
+
   if (!_client.connected()) {
     unsigned long now = millis();
-    if (now - _lastReconnectMs < _backoffMs)
+    if (now - _lastReconnectMs < _nextDelayMs)
       return;
     _lastReconnectMs = now;
 
     if (_connect()) {
-      _backoffMs = MQTT_RECONNECT_INITIAL_MS;
+      _backoffMs   = MQTT_RECONNECT_INITIAL_MS;
+      _nextDelayMs = MQTT_RECONNECT_INITIAL_MS;
       _lastHeartbeatMs = 0;
+      _wasConnected = true;
       MqttReconnectGuard::onConnectSuccess();
     } else {
+      // Backoff exponential "curat" + jitter ±15% pe fereastra de asteptare
+      // (jitter-ul NU se acumuleaza in _backoffMs → ramane previzibil).
       unsigned long next = _backoffMs * 2;
       _backoffMs =
           (next > MQTT_RECONNECT_MAX_MS) ? MQTT_RECONNECT_MAX_MS : next;
-      Serial.printf("[MQTT] Reconnect failed, rc=%d, retry in %lus\n",
-                    _client.state(), _backoffMs / 1000);
+      _nextDelayMs = _jittered(_backoffMs);
+      Serial.printf("[MQTT] Reconnect failed, rc=%d, retry in ~%lus\n",
+                    _client.state(), _nextDelayMs / 1000);
       MqttReconnectGuard::onConnectFail();
     }
   } else {
+    _wasConnected = true;
     _client.loop();
 
     // Diag publish la fiecare 5 minute
@@ -100,6 +126,12 @@ void MqttBridge::loop() {
 }
 
 bool MqttBridge::_connect() {
+  // Pre-check: WiFi conectat + IP valid (evita DNS/TCP blocant fara retea).
+  if (WiFi.status() != WL_CONNECTED || (uint32_t)WiFi.localIP() == 0) {
+    Serial.println("[MQTT] _connect: fara WiFi/IP — skip.");
+    return false;
+  }
+
   // TLS handshake consuma ~30KB heap. Skip daca avem prea putin
   // (evita aluneci in OOM crash mid-handshake).
   const uint32_t freeHeap = ESP.getFreeHeap();
@@ -108,6 +140,9 @@ bool MqttBridge::_connect() {
     return false;
   }
 
+  // Slate curat: elibereaza context TLS rezidual din incercarea anterioara.
+  if (_wifiSecureClient) _wifiSecureClient->stop();
+
   Serial.print("[MQTT] Connecting to HiveMQ via WiFi... ");
 
   char clientId[32];
@@ -115,11 +150,13 @@ bool MqttBridge::_connect() {
   snprintf(clientId, sizeof(clientId), "%s%08X", MQTT_CLIENT_PREFIX,
            (uint32_t)(chipId >> 16));
 
-  // LWT: dacă ESP32 cade neașteptat, broker-ul publică automat "offline"
+  // LWT retain=false: evita rate-limiting HiveMQ free tier pe retained writes.
+  // Broker-ul trimite "offline" catre clientii conectati la cadere, dar
+  // nu retine mesajul — nu risca rc=3 (UNAVAILABLE) la reconectare rapida.
   bool ok = _client.connect(clientId, MQTT_USER, MQTT_PASS,
                             TOPIC_ONLINE, // willTopic
                             1,            // willQos
-                            true,         // willRetain
+                            false,        // willRetain — non-retained (fix rc=3)
                             "offline"     // willMessage
   );
 
@@ -129,10 +166,10 @@ bool MqttBridge::_connect() {
   }
 
   Serial.println("OK.");
-  _client.publish(TOPIC_ONLINE, "online", true);
+  // "online" non-retained: consistent cu LWT; evita retained write throttling.
+  _client.publish(TOPIC_ONLINE, "online", false);
   _client.subscribe(TOPIC_CMD, 1);
   Serial.println("[MQTT] Subscribed to ventilatie/cmd (QoS 1).");
-  // TV commands vin pe acelasi topic cmd, deci nu e nevoie de subscribe suplimentar.
 
   return true;
 }
@@ -339,68 +376,61 @@ MqttPending &MqttBridge::getPending() { return _mqttPending; }
 //  STATE PUBLISH
 // ============================================================
 
-void MqttBridge::publishStateIfNeeded(const VentilationZone &l,
-                                      const VentilationZone &r,
-                                      bool slaveOnline, int slaveErrors,
-                                      unsigned long slaveLastSuccessMs,
-                                      uint8_t ledIntensity,
-                                      bool ledSchedEnabled) {
+void MqttBridge::publishFromSnapshot(const ControlState &st) {
   // Cache pentru /diag (publish independent)
-  _lastSlaveErrors = slaveErrors;
-  _lastSlaveOnline = slaveOnline;
+  _lastSlaveErrors = st.slaveErrors;
+  _lastSlaveOnline = st.slaveOnline;
 
   if (!connected())
     return;
 
-  bool pushNow = _publishNow;
-  unsigned long now = millis();
+  const unsigned long now = millis();
+  const bool pushNow    = _publishNow;
+  const bool seqChanged = (st.seq != _lastSeq);   // control a evaluat/aplicat ceva
+  const bool heartbeat  =
+      (_lastHeartbeatMs == 0) || (now - _lastHeartbeatMs >= MQTT_HEARTBEAT_MS);
 
-  // Dacă este o cerere de publicare imediată (comandă manuală), sărim peste
-  // throttling-ul de 500ms.
-  if (!pushNow && (now - _lastPublishMs < MQTT_PUBLISH_MIN_INTERVAL_MS))
+  if (!(pushNow || seqChanged || heartbeat))
     return;
 
-  bool heartbeat =
-      (_lastHeartbeatMs == 0) || (now - _lastHeartbeatMs >= MQTT_HEARTBEAT_MS);
-  bool relayChanged = (l.getRelayState() != _lastRelayState[0]) ||
-                      (r.getRelayState() != _lastRelayState[1]);
+  // Debounce anti-flood: nu publicam mai des de MQTT_ONDEMAND_MIN_MS. Daca prea
+  // devreme, pastram cererea (_publishNow / seq diferit) → reincercam la ciclul urmator.
+  if (now - _lastPublishMs < MQTT_ONDEMAND_MIN_MS)
+    return;
 
-  if (heartbeat || relayChanged || pushNow) {
-    _publishStateNow(l, r, slaveOnline, slaveErrors, slaveLastSuccessMs,
-                     ledIntensity, ledSchedEnabled);
-    _lastPublishMs = now;
-    _publishNow = false;
-    if (heartbeat)
-      _lastHeartbeatMs = now;
-    _lastRelayState[0] = l.getRelayState();
-    _lastRelayState[1] = r.getRelayState();
+  const bool clearedLock = _publishStateNow(st);
+  _lastPublishMs = now;
+  // Daca tocmai am publicat o stare CU lock (si l-am curatat), cerem re-publicare
+  // imediata a starii FARA lock → starea retained de pe broker devine curata
+  // (bannerul "Control blocat" nu mai ramane agatat).
+  _publishNow    = clearedLock;
+  _lastSeq       = st.seq;
+  if (heartbeat) {
+    _lastHeartbeatMs = now;
+    // Backstop liveness: republica "online" (non-retained) la fiecare heartbeat,
+    // ca app-urile abonate sa-l prinda chiar daca au ratat publish-ul de la connect.
+    _client.publish(TOPIC_ONLINE, "online", false);
   }
 }
 
-void MqttBridge::_publishStateNow(const VentilationZone &l,
-                                  const VentilationZone &r, bool slaveOnline,
-                                  int slaveErrors,
-                                  unsigned long slaveLastSuccessMs,
-                                  uint8_t ledIntensity, bool ledSchedEnabled) {
-  if (!_prefs)
-    return;
-
+bool MqttBridge::_publishStateNow(const ControlState &st) {
+  const bool hadLock = (_lockOwner != LOCK_NONE);
   JsonDocument doc;
 
   JsonObject left = doc["left"].to<JsonObject>();
-  left["temp"] = l.getTemp();
-  left["hum"] = l.getHum();
-  left["relay"] = l.getRelayState();
-  left["override"] = l.getManualOverride();
-  left["errs"] = l.getConsecErrors();
+  left["temp"] = st.leftTemp;
+  left["hum"] = st.leftHum;
+  left["relay"] = st.leftRelay;
+  left["override"] = st.leftOverride;
+  left["errs"] = st.leftErrs;
 
   JsonObject right = doc["right"].to<JsonObject>();
-  right["temp"] = r.getTemp();
-  right["hum"] = r.getHum();
-  right["relay"] = r.getRelayState();
-  right["override"] = r.getManualOverride();
-  right["errs"] = r.getConsecErrors();
-  right["failsafe"] = r.isInFailsafe();
+  right["temp"] = st.rightTemp;
+  right["hum"] = st.rightHum;
+  right["relay"] = st.rightRelay;
+  right["override"] = st.rightOverride;
+  right["errs"] = st.rightErrs;
+  right["failsafe"] = st.rightFailsafe;
 
   // Config NU mai e inclus in state publish.
   // MAUI Settings UI = sursa locala (Preferences). ESP32 ramane sursa pentru NVS
@@ -408,15 +438,15 @@ void MqttBridge::_publishStateNow(const VentilationZone &l,
 
   // Slave status
   JsonObject slave = doc["slave"].to<JsonObject>();
-  slave["online"] = slaveOnline;
-  slave["errors"] = slaveErrors;
-  slave["lastSeen"] = (uint32_t)(slaveLastSuccessMs / 1000UL);
+  slave["online"] = st.slaveOnline;
+  slave["errors"] = st.slaveErrors;
+  slave["lastSeen"] = st.slaveLastSeenSec;
 
-  // LED status (from Slave)
+  // LED status (din snapshot-ul de control — network NU citeste config direct)
   JsonObject led = doc["led"].to<JsonObject>();
-  led["intensity"]  = ledIntensity;
-  led["followTv"]   = _prefs->followTvBrightness;
-  led["morseText"]  = _prefs->morseText;
+  led["intensity"]  = st.ledIntensity;
+  led["followTv"]   = st.followTvBrightness;
+  led["morseText"]  = st.morseText;
 
   // Lock object
   if (_lockOwner != LOCK_NONE) {
@@ -433,23 +463,28 @@ void MqttBridge::_publishStateNow(const VentilationZone &l,
   size_t n = serializeJson(doc, _stateBuf, PSRAM_STAT_BUF_SIZE);
   if (n == 0 || n >= PSRAM_STAT_BUF_SIZE) {
     Serial.println("[MQTT] State serialize error.");
-    return;
+    return false;
   }
 
   bool ok = _client.publish(TOPIC_STATE, (const uint8_t *)_stateBuf, n, true);
   if (!ok) {
     Serial.println("[MQTT] State publish FAILED.");
-  } else {
-    Serial.printf("[MQTT] State published (%u bytes, lock=%s, slave=%s).\n",
-                  (unsigned)n, _lockOwner == LOCK_NONE ? "none" : "mqtt",
-                  slaveOnline ? "online" : "offline");
+    return false;
   }
+  Serial.printf("[MQTT] State published (%u bytes, lock=%s, slave=%s).\n",
+                (unsigned)n, hadLock ? "mqtt" : "none",
+                st.slaveOnline ? "online" : "offline");
+  // Sterge lock-ul dupa publicare — comenzile sunt procesate. Returnam hadLock
+  // → publishFromSnapshot va re-publica imediat starea FARA lock (curata bannerul).
+  if (hadLock) _lockOwner = LOCK_NONE;
+  return hadLock;
 }
 
 void MqttBridge::publishOnline(bool online) {
   if (!connected())
     return;
-  _client.publish(TOPIC_ONLINE, online ? "online" : "offline", true);
+  // Non-retained: consistent cu LWT. "offline" explicit la graceful disconnect.
+  _client.publish(TOPIC_ONLINE, online ? "online" : "offline", false);
 }
 
 void MqttBridge::publishEventJson(const char *jsonStr) {
@@ -505,4 +540,17 @@ void MqttBridge::_publishDiag() {
 
   size_t n = serializeJson(doc, _diagBuf, PSRAM_DIAG_BUF_SIZE);
   _client.publish(TOPIC_DIAG, (const uint8_t *)_diagBuf, n, false);
+}
+
+// Aplica jitter ±15% pe valoarea de backoff — desincronizeaza reconectarile
+// (evita reconnect storm sincron). Foloseste RNG hardware.
+unsigned long MqttBridge::_jittered(unsigned long base) {
+  unsigned long j = base * 15UL / 100UL;   // 15%
+  if (j == 0)
+    return base;
+  long delta = (long)(esp_random() % (2UL * j + 1UL)) - (long)j;
+  long result = (long)base + delta;
+  if (result < 1000)
+    result = 1000;   // minim 1s
+  return (unsigned long)result;
 }

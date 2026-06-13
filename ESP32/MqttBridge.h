@@ -19,6 +19,7 @@
 #include "AppPreferences.h"
 #include "VentilationZone.h"
 #include "TvController.h"
+#include "SharedState.h"   // ControlState — network publica DOAR din snapshot
 
 // Lock owner: cine controlează sistemul în acest moment
 // LOCK_BLYNK eliminat — nu mai există interfață Blynk
@@ -100,11 +101,9 @@ public:
     // Stare conexiune
     bool connected();
 
-    // Publicare state cu slave + LED status. Decide intern dacă publică.
-    void publishStateIfNeeded(const VentilationZone& l, const VentilationZone& r,
-                              bool slaveOnline, int slaveErrors,
-                              unsigned long slaveLastSuccessMs,
-                              uint8_t ledIntensity, bool ledSchedEnabled);
+    // Publicare state din snapshot-ul de control (network NU atinge zone vii).
+    // Decide intern: seq schimbat / pushNow / heartbeat, cu debounce anti-flood.
+    void publishFromSnapshot(const ControlState& st);
 
     // Publicare explicită online/offline (folosit pre-restart).
     void publishOnline(bool online);
@@ -140,11 +139,13 @@ private:
     AppPreferences*   _prefs;
 
     bool          _initialized;
+    bool          _wasConnected;    // pentru cleanup TLS la tranzitia connected→down
     unsigned long _lastReconnectMs;
-    unsigned long _backoffMs;
+    unsigned long _backoffMs;       // backoff exponential "curat" (5→60s)
+    unsigned long _nextDelayMs;     // fereastra efectiva de asteptare (backoff + jitter)
     unsigned long _lastPublishMs;
     unsigned long _lastHeartbeatMs;
-    bool          _lastRelayState[2];
+    uint32_t      _lastSeq;         // ultimul seq publicat (detectie schimbare snapshot)
 
     LockOwner     _lockOwner;
     bool          _publishNow;
@@ -162,11 +163,11 @@ private:
     char* _diagBuf;    // PSRAM_DIAG_BUF_SIZE = 384
 
     bool _connect();
-    void _publishStateNow(const VentilationZone& l, const VentilationZone& r,
-                          bool slaveOnline, int slaveErrors,
-                          unsigned long slaveLastSuccessMs,
-                          uint8_t ledIntensity, bool ledSchedEnabled);
+    // Returneaza true daca starea publicata continea un lock (care a fost curatat)
+    // → cere o re-publicare imediata fara lock.
+    bool _publishStateNow(const ControlState& st);
     void _publishDiag();
+    unsigned long _jittered(unsigned long base);   // ±15% jitter pe backoff
 
     static MqttBridge* _instance;
     static void _staticCallback(char* topic, byte* payload, unsigned int length);

@@ -18,6 +18,42 @@ struct TaskParams {
     TvController* tvCtrl;
 };
 
+// Executa o comanda TV venita de la taskNetwork. tvCtrl e atins DOAR de
+// TvCommTask (poll + actiuni) → fara race pe socketul RS-232/TCP.
+static void execTvCommand(TvController& tv, const TvCommand& c) {
+    if (c.type == TV_CMD_CONFIG) {
+        tv.configure(c.ip, c.mac);
+        tv.readDeviceInfo();
+        Serial.printf("[TvCommTask] Config updated: IP=%s\n", c.ip);
+        return;
+    }
+    // TV_CMD_ACTION
+    const char* a = c.action;
+    const int   v = c.value;
+    bool ok = false;
+    if      (strcmp(a, "power_on")     == 0) ok = tv.powerOn();
+    else if (strcmp(a, "power_off")    == 0) ok = tv.powerOff();
+    else if (strcmp(a, "volume")       == 0) ok = tv.setVolume((uint8_t)v);
+    else if (strcmp(a, "mute")         == 0) ok = tv.setMute(v != 0);
+    else if (strcmp(a, "input")        == 0) ok = tv.setInput((uint8_t)v);
+    else if (strcmp(a, "backlight")    == 0) ok = tv.setBacklight((uint8_t)v);
+    else if (strcmp(a, "pictureMode")  == 0) ok = tv.setPictureMode((uint8_t)v);
+    else if (strcmp(a, "energySaving") == 0) ok = tv.setEnergySaving((uint8_t)v);
+    else if (strcmp(a, "noSignalOff")  == 0) ok = tv.setNoSignalPowerOff(v != 0);
+    Serial.printf("[TvCommTask] Action '%s' val=%d -> %s\n", a, v, ok ? "OK" : "FAIL");
+}
+
+// Scrie snapshot TvData cu newValueReady → taskNetwork publica starea TV.
+static void writeTvSnapshot(TvController& tv) {
+    TvData snap{};
+    snap.reachable     = tv.state().reachable;
+    snap.power         = tv.state().power;
+    snap.backlight     = tv.state().backlight;
+    snap.lastPollMs    = (uint32_t)millis();
+    snap.newValueReady = true;
+    tvDataWrite(snap);
+}
+
 static void taskFn(void* pvParams) {
     auto* p = static_cast<TaskParams*>(pvParams);
     TvController& tvCtrl = *p->tvCtrl;
@@ -32,20 +68,25 @@ static void taskFn(void* pvParams) {
     for (;;) {
         esp_task_wdt_reset();
 
+        // 1. Drain comenzi TV (network → TvCommTask). Executie + snapshot pentru publish.
+        {
+            TvCommand tc;
+            bool gotTvCmd = false;
+            while (g_tvCommandQueue &&
+                   xQueueReceive(g_tvCommandQueue, &tc, 0) == pdTRUE) {
+                execTvCommand(tvCtrl, tc);
+                gotTvCmd = true;
+            }
+            if (gotTvCmd) writeTvSnapshot(tvCtrl);
+        }
+
+        // 2. Poll periodic
         if (g_wifiAvailable && tvCtrl.state().configured) {
             Serial.println("[TvCommTask] pollAll() start");
             tvCtrl.pollAll();   // blocant ~11s — OK pe Core 0
-
-            TvData snap{};
-            snap.reachable     = tvCtrl.state().reachable;
-            snap.power         = tvCtrl.state().power;
-            snap.backlight     = tvCtrl.state().backlight;
-            snap.lastPollMs    = (uint32_t)millis();
-            snap.newValueReady = true;
-            tvDataWrite(snap);
-
+            writeTvSnapshot(tvCtrl);
             Serial.printf("[TvCommTask] pollAll() done: reachable=%d bk=%u\n",
-                          snap.reachable, snap.backlight);
+                          tvCtrl.state().reachable, tvCtrl.state().backlight);
         }
 
         // Asteapta TV_POLL_MS in felii de 30s, alimentand WDT (timeout = 60s).

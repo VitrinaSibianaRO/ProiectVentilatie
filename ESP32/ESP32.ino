@@ -77,9 +77,229 @@ TvData *g_tvData = nullptr;       // alocat in PSRAM
 bool g_wifiAvailable = false;
 
 // ============================================================
-//  PROCESS ZONES — logica principală (apelată la interval)
+//  CONTROL (loopTask, Core 1) ↔ NETWORK (taskNetwork, Core 0)
+//  Config + zone + GPIO + NVS = owned EXCLUSIV de control.
+//  Comenzile care ating NVS vin network→control prin g_controlCommandQueue.
+//  Telemetria merge control→network prin g_controlState (mutex).
 // ============================================================
-void processZones() {
+QueueHandle_t     g_controlCommandQueue = nullptr;  // network → control
+SemaphoreHandle_t g_controlStateMutex   = nullptr;
+ControlState*     g_controlState        = nullptr;  // alocat in PSRAM
+QueueHandle_t     g_tvCommandQueue      = nullptr;  // network → TvCommTask
+
+// Status MQTT publicat de taskNetwork (owner mqtt), citit de control pentru LED.
+volatile bool g_mqttConnected = false;
+
+// Seq incrementat de control la fiecare snapshot publicabil (detectie schimbare).
+static uint32_t g_controlSeq = 0;
+
+// ============================================================
+//  SNAPSHOT TELEMETRIE (control → network) — network publica DOAR de aici.
+//  Citeste zone + config (owned de control) → fara acces cross-task la zone.
+// ============================================================
+void publishControlSnapshot(bool slaveOnline, int slaveErrors,
+                            unsigned long slaveLastSuccessMs, bool forcePublish) {
+  // Detectie schimbare relevanta → bumpam seq DOAR atunci (event-driven).
+  // Jitter-ul senzorilor singur NU declanseaza publish; acela vine pe heartbeat 4min.
+  static bool lastLR = false, lastRR = false, lastLO = false, lastRO = false,
+              lastFS = false, init = false;
+
+  ControlState st{};
+  st.leftTemp      = leftZone.getTemp();
+  st.leftHum       = leftZone.getHum();
+  st.leftRelay     = leftZone.getRelayState();
+  st.leftOverride  = leftZone.getManualOverride();
+  st.leftErrs      = leftZone.getConsecErrors();
+  st.rightTemp     = rightZone.getTemp();
+  st.rightHum      = rightZone.getHum();
+  st.rightRelay    = rightZone.getRelayState();
+  st.rightOverride = rightZone.getManualOverride();
+  st.rightErrs     = rightZone.getConsecErrors();
+  st.rightFailsafe = rightZone.isInFailsafe();
+  st.slaveOnline   = slaveOnline;
+  st.slaveErrors   = slaveErrors;
+  st.slaveLastSeenSec   = (uint32_t)(slaveLastSuccessMs / 1000UL);
+  st.ledIntensity       = g_ledIntensity;
+  st.followTvBrightness = prefs.followTvBrightness;
+  strlcpy(st.morseText, prefs.morseText, sizeof(st.morseText));
+
+  const bool changed = !init ||
+                       st.leftRelay     != lastLR || st.rightRelay    != lastRR ||
+                       st.leftOverride  != lastLO || st.rightOverride != lastRO ||
+                       st.rightFailsafe != lastFS;
+  // seq creste doar la schimbare/forta → network publica atunci; altfel doar heartbeat.
+  g_controlSeq += (forcePublish || changed) ? 1u : 0u;
+  st.seq = g_controlSeq;
+  controlStateWrite(st);
+
+  lastLR = st.leftRelay;  lastRR = st.rightRelay;
+  lastLO = st.leftOverride; lastRO = st.rightOverride;
+  lastFS = st.rightFailsafe; init = true;
+}
+
+// ============================================================
+//  APLICARE COMENZI CONTROL (network → control prin queue).
+//  Ruleaza pe taskControl (loopTask) — singurul care atinge NVS/config/zone.
+// ============================================================
+void applyControlCommand(const ControlCommand& cc) {
+  switch (cc.type) {
+    case CTRL_SET_CONFIG:
+      if (cc.threshT > 0)  prefs.saveTempThresh(cc.threshT);
+      if (cc.threshH > 0)  prefs.saveHumThresh(cc.threshH);
+      if (cc.interval > 0) prefs.saveIntervalSec(cc.interval);
+      if (cc.hystT >= 0)   prefs.saveTempHyst(cc.hystT);
+      if (cc.hystH >= 0)   prefs.saveHumHyst(cc.hystH);
+      // Save = "reia controlul automat cu pragurile astea" → stergem AMBELE
+      // moduri manuale (override ON + forceOff), pe ambele zone. Butonul MAUI
+      // comuta doar ON↔OFF (nu trimite "auto"), deci Save e calea catre AUTO.
+      prefs.saveOverrideLeft(false);
+      prefs.saveOverrideRight(false);
+      leftZone.setManualOverride(false);
+      rightZone.setManualOverride(false);
+      leftZone.setForceOff(false);
+      rightZone.setForceOff(false);
+      Serial.printf("[Cfg] setConfig: T>=%.1f H>=%.1f int=%ds hystT=%.1f hystH=%.1f (override+forceOff sterse, AUTO)\n",
+                    prefs.tempThresh, prefs.humThresh, prefs.intervalSec,
+                    prefs.tempHyst, prefs.humHyst);
+      break;
+
+    case CTRL_SET_OVERRIDE_L: {
+      const int v = cc.overrideVal;
+      if (v == 0)      { prefs.saveOverrideLeft(false); leftZone.setForceOff(false); }
+      else if (v == 1) { prefs.saveOverrideLeft(true);  leftZone.setForceOff(false); }
+      else if (v == 2) { prefs.saveOverrideLeft(false); leftZone.setForceOff(true);  }
+      leftZone.setManualOverride(prefs.overrideLeft);
+      break;
+    }
+
+    case CTRL_SET_OVERRIDE_R: {
+      const int v = cc.overrideVal;
+      if (v == 0)      { prefs.saveOverrideRight(false); rightZone.setForceOff(false); }
+      else if (v == 1) { prefs.saveOverrideRight(true);  rightZone.setForceOff(false); }
+      else if (v == 2) { prefs.saveOverrideRight(false); rightZone.setForceOff(true);  }
+      rightZone.setManualOverride(prefs.overrideRight);
+      break;
+    }
+
+    case CTRL_RESET:
+      prefs.resetToDefaults();
+      leftZone.setManualOverride(false);
+      rightZone.setManualOverride(false);
+      leftZone.setForceOff(false);
+      rightZone.setForceOff(false);
+      break;
+
+    case CTRL_REFRESH:
+      // Citire fortata senzori — processZones (declansat de gotCmd) republica.
+      leftZone.readSensor(true);
+      SlaveCommTask::forceRead();
+      break;
+
+    case CTRL_LED_SET: {
+      SlaveCommand cmd{};
+      cmd.type       = SLAVE_CMD_LED_SET;
+      cmd.ledPercent = cc.ledPercent;
+      slaveCommandSend(cmd);
+      g_ledIntensity = cc.ledPercent;
+      break;
+    }
+
+    case CTRL_LED_SCHEDULE: {
+      SlaveCommand cmd{};
+      cmd.type    = SLAVE_CMD_LED_SCHEDULE;
+      cmd.ledOnH  = cc.ledOnH;  cmd.ledOnM  = cc.ledOnM;
+      cmd.ledOffH = cc.ledOffH; cmd.ledOffM = cc.ledOffM;
+      cmd.ledMaxI = cc.ledMaxI; cmd.ledSchedEn = cc.ledSchedEn;
+      slaveCommandSend(cmd);
+      ledPrefs.save(cc.ledOnH, cc.ledOnM, cc.ledOffH, cc.ledOffM,
+                    cc.ledMaxI, cc.ledSchedEn);
+      g_ledSchedEnabled = cc.ledSchedEn;
+      break;
+    }
+
+    case CTRL_LED_MODE: {
+      SlaveCommand cmd{};
+      cmd.type      = SLAVE_CMD_LED_MODE;
+      cmd.ledModeId = cc.ledModeId;
+      cmd.ledModeP1 = cc.ledModeP1; cmd.ledModeP2 = cc.ledModeP2;
+      cmd.ledModeP3 = cc.ledModeP3; cmd.ledModeP4 = cc.ledModeP4;
+      slaveCommandSend(cmd);
+      ledPrefs.saveMode(cc.ledModeId, cc.ledModeP1, cc.ledModeP2,
+                        cc.ledModeP3, cc.ledModeP4);
+      break;
+    }
+
+    case CTRL_LED_FOLLOW_TV: {
+      prefs.saveFollowTvBrightness(cc.followTvValue);
+      SlaveCommand ftvCmd{};
+      ftvCmd.type            = SLAVE_CMD_LED_FOLLOW_TV;
+      ftvCmd.followTvEnabled = cc.followTvValue;
+      slaveCommandSend(ftvCmd);
+      if (cc.followTvValue) {
+        TvData tv{};
+        if (tvDataRead(tv) && tv.reachable) {
+          SlaveCommand capCmd{};
+          capCmd.type         = SLAVE_CMD_LED_TV_CAP;
+          capCmd.tvCapPercent = tv.backlight;
+          slaveCommandSend(capCmd);
+        }
+      }
+      break;
+    }
+
+    case CTRL_LED_MORSE: {
+      prefs.saveMorseText(cc.morseText);
+      SlaveCommand cmd{};
+      cmd.type = SLAVE_CMD_LED_MORSE_TEXT;
+      strlcpy(cmd.morseText, cc.morseText, sizeof(cmd.morseText));
+      slaveCommandSend(cmd);
+      break;
+    }
+  }
+}
+
+// ============================================================
+//  CONTROL RELEE DIN SENZORI — nucleu minimal, fara MQTT/WiFi/TV
+//  Apelat devreme in setup() INAINTE de blocul WiFiManager, ca
+//  releele sa aiba starea corecta din primele secunde de la boot.
+//  Zona dreapta (Slave UART) poate sa nu aiba date inca → ramane
+//  OFF (safe default); converge dupa 1-2 cicluri de loop.
+//  Idempotent: reutilizat si in processZones() implicit prin updateLogic.
+// ============================================================
+void controlReleeFromSensors() {
+  // Senzor local stanga — disponibil instant pe I2C
+  leftZone.readSensor(true);
+
+  // Senzor dreapta (Slave UART) — daca SlaveCommTask a apucat sa citeasca
+  SlaveData snap{};
+  if (slaveDataRead(snap) && snap.fetchOk) {
+    rightZone.setExternalSensorValues(snap.temp, snap.hum, snap.ts);
+  }
+
+  // Override-uri persistate in NVS
+  leftZone.setManualOverride(prefs.overrideLeft);
+  rightZone.setManualOverride(prefs.overrideRight);
+
+  // Decizie + actionare pini — 100% locala, fara retea. forceImmediate la boot.
+  leftZone.updateLogic(prefs.tempThresh, prefs.humThresh,
+                       prefs.tempHyst,   prefs.humHyst, true);
+  rightZone.updateLogic(prefs.tempThresh, prefs.humThresh,
+                        prefs.tempHyst,   prefs.humHyst, true);
+
+  Serial.printf("[Boot] Relee initiale: STANGA=%s DREAPTA=%s\n",
+                leftZone.getRelayState()  ? "ON" : "OFF",
+                rightZone.getRelayState() ? "ON" : "OFF");
+
+  // Snapshot initial — taskNetwork publica imediat ce se conecteaza la MQTT.
+  publishControlSnapshot(snap.fetchOk, snap.consecutiveErrors, snap.lastSuccessMs, true);
+}
+
+// ============================================================
+//  PROCESS ZONES — logica principală (apelată la interval / comandă)
+//  forcePublish=true → publica snapshot chiar fara schimbare de releu
+//  (comenzi: setConfig/LED/refresh trebuie sa actualizeze dashboard-ul).
+// ============================================================
+void processZones(bool forcePublish) {
   lastProcessMs = millis();
 
   // 1. Citeste snapshot Slave din SharedState (Core 0 actualizeaza la 500ms).
@@ -135,192 +355,9 @@ void processZones() {
   }
   const int slaveErrors = snapOk ? snap.consecutiveErrors : -1;
 
-  // 3. Procesare comenzi MQTT pending — TREBUIE să fie înainte de updateLogic!
-  MqttPending &pending = mqtt.getPending();
-
-  if (pending.refresh) {
-    leftZone.readSensor(true);
-    SlaveCommTask::forceRead();
-    mqtt.requestPublishNow();
-    pending.refresh = false;
-  }
-
-  if (pending.setOverrideL) {
-    int v = pending.overrideLVal;
-    if (v == 0)
-      prefs.saveOverrideLeft(false);
-    else if (v == 1)
-      prefs.saveOverrideLeft(true);
-    else if (v == 2)
-      prefs.saveOverrideLeft(false);
-    leftZone.setManualOverride(prefs.overrideLeft);
-    mqtt.requestPublishNow();
-    pending.setOverrideL = false;
-  }
-
-  if (pending.setOverrideR) {
-    int v = pending.overrideRVal;
-    if (v == 0)
-      prefs.saveOverrideRight(false);
-    else if (v == 1)
-      prefs.saveOverrideRight(true);
-    else if (v == 2)
-      prefs.saveOverrideRight(false);
-    rightZone.setManualOverride(prefs.overrideRight);
-    mqtt.requestPublishNow();
-    pending.setOverrideR = false;
-  }
-
-  if (pending.setConfig) {
-    if (pending.threshT > 0)
-      prefs.saveTempThresh(pending.threshT);
-    if (pending.threshH > 0)
-      prefs.saveHumThresh(pending.threshH);
-    if (pending.interval > 0)
-      prefs.saveIntervalSec(pending.interval);
-    if (pending.hystT >= 0)
-      prefs.saveTempHyst(pending.hystT);
-    if (pending.hystH >= 0)
-      prefs.saveHumHyst(pending.hystH);
-    mqtt.requestPublishNow();
-    pending.setConfig = false;
-  }
-
-  if (pending.resetDefaults) {
-    prefs.resetToDefaults();
-    leftZone.setManualOverride(false);
-    rightZone.setManualOverride(false);
-    mqtt.requestPublishNow();
-    pending.resetDefaults = false;
-  }
-
-  if (pending.rebootSlave) {
-    Serial.println("[Slave] Reboot requested from MQTT");
-    SlaveCommand cmd{};
-    cmd.type = SLAVE_CMD_REBOOT;
-    slaveCommandSend(cmd);
-    pending.rebootSlave = false;
-  }
-
-  if (pending.getLog) {
-    if (g_logBuf) {
-      size_t n = eventLog.dumpJson(g_logBuf, PSRAM_LOG_BUF_SIZE);
-      if (n > 0)
-        mqtt.publishLog(g_logBuf, n);
-    }
-    pending.getLog = false;
-  }
-
-  if (pending.setLedNow) {
-    SlaveCommand cmd{};
-    cmd.type = SLAVE_CMD_LED_SET;
-    cmd.ledPercent = pending.ledPercent;
-    slaveCommandSend(cmd);
-    g_ledIntensity = pending.ledPercent;
-    mqtt.requestPublishNow();
-    pending.setLedNow = false;
-  }
-
-  if (pending.setLedSched) {
-    SlaveCommand cmd{};
-    cmd.type = SLAVE_CMD_LED_SCHEDULE;
-    cmd.ledOnH = pending.ledOnH;
-    cmd.ledOnM = pending.ledOnM;
-    cmd.ledOffH = pending.ledOffH;
-    cmd.ledOffM = pending.ledOffM;
-    cmd.ledMaxI = pending.ledMaxI;
-    cmd.ledSchedEn = pending.ledSchedEn;
-    slaveCommandSend(cmd);
-    ledPrefs.save(pending.ledOnH, pending.ledOnM, pending.ledOffH,
-                  pending.ledOffM, pending.ledMaxI, pending.ledSchedEn);
-    g_ledSchedEnabled = pending.ledSchedEn;
-    mqtt.requestPublishNow();
-    pending.setLedSched = false;
-  }
-
-  if (pending.setLedMode) {
-    SlaveCommand cmd{};
-    cmd.type      = SLAVE_CMD_LED_MODE;
-    cmd.ledModeId = pending.ledModeId;
-    cmd.ledModeP1 = pending.ledModeP1;
-    cmd.ledModeP2 = pending.ledModeP2;
-    cmd.ledModeP3 = pending.ledModeP3;
-    cmd.ledModeP4 = pending.ledModeP4;
-    slaveCommandSend(cmd);
-    ledPrefs.saveMode(pending.ledModeId, pending.ledModeP1, pending.ledModeP2,
-                      pending.ledModeP3, pending.ledModeP4);
-    mqtt.requestPublishNow();
-    pending.setLedMode = false;
-  }
-
-  if (pending.setFollowTvBrightness) {
-    prefs.saveFollowTvBrightness(pending.followTvValue);
-    // Trimite LED_FOLLOW_TV la Slave
-    SlaveCommand ftvCmd{};
-    ftvCmd.type            = SLAVE_CMD_LED_FOLLOW_TV;
-    ftvCmd.followTvEnabled = pending.followTvValue;
-    slaveCommandSend(ftvCmd);
-    // Daca activam si avem deja un poll TV valid, trimitem cap-ul imediat
-    if (pending.followTvValue) {
-      TvData tv{};
-      if (tvDataRead(tv) && tv.reachable) {
-        SlaveCommand capCmd{};
-        capCmd.type         = SLAVE_CMD_LED_TV_CAP;
-        capCmd.tvCapPercent = tv.backlight;
-        slaveCommandSend(capCmd);
-      }
-    }
-    mqtt.requestPublishNow();
-    pending.setFollowTvBrightness = false;
-  }
-
-  if (pending.setLedMorseText) {
-    prefs.saveMorseText(pending.ledMorseText);
-    SlaveCommand cmd{};
-    cmd.type = SLAVE_CMD_LED_MORSE_TEXT;
-    strlcpy(cmd.morseText, pending.ledMorseText, sizeof(cmd.morseText));
-    slaveCommandSend(cmd);
-    mqtt.requestPublishNow();
-    pending.setLedMorseText = false;
-  }
-
-  if (pending.setTvConfig) {
-    tvCtrl.configure(pending.tvConfigIp, pending.tvConfigMac);
-    Serial.printf("[TV] Config updated: IP=%s\n", pending.tvConfigIp);
-    // Citim device info la prima configurare (serial + fw version)
-    tvCtrl.readDeviceInfo();
-    mqtt.publishTvState(tvCtrl.state());
-    pending.setTvConfig = false;
-  }
-
-  if (pending.setTv) {
-    const char* action = pending.tvAction;
-    int val = pending.tvValue;
-    bool cmdOk = false;
-
-    if (strcmp(action, "power_on") == 0)         cmdOk = tvCtrl.powerOn();
-    else if (strcmp(action, "power_off") == 0)   cmdOk = tvCtrl.powerOff();
-    else if (strcmp(action, "volume") == 0)      cmdOk = tvCtrl.setVolume((uint8_t)val);
-    else if (strcmp(action, "mute") == 0)        cmdOk = tvCtrl.setMute(val != 0);
-    else if (strcmp(action, "input") == 0)       cmdOk = tvCtrl.setInput((uint8_t)val);
-    else if (strcmp(action, "backlight") == 0)   cmdOk = tvCtrl.setBacklight((uint8_t)val);
-    else if (strcmp(action, "pictureMode") == 0) cmdOk = tvCtrl.setPictureMode((uint8_t)val);
-    else if (strcmp(action, "energySaving") == 0) cmdOk = tvCtrl.setEnergySaving((uint8_t)val);
-    else if (strcmp(action, "noSignalOff") == 0) cmdOk = tvCtrl.setNoSignalPowerOff(val != 0);
-
-    Serial.printf("[TV] Action '%s' val=%d → %s\n", action, val, cmdOk ? "OK" : "FAIL");
-    // Publish state imediat dupa comanda (cu datele curente, nu poll complet)
-    mqtt.publishTvState(tvCtrl.state());
-    pending.setTv = false;
-  }
-
-  if (pending.reboot) {
-    mqtt.publishOnline(false);
-    delay(200);
-    ESP.restart();
-  }
-
-  // 4. Citire senzor local (stânga) — Wire e pe Core 1, OK
+  // 3. Citire senzor local (stânga) — Wire pe Core 1 (control), OK.
+  //    Comenzile MQTT (config/override/LED) sunt aplicate in loop() ÎNAINTE de
+  //    processZones (via applyControlCommand), deci config-ul e deja actualizat aici.
   leftZone.readSensor(false);
   if (leftZone.getConsecErrors() >= 5 && leftZone.getConsecErrors() % 5 == 0) {
     I2CRecovery::recoverBus(I2C_SDA_PIN, I2C_SCL_PIN);
@@ -330,25 +367,21 @@ void processZones() {
   leftZone.setManualOverride(prefs.overrideLeft);
   rightZone.setManualOverride(prefs.overrideRight);
 
-  // 5. updateLogic — decide starea releului
+  // 5. updateLogic — decide starea releului (histerezis + anti-chatter).
+  //    forcePublish (comanda) → comutare imediata; periodic → anti-chatter activ.
   leftZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst,
-                       prefs.humHyst);
+                       prefs.humHyst, forcePublish);
   rightZone.updateLogic(prefs.tempThresh, prefs.humThresh, prefs.tempHyst,
-                        prefs.humHyst);
+                        prefs.humHyst, forcePublish);
 
-  // 6. MQTT publish state (incluzând LED status)
-  // Forțează publicare la fiecare ciclu — senzori se actualizează la intervalul din Settings
-  mqtt.requestPublishNow();
-  mqtt.publishStateIfNeeded(leftZone, rightZone, slaveOnline, slaveErrors,
-                            snap.lastSuccessMs, g_ledIntensity,
-                            g_ledSchedEnabled);
+  // 6. Publica snapshot telemetrie → taskNetwork (Core 0) il trimite pe MQTT.
+  publishControlSnapshot(slaveOnline, slaveErrors, snap.lastSuccessMs, forcePublish);
 
-  // 8. Status LED update
-  bool mqttOk = mqtt.connected();
+  // 7. Status LED — g_mqttConnected scris de taskNetwork (owner mqtt).
   if (!slaveOnline) {
     statusLed.setSlaveOffline();
   } else {
-    statusLed.updateStatus(g_wifiAvailable, mqttOk);
+    statusLed.updateStatus(g_wifiAvailable, g_mqttConnected);
   }
 }
 
@@ -372,12 +405,163 @@ void handleResetButton() {
       prefs.resetToDefaults();
       leftZone.setManualOverride(false);
       rightZone.setManualOverride(false);
-      mqtt.requestPublishNow();
+      leftZone.setForceOff(false);
+      rightZone.setForceOff(false);
+      // Republicarea se face automat: urmatorul processZones bumpeaza seq.
       delay(1000);
       statusLed.setBlue();
     }
   } else {
     btnPressStart = 0;
+  }
+}
+
+// ============================================================
+//  RUTARE COMENZI MQTT (taskNetwork) — pending → cozile potrivite.
+//  Config/override/reset/LED → control (NVS owned de control);
+//  TV → TvCommTask; getLog/rebootSlave/reboot/refresh tratate aici.
+// ============================================================
+void routeMqttCommands() {
+  MqttPending &p = mqtt.getPending();
+
+  if (p.refresh) {
+    // App-ul trimite refresh imediat dupa ce s-a abonat → publicam "online"
+    // (non-retained) ca sa-l prinda instant. Vezi MqttService.cs (CleanStart).
+    mqtt.publishOnline(true);
+    ControlCommand c{}; c.type = CTRL_REFRESH;
+    controlCommandSend(c); p.refresh = false;
+  }
+  if (p.setOverrideL) {
+    ControlCommand c{}; c.type = CTRL_SET_OVERRIDE_L; c.overrideVal = p.overrideLVal;
+    controlCommandSend(c); p.setOverrideL = false;
+  }
+  if (p.setOverrideR) {
+    ControlCommand c{}; c.type = CTRL_SET_OVERRIDE_R; c.overrideVal = p.overrideRVal;
+    controlCommandSend(c); p.setOverrideR = false;
+  }
+  if (p.setConfig) {
+    ControlCommand c{}; c.type = CTRL_SET_CONFIG;
+    c.threshT = p.threshT; c.threshH = p.threshH; c.interval = p.interval;
+    c.hystT = p.hystT;     c.hystH = p.hystH;
+    controlCommandSend(c); p.setConfig = false;
+  }
+  if (p.resetDefaults) {
+    ControlCommand c{}; c.type = CTRL_RESET;
+    controlCommandSend(c); p.resetDefaults = false;
+  }
+  if (p.setLedNow) {
+    ControlCommand c{}; c.type = CTRL_LED_SET; c.ledPercent = p.ledPercent;
+    controlCommandSend(c); p.setLedNow = false;
+  }
+  if (p.setLedSched) {
+    ControlCommand c{}; c.type = CTRL_LED_SCHEDULE;
+    c.ledOnH = p.ledOnH; c.ledOnM = p.ledOnM;
+    c.ledOffH = p.ledOffH; c.ledOffM = p.ledOffM;
+    c.ledMaxI = p.ledMaxI; c.ledSchedEn = p.ledSchedEn;
+    controlCommandSend(c); p.setLedSched = false;
+  }
+  if (p.setLedMode) {
+    ControlCommand c{}; c.type = CTRL_LED_MODE;
+    c.ledModeId = p.ledModeId;
+    c.ledModeP1 = p.ledModeP1; c.ledModeP2 = p.ledModeP2;
+    c.ledModeP3 = p.ledModeP3; c.ledModeP4 = p.ledModeP4;
+    controlCommandSend(c); p.setLedMode = false;
+  }
+  if (p.setFollowTvBrightness) {
+    ControlCommand c{}; c.type = CTRL_LED_FOLLOW_TV; c.followTvValue = p.followTvValue;
+    controlCommandSend(c); p.setFollowTvBrightness = false;
+  }
+  if (p.setLedMorseText) {
+    ControlCommand c{}; c.type = CTRL_LED_MORSE;
+    strlcpy(c.morseText, p.ledMorseText, sizeof(c.morseText));
+    controlCommandSend(c); p.setLedMorseText = false;
+  }
+  if (p.rebootSlave) {
+    SlaveCommand cmd{}; cmd.type = SLAVE_CMD_REBOOT;
+    slaveCommandSend(cmd); p.rebootSlave = false;
+  }
+  if (p.getLog) {
+    if (g_logBuf) {
+      size_t n = eventLog.dumpJson(g_logBuf, PSRAM_LOG_BUF_SIZE);
+      if (n > 0) mqtt.publishLog(g_logBuf, n);
+    }
+    p.getLog = false;
+  }
+  if (p.setTvConfig) {
+    TvCommand t{}; t.type = TV_CMD_CONFIG;
+    strlcpy(t.ip, p.tvConfigIp, sizeof(t.ip));
+    memcpy(t.mac, p.tvConfigMac, 6);
+    tvCommandSend(t); TvCommTask::forcePoll();
+    p.setTvConfig = false;
+  }
+  if (p.setTv) {
+    TvCommand t{}; t.type = TV_CMD_ACTION;
+    strlcpy(t.action, p.tvAction, sizeof(t.action));
+    t.value = p.tvValue;
+    tvCommandSend(t); TvCommTask::forcePoll();
+    p.setTv = false;
+  }
+  if (p.reboot) {
+    mqtt.publishOnline(false);
+    delay(200);
+    ESP.restart();
+  }
+}
+
+// ============================================================
+//  CONSUM REZULTAT POLL TV (taskNetwork) — publica + LED cap follow-TV.
+// ============================================================
+void consumeTvPollResult() {
+  TvData tv{};
+  if (!tvDataRead(tv) || !tv.newValueReady) return;
+
+  mqtt.publishTvState(tvCtrl.state());   // citire tvCtrl (Core 0) — cosmetic, acceptat
+
+  ControlState st{};
+  if (controlStateRead(st) && st.followTvBrightness && tv.reachable) {
+    SlaveCommand capCmd{};
+    capCmd.type         = SLAVE_CMD_LED_TV_CAP;
+    capCmd.tvCapPercent = tv.backlight;
+    slaveCommandSend(capCmd);
+  }
+  tv.newValueReady = false;
+  tvDataWrite(tv);
+}
+
+// ============================================================
+//  TASK NETWORK (Core 0) — WiFi + MQTT + watchdog WiFi + housekeeping.
+//  NU atinge niciodata zone/NVS/config (owned de control). Comenzile care
+//  modifica config sunt rutate catre control prin g_controlCommandQueue.
+// ============================================================
+void taskNetwork(void* pv) {
+  (void)pv;
+  esp_task_wdt_add(NULL);   // subscrie acest task la WDT (60s)
+  Serial.printf("[NetTask] Core %d started (prio=%d)\n",
+                xPortGetCoreID(), NET_TASK_PRIORITY);
+
+  for (;;) {
+    esp_task_wdt_reset();
+
+    WifiWatchdog::tick();   // sync g_wifiAvailable + reconectare 5min/3×15s + reboot 6h
+    mqtt.loop();            // connect/backoff/keepalive + cleanup TLS la pierdere WiFi
+    g_mqttConnected = mqtt.connected();
+
+    routeMqttCommands();    // pending MQTT → cozile potrivite
+
+    if (g_wifiAvailable) {
+      ControlState st{};
+      if (controlStateRead(st)) mqtt.publishFromSnapshot(st);
+      TimeSync::loop();
+      PreventiveReboot::checkWeekly();
+    }
+
+    consumeTvPollResult();
+
+    HeapMonitor::check();
+    BootLoopGuard::tick();
+    DiagnosticLogger::printPeriodicLog();
+
+    vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_POLL_MS));
   }
 }
 
@@ -461,6 +645,20 @@ void setup() {
   Serial.printf("[PSRAM] g_slaveData @ %p  psramFree=%u KB\n", g_slaveData,
                 heap_caps_get_free_size(MALLOC_CAP_SPIRAM) / 1024);
 
+  // 9b. Primitive CONTROL ↔ NETWORK — create INAINTE de TvCommTask si de
+  //     controlReleeFromSensors (ambele le folosesc).
+  g_controlState = (ControlState *)ps_malloc(sizeof(ControlState));
+  if (!g_controlState) g_controlState = new ControlState();
+  memset(g_controlState, 0, sizeof(ControlState));
+  g_controlStateMutex   = xSemaphoreCreateMutex();
+  g_controlCommandQueue = xQueueCreate(CONTROL_CMD_QUEUE_DEPTH, sizeof(ControlCommand));
+  g_tvCommandQueue      = xQueueCreate(TV_CMD_QUEUE_DEPTH, sizeof(TvCommand));
+  if (!g_controlStateMutex || !g_controlCommandQueue || !g_tvCommandQueue) {
+    Serial.println("[FATAL] control/tv primitive create failed");
+    delay(500);
+    ESP.restart();
+  }
+
   // 10. Watchdog hardware 60s — configurat INAINTE de SlaveCommTask.
   // SlaveCommTask apeleaza esp_task_wdt_add() imediat la start; daca WDT-ul
   // ramane la default-ul de 5s al sistemului, task-ul depaseste timeout-ul
@@ -495,6 +693,12 @@ void setup() {
   }
   TvCommTask::start(tvCtrl);
 
+  // 11c. Prima decizie relee — INAINTE de blocul WiFiManager (care poate bloca
+  // 1-180s). Senzorii sunt disponibili (Wire init la pasul 3, SHT30 init la pasul 4).
+  // Zona dreapta poate sa nu aiba date Slave inca (UART abia a pornit) → OFF safe.
+  // Reevaluare completa are loc in primul loop() via lastProcessMs==0.
+  controlReleeFromSensors();
+
   // 12. WiFiManager — singura cale de rețea
   // Portal de configurare doar daca nu exista credentiale salvate (first-run).
   // La reboot dupa pica de curent, portalul e dezactivat (setConfigPortalTimeout=1)
@@ -525,7 +729,7 @@ void setup() {
                       WiFi.localIP().toString().c_str());
         g_wifiAvailable = true;
     } else {
-        Serial.println("[WiFi] No WiFi la boot — WifiWatchdog reincearca la 10 min.");
+        Serial.println("[WiFi] No WiFi la boot — WifiWatchdog reincearca la 5 min.");
         g_wifiAvailable = false;
         // NU oprim WiFi (fara WIFI_OFF): pastram modul STA ca WiFi.reconnect()
         // din WifiWatchdog sa functioneze ulterior.
@@ -560,8 +764,15 @@ void setup() {
                   tvCtrl.state().serial, tvCtrl.state().swVersion);
   }
 
-  // 16. Prima citire senzori
-  leftZone.readSensor(true); // force = true la boot
+  // Nota: prima citire senzori + decizie relee s-a facut la pasul 11c
+  // (controlReleeFromSensors()), inainte de blocul WiFi. Nu mai e necesar repetat.
+
+  // 16. taskNetwork pe Core 0 — preia WiFi + MQTT (mqtt.begin facut la pasul 12).
+  //     Pornit ULTIMUL: toate dependentele (mqtt, tvCtrl, TimeSync) sunt gata.
+  //     loopTask (Core 1) ramane CONTROL pur.
+  xTaskCreatePinnedToCore(taskNetwork, "NetTask", NET_TASK_STACK, nullptr,
+                          NET_TASK_PRIORITY, nullptr, 0);
+  Serial.println("[NetTask] creat pe Core 0.");
 
   statusLed.setColor(0, 180, 0); // verde = boot OK
   Serial.println("=== Boot complete ===\n");
@@ -571,48 +782,32 @@ void setup() {
 //  LOOP
 // ============================================================
 void loop() {
-  // Watchdog feed
+  // loopTask (Core 1) = CONTROL pur. WiFi/MQTT/housekeeping ruleaza pe
+  // taskNetwork (Core 0). Releele functioneaza INDIFERENT de starea retelei.
   esp_task_wdt_reset();
 
-  // Resilience monitoring
-  HeapMonitor::check();
-  BootLoopGuard::tick();
-  WifiWatchdog::tick();   // sync g_wifiAvailable + reconectare WiFi la 10 min
-
-  // Network-dependent operations
-  if (g_wifiAvailable) {
-    PreventiveReboot::checkWeekly();
-    mqtt.loop();
-    TimeSync::loop();
-  }
-
-  // Buton reset
+  // Buton reset (factory) — atinge prefs + zone (control domain).
   handleResetButton();
 
-  // Process zones la intervalul configurat SAU imediat cand exista comenzi pending
-  unsigned long now = millis();
-  unsigned long intervalMs = (unsigned long)prefs.intervalSec * 1000UL;
-
-  if ((now - lastProcessMs >= intervalMs) ||
-      (g_wifiAvailable && mqtt.hasPendingCommands())) {
-    processZones();
+  // Aplica comenzile primite de la network (config/override/LED/reset/refresh).
+  // Sunt aplicate ÎNAINTE de processZones → config-ul e actualizat la updateLogic.
+  ControlCommand cc;
+  bool gotCmd = false;
+  while (g_controlCommandQueue &&
+         xQueueReceive(g_controlCommandQueue, &cc, 0) == pdTRUE) {
+    applyControlCommand(cc);
+    gotCmd = true;
   }
 
-  // Consum rezultat poll TV (scris de TvCommTask pe Core 0)
-  // PubSubClient nu e thread-safe — publish se face DOAR din loopTask (Core 1).
-  TvData tv{};
-  if (tvDataRead(tv) && tv.newValueReady) {
-    mqtt.publishTvState(tvCtrl.state());
-    if (prefs.followTvBrightness && tv.reachable) {
-      SlaveCommand capCmd{};
-      capCmd.type         = SLAVE_CMD_LED_TV_CAP;
-      capCmd.tvCapPercent = tv.backlight;
-      slaveCommandSend(capCmd);
-    }
-    tv.newValueReady = false;
-    tvDataWrite(tv);
+  // Evaluare relee la interval SAU imediat la comanda. lastProcessMs==0 → foc
+  // imediat la boot (nu asteptam 5 min). Senzorii sunt cititi deja in setup().
+  const unsigned long now = millis();
+  const unsigned long intervalMs = (unsigned long)prefs.intervalSec * 1000UL;
+  const bool firstRun = (lastProcessMs == 0);
+  if (firstRun || (now - lastProcessMs >= intervalMs) || gotCmd) {
+    processZones(gotCmd || firstRun);   // forta publish la comanda / primul ciclu
   }
 
-  // Diagnostic logging
-  DiagnosticLogger::printPeriodicLog();
+  // Poll comenzi la 50ms — fara busy-spin, hraneste WDT, latenta mica la comenzi.
+  vTaskDelay(pdMS_TO_TICKS(CONTROL_LOOP_POLL_MS));
 }
