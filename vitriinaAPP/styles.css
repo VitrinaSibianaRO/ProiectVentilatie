@@ -167,6 +167,11 @@ body::before {
 }
 
 .page-wrap { max-width: 920px; margin: 0 auto; }
+.page-wrap::after {
+  content: '';
+  display: block;
+  height: calc(100px + env(safe-area-inset-bottom));
+}
 
 /* Page header */
 .page-eyebrow {
@@ -745,7 +750,7 @@ input[type="range"]:disabled { opacity: 0.4; }
   .grid-3 { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 640px) {
-  .page-content { padding: 14px; }
+  .page-content { padding: 14px 14px calc(120px + env(safe-area-inset-bottom)); }
   .top-nav { padding: 0 12px; height: 54px; }
   .brand { margin-right: 12px; }
   .brand-text { font-size: 14px; }

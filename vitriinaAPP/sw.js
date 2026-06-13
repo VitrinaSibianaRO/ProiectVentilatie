@@ -1,9 +1,9 @@
 // VitriinApp service worker — offline app shell cache
-const CACHE = 'vitriinapp-v3';
+const CACHE = 'vitriinapp-v7';
 const ASSETS = [
   './',
   './index.html',
-  './styles.css',
+  './styles.css?v=7',
   './js/mqtt-service.js',
   './js/components.jsx',
   './js/Dashboard.jsx',
