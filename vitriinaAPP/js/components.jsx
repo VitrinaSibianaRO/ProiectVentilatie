@@ -120,15 +120,16 @@ function SectionHead({ title, color = 'cyan', right }) {
 }
 
 // ── Thermometer (SVG) ────────────────────────────────────────────────────────
-function Thermometer({ value, min = 0, max = 60, threshold }) {
+function Thermometer({ value, min = 0, max = 60, threshold, height = 96 }) {
   const pct = value == null ? 0 : Math.max(0, Math.min(1, (value - min) / (max - min)));
   const hot = threshold != null && value != null && value >= threshold;
   const color = value == null ? 'var(--text-dim)' : hot ? 'var(--red)' : value > (min + (max-min)*0.6) ? 'var(--orange)' : 'var(--cyan)';
   const tubeTop = 8, tubeBot = 70, tubeH = tubeBot - tubeTop;
   const fillH = tubeH * pct;
   const fillY = tubeBot - fillH;
+  const width = (34 / 96) * height;
   return (
-    <svg width="34" height="96" viewBox="0 0 34 96">
+    <svg width={width} height={height} viewBox="0 0 34 96">
       <rect x="12" y="6" width="10" height="66" rx="5" fill="rgba(0,0,0,0.35)" stroke="var(--border-cyan)" strokeWidth="1"/>
       <rect x="13.5" y={fillY} width="7" height={fillH} rx="3.5" fill={color} style={{ transition: 'all 0.5s ease' }}/>
       <circle cx="17" cy="80" r="11" fill={color} stroke="rgba(0,0,0,0.3)" strokeWidth="1" style={{ transition: 'fill 0.5s' }}/>
@@ -141,12 +142,13 @@ function Thermometer({ value, min = 0, max = 60, threshold }) {
 }
 
 // ── Droplet (SVG humidity) ───────────────────────────────────────────────────
-function Droplet({ value }) {
+function Droplet({ value, height = 84 }) {
   const pct = value == null ? 0 : Math.max(0, Math.min(1, value / 100));
   const clipId = useMemo(() => 'drop' + Math.random().toString(36).slice(2,8), []);
   const fillY = 78 - 60 * pct;
+  const width = (62 / 84) * height;
   return (
-    <svg width="62" height="84" viewBox="0 0 62 84">
+    <svg width={width} height={height} viewBox="0 0 62 84">
       <defs>
         <clipPath id={clipId}>
           <path d="M31 6 C31 6 52 34 52 52 a21 21 0 0 1 -42 0 C10 34 31 6 31 6 Z"/>

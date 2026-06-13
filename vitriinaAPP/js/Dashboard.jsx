@@ -67,66 +67,63 @@ function Dashboard() {
       </div>
 
       {/* COMBINED HERO & SYSTEM STATUS CARD */}
-      <div className="hero mb-4">
+      <div className="hero mb-4" style={{ padding: '16px' }}>
         <div className="hero-grid-bg"></div>
         <div className="hero-glow"></div>
         
-        <div className="grid-2" style={{ position: 'relative', gap: 24 }}>
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {/* Left Column: Magistrala & Metrics */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 22, justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-              <MiniFan on={left.relay || right.relay} size={66} color="var(--cyan)" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <div className="label-tiny">Status Magistrală</div>
-                <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '0.03em', lineHeight: 1.05, color: (left.relay || right.relay) ? 'var(--cyan)' : 'var(--text-muted)' }}>
-                  {(left.relay || right.relay) ? 'VENTILARE ACTIVĂ' : 'STANDBY'}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <MiniFan on={left.relay || right.relay} size={42} color="var(--cyan)" />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <div className="label-tiny" style={{ fontSize: 8 }}>Magistrală</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: '0.02em', lineHeight: 1.1, color: (left.relay || right.relay) ? 'var(--cyan)' : 'var(--text-muted)' }}>
+                    {(left.relay || right.relay) ? 'ACTIVĂ' : 'STANDBY'}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: 14, marginTop: 2, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span className={`badge ${isConnected ? 'cyan' : 'red'}`} style={{ padding: '2px 8px' }}>{isConnected ? 'BROKER OK' : 'NO BROKER'}</span>
-                  {s != null && s.fw != null && <span className="val-mono" style={{ fontSize: 11, color: 'var(--text-muted)' }}>FW #{s.fw}</span>}
-                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span className={`badge ${isConnected ? 'cyan' : 'red'}`} style={{ padding: '2px 6px', fontSize: 9 }}>{isConnected ? 'BROKER OK' : 'NO BROKER'}</span>
+                {s != null && s.fw != null && <span className="val-mono" style={{ fontSize: 10, color: 'var(--text-muted)' }}>FW #{s.fw}</span>}
               </div>
             </div>
             
-            <div style={{ display: 'flex', gap: 24 }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span className="label-tiny">Uptime</span>
-                <span className="val-mono" style={{ fontSize: 16, fontWeight: 500, color: 'var(--cyan)' }}>{formatUptime(s?.uptimeSec)}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span className="label-tiny" style={{ fontSize: 8 }}>Uptime</span>
+                <span className="val-mono" style={{ fontSize: 13, fontWeight: 500, color: 'var(--cyan)' }}>{formatUptime(s?.uptimeSec)}</span>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span className="label-tiny">Heap</span>
-                <span className="val-mono" style={{ fontSize: 16, fontWeight: 500, color: s && s.heap < 30000 ? 'var(--red)' : 'var(--cyan)' }}>{s ? `${Math.round((s.heap||0)/1024)}K` : '—'}</span>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span className="label-tiny">LED</span>
-                <span className="val-mono" style={{ fontSize: 16, fontWeight: 500, color: 'var(--orange)' }}>{ledI != null ? `${ledI}%` : '—'}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span className="label-tiny" style={{ fontSize: 8 }}>Heap</span>
+                <span className="val-mono" style={{ fontSize: 13, fontWeight: 500, color: s && s.heap < 30000 ? 'var(--red)' : 'var(--cyan)' }}>{s ? `${Math.round((s.heap||0)/1024)}K` : '—'}</span>
               </div>
             </div>
           </div>
 
           {/* Right Column: System Status */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, justifyContent: 'center', background: 'rgba(0,0,0,0.25)', padding: 18, borderRadius: 'var(--radius)', border: '1px solid rgba(255,255,255,0.04)' }}>
-            <div className="flex items-start justify-between" style={{ gap: 12, flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                <span className="label-tiny">System Status</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                  <PulseBadge on={isOnline} />
-                  <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: '0.04em', color: isOnline ? 'var(--green)' : 'var(--red)', whiteSpace: 'nowrap' }}>
-                    {isOnline ? 'ESP32 ONLINE' : 'ESP32 OFFLINE'}
-                  </span>
-                </div>
-                <span className="val-mono" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', marginTop: 4 }}>{agoText}</span>
-                {slaveObj && (
-                  <span className="val-mono" style={{ fontSize: 11, color: slaveObj.online ? 'var(--text-muted)' : 'var(--orange)', whiteSpace: 'nowrap' }}>
-                    Slave LED: {slaveObj.online ? 'online' : 'offline'}{slaveObj.errors ? ` · ${slaveObj.errors} erori` : ''}
-                  </span>
-                )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12, justifyContent: 'space-between', background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 'var(--radius)', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span className="label-tiny" style={{ fontSize: 8 }}>System Status</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <PulseBadge on={isOnline} />
+                <span style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.02em', color: isOnline ? 'var(--green)' : 'var(--red)', whiteSpace: 'nowrap' }}>
+                  {isOnline ? 'ONLINE' : 'OFFLINE'}
+                </span>
               </div>
-              <button className="btn btn-cyan btn-sm" onClick={() => sendCommand({ cmd: 'refresh' })} disabled={!isConnected}>
-                <svg width="13" height="13" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M8 1v4l3-2-3-2z" fill="currentColor"/></svg>
-                Refresh
-              </button>
+              <span className="val-mono" style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2, lineHeight: 1.2 }}>{agoText}</span>
+              {slaveObj && (
+                <span className="val-mono" style={{ fontSize: 10, color: slaveObj.online ? 'var(--text-muted)' : 'var(--orange)', marginTop: 2 }}>
+                  Slave LED: {slaveObj.online ? 'online' : 'offline'}{slaveObj.errors ? ` · ${slaveObj.errors} err` : ''}
+                </span>
+              )}
             </div>
+            
+            <button className="btn btn-cyan btn-sm" style={{ padding: '6px 8px', fontSize: 11, width: '100%', justifyContent: 'center' }} onClick={() => sendCommand({ cmd: 'refresh' })} disabled={!isConnected}>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M13.5 8A5.5 5.5 0 1 1 8 2.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/><path d="M8 1v4l3-2-3-2z" fill="currentColor"/></svg>
+              Refresh
+            </button>
           </div>
         </div>
       </div>
@@ -135,22 +132,30 @@ function Dashboard() {
       {lockActive && <div className="alert alert-orange mb-4">🔒 Control blocat ({lock.owner === 'blynk' ? 'Blynk' : 'MQTT'} activ)</div>}
 
       {/* Zone cards */}
-      <div className="grid-2 mb-4">
-        <ZoneCard label="Zona Stânga" accent="var(--cyan)" data={left} disabled={!isConnected || !controlEnabled} threshT={threshT} onToggleOverride={() => toggleOverride('left')} />
-        <ZoneCard label="Zona Dreapta" accent="var(--green)" data={right} disabled={!isConnected || !controlEnabled} threshT={threshT} onToggleOverride={() => toggleOverride('right')} />
+      <div className="card card-corners mb-4" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+          <div style={{ borderRight: '1px solid rgba(255,255,255,0.08)', padding: '12px 10px' }} className={`${left.relay ? 'relay-on' : ''} ${left.failsafe ? 'failsafe' : ''}`}>
+            <ZonePanel label="Stânga" accent="var(--cyan)" data={left} disabled={!isConnected || !controlEnabled} threshT={threshT} onToggleOverride={() => toggleOverride('left')} />
+          </div>
+          <div style={{ padding: '12px 10px' }} className={`${right.relay ? 'relay-on' : ''} ${right.failsafe ? 'failsafe' : ''}`}>
+            <ZonePanel label="Dreapta" accent="var(--green)" data={right} disabled={!isConnected || !controlEnabled} threshT={threshT} onToggleOverride={() => toggleOverride('right')} />
+          </div>
+        </div>
       </div>
 
       {/* TV telemetry strip */}
-      <div className="card card-corners" style={{ padding: '12px 16px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr 1fr 1fr 1fr', gap: 10, alignItems: 'center' }}>
+      <div className="card card-corners mb-4" style={{ padding: '12px 16px' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 14, alignItems: 'center', justifyContent: 'space-between' }}>
           <span className="label-tiny" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="2" y="7" width="20" height="13" rx="1.6" stroke="currentColor" strokeWidth="1.6"/><path d="M8 3l4 3 4-3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/></svg>
             TV
           </span>
-          <TvCell value={tvReach ? `${tvTemp}°C` : '—'} color="var(--orange)" mono />
-          <TvCell value={tvReach ? `${tvHours} ore` : '—'} color="var(--cyan)" mono />
-          <TvCell value={tvReach ? 'ACCESIBIL' : 'INACCESIBIL'} color={tvReach ? 'var(--green)' : 'var(--red)'} />
-          <TvCell value={tvReach ? (tvPower ? 'PORNIT' : 'STANDBY') : '—'} color={tvReach && tvPower ? 'var(--green)' : 'var(--text-muted)'} />
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 18, flex: 1, justifyContent: 'space-between', paddingLeft: 12 }}>
+            <TvCell value={tvReach ? `${tvTemp}°C` : '—'} color="var(--orange)" mono />
+            <TvCell value={tvReach ? `${tvHours} ore` : '—'} color="var(--cyan)" mono />
+            <TvCell value={tvReach ? 'ACCESIBIL' : 'INACCESIBIL'} color={tvReach ? 'var(--green)' : 'var(--red)'} />
+            <TvCell value={tvReach ? (tvPower ? 'PORNIT' : 'STANDBY') : '—'} color={tvReach && tvPower ? 'var(--green)' : 'var(--text-muted)'} />
+          </div>
         </div>
       </div>
     </div>
@@ -166,7 +171,7 @@ function HeroMetric({ label, value, accent = 'var(--cyan)' }) {
   );
 }
 
-function ZoneCard({ label, accent, data, disabled, threshT, onToggleOverride }) {
+function ZonePanel({ label, accent, data, disabled, threshT, onToggleOverride }) {
   const isOn = data.relay;
   const isFail = data.failsafe;
   const isOverride = data.override;
@@ -175,56 +180,60 @@ function ZoneCard({ label, accent, data, disabled, threshT, onToggleOverride }) 
   const tempHot = data.temp != null && threshT != null && data.temp >= threshT;
 
   return (
-    <div className={`zone-card ${isOn ? 'relay-on' : ''} ${isFail ? 'failsafe' : ''}`}>
-      <div className="flex items-center justify-between">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <span className="section-bar" style={{ background: accent }}></span>
-          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</span>
+          <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{label}</span>
         </div>
-        <span className={`badge ${isFail ? 'red' : (isOn ? 'green' : 'gray')}`}>{relayText}</span>
+        <span className={`badge ${isFail ? 'red' : (isOn ? 'green' : 'gray')}`} style={{ padding: '2px 6px', fontSize: 9 }}>{relayText}</span>
       </div>
 
-      {/* Temperature */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Thermometer value={data.temp} min={0} max={60} threshold={threshT} />
-        <div>
-          <div className="metric-label">Temp</div>
-          <div className="metric-value" style={{ color: tempHot ? 'var(--red)' : 'var(--orange)' }}>
-            {data.temp != null ? data.temp.toFixed(1) : '--'}<span style={{ fontSize: 13, color: 'var(--text-muted)' }}>°C</span>
-          </div>
-        </div>
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 12 }}>
-          <div style={{ textAlign: 'right' }}>
-            <div className="metric-label">Umid</div>
-            <div className="metric-value" style={{ color: 'var(--cyan)' }}>
-              {data.hum != null ? data.hum.toFixed(0) : '--'}<span style={{ fontSize: 13, color: 'var(--text-muted)' }}>%</span>
+      {/* Temperature & Humidity forced on 1 row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Thermometer value={data.temp} min={0} max={60} threshold={threshT} height={70} />
+          <div>
+            <div className="metric-label" style={{ fontSize: 8 }}>Temp</div>
+            <div className="metric-value" style={{ color: tempHot ? 'var(--red)' : 'var(--orange)', fontSize: 16 }}>
+              {data.temp != null ? data.temp.toFixed(1) : '--'}<span style={{ fontSize: 11, color: 'var(--text-muted)' }}>°C</span>
             </div>
           </div>
-          <Droplet value={data.hum} />
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div className="metric-label" style={{ fontSize: 8 }}>Umid</div>
+            <div className="metric-value" style={{ color: 'var(--cyan)', fontSize: 16 }}>
+              {data.hum != null ? data.hum.toFixed(0) : '--'}<span style={{ fontSize: 11, color: 'var(--text-muted)' }}>%</span>
+            </div>
+          </div>
+          <Droplet value={data.hum} height={58} />
         </div>
       </div>
 
       {/* Fan + relay */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <MiniFan on={isOn && !isFail} size={38} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <MiniFan on={isOn && !isFail} size={28} />
         <div>
-          <div className="metric-label">Ventilator</div>
-          <div style={{ fontSize: 14, fontWeight: 700, color: relayColor, letterSpacing: '0.04em' }}>{relayText}</div>
+          <div className="metric-label" style={{ fontSize: 8 }}>Ventilator</div>
+          <div style={{ fontSize: 12, fontWeight: 700, color: relayColor, letterSpacing: '0.04em' }}>{relayText}</div>
         </div>
       </div>
 
-      <div className="hr" style={{ margin: '2px 0' }}></div>
+      <div className="hr" style={{ margin: 0, opacity: 0.5 }}></div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between" style={{ flexWrap: 'wrap', gap: 6 }}>
         <div>
-          <div className="metric-label" style={{ marginBottom: 4 }}>Override</div>
-          <span className={`badge ${isOverride ? 'cyan' : 'gray'}`}>{isOverride ? 'Manual ON' : 'Auto'}</span>
+          <div className="metric-label" style={{ fontSize: 8, marginBottom: 2 }}>Override</div>
+          <span className={`badge ${isOverride ? 'cyan' : 'gray'}`} style={{ padding: '2px 6px', fontSize: 9 }}>{isOverride ? 'Manual' : 'Auto'}</span>
         </div>
-        <button className={`btn btn-sm ${isOverride ? 'btn-cyan' : 'btn-orange'}`} onClick={onToggleOverride} disabled={disabled}>
-          {isOverride ? 'Dezactivează' : 'Override ON'}
-        </button>      </div>
+        <button className={`btn btn-sm ${isOverride ? 'btn-cyan' : 'btn-orange'}`} style={{ padding: '4px 8px', fontSize: 10 }} onClick={onToggleOverride} disabled={disabled}>
+          {isOverride ? 'Dezact.' : 'Override'}
+        </button>
+      </div>
 
-      {data.errs > 0 && <div className="alert alert-red" style={{ padding: '7px 11px', fontSize: 12 }}>⚠ {data.errs} erori senzor</div>}
+      {data.errs > 0 && <div className="alert alert-red" style={{ padding: '4px 8px', fontSize: 11 }}>⚠ {data.errs} err</div>}
     </div>
   );
 }
