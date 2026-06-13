@@ -32,6 +32,12 @@ public:
     void setManualOverride(bool state);
     bool getManualOverride() const;
 
+    // Forțează releul OFF indiferent de senzori (comanda v=2 din MQTT).
+    // NU persistat în NVS — se resetează la reboot (auto-mode la power cycle).
+    // Prioritate: failsafe > forceOff > manualOverride > autoOn.
+    void setForceOff(bool state);
+    bool getForceOff() const;
+
     // Încearcă o citire de la senzorul local. Respectă cooldown-ul intern.
     // Pentru zone remote, nu face nimic (valorile vin din setExternalSensorValues).
     void readSensor(bool force = false);
@@ -42,7 +48,10 @@ public:
 
     // Calculează și aplică starea releului — logică 100% locală.
     // hystTemp/hystHum: banda de histerezis (releul se oprește la prag−hyst).
-    void updateLogic(float threshTemp, float threshHum, float hystTemp, float hystHum);
+    // forceImmediate: comutare imediată (acțiune user/comandă) — ignoră timpul
+    // minim între comutări (anti-chatter rămâne doar pentru evaluarea periodică).
+    void updateLogic(float threshTemp, float threshHum, float hystTemp, float hystHum,
+                     bool forceImmediate = false);
 
     // Oprire de urgență (restart, heap critic etc.).
     void emergencyOff();
@@ -71,9 +80,11 @@ private:
     float         _currentHum;
     uint32_t      _lastExternalTs;
     bool          _manualOverride;
+    bool          _forceOff;
     bool          _firstReadDone;
     bool          _relayState;
     bool          _failsafe;
     int           _consecutiveErrors;
     int           _stuckCount;
+    unsigned long _lastSwitchMs;   // anti-chatter: ultimul moment de comutare
 };

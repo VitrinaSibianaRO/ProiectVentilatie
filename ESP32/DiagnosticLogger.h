@@ -1,57 +1,43 @@
 #pragma once
 #include <Arduino.h>
 #include <WiFi.h>
-#include "VentilationZone.h"
 #include "SharedState.h"
 
 extern bool g_wifiAvailable;
-extern VentilationZone leftZone;
-extern SlaveData* g_slaveData;
-extern SemaphoreHandle_t g_slaveDataMutex;
 
+// Logging diagnostic periodic — ruleaza pe taskNetwork (Core 0).
+// Citeste DOAR din snapshot-ul de control (g_controlState, mutex) — nu atinge
+// niciodata zone vii (owned de taskControl pe Core 1), deci fara race cross-task.
 namespace DiagnosticLogger {
 
     inline void printPeriodicLog() {
         unsigned long now = millis();
         static unsigned long lastDiagLogMs = 0;
-        
+
         if (now - lastDiagLogMs < 10000UL) return;
         lastDiagLogMs = now;
-        
+
+        ControlState st{};
+        const bool have = controlStateRead(st);
+
         Serial.println("\n--- [DIAGNOSTIC STATUS] ---");
-        
-        // Status Retea
+
         Serial.printf("Network (WiFi): %s\n", g_wifiAvailable ? "OK" : "OFFLINE");
         if (g_wifiAvailable) {
             Serial.print("IP Address: ");
             Serial.println(WiFi.localIP());
         }
 
-        // Status Senzori Master (Stanga)
-        Serial.printf("Senzor STANGA (Master): T=%.1f°C, H=%.1f%% [%s]\n", 
-                      leftZone.getTemp(), leftZone.getHum(), 
-                      (leftZone.getConsecErrors() > 0) ? "ERROR" : "OK");
-
-        // Status Senzori Slave (Dreapta)
-        float slaveT = 0.0f;
-        float slaveH = 0.0f;
-        bool slaveErr = true;
-        bool slaveOnline = false;
-
-        if (g_slaveDataMutex != NULL && g_slaveData != nullptr) {
-            xSemaphoreTake(g_slaveDataMutex, portMAX_DELAY);
-            slaveT = g_slaveData->temp;
-            slaveH = g_slaveData->hum;
-            slaveErr = (g_slaveData->consecutiveErrors > 0);
-            slaveOnline = (now - g_slaveData->lastSuccessMs < 30000); 
-            xSemaphoreGive(g_slaveDataMutex);
+        if (have) {
+            Serial.printf("Senzor STANGA (Master): T=%.1f°C, H=%.1f%% [%s]\n",
+                          st.leftTemp, st.leftHum,
+                          (st.leftErrs > 0) ? "ERROR" : "OK");
+            Serial.printf("Senzor DREAPTA (Slave): T=%.1f°C, H=%.1f%% [%s, UART=%s]\n",
+                          st.rightTemp, st.rightHum,
+                          (st.rightErrs > 0) ? "ERROR" : "OK",
+                          st.slaveOnline ? "OK" : "OFFLINE/TIMEOUT");
         }
 
-        Serial.printf("Senzor DREAPTA (Slave): T=%.1f°C, H=%.1f%% [%s, UART=%s]\n", 
-                      slaveT, slaveH, 
-                      slaveErr ? "ERROR" : "OK",
-                      slaveOnline ? "OK" : "OFFLINE/TIMEOUT");
-                      
         Serial.println("---------------------------\n");
     }
 }

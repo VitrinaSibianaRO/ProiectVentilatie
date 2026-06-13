@@ -16,11 +16,13 @@ VentilationZone::VentilationZone(Sht30Sensor* localSensor, int relayPin, const c
       _currentHum(0.0f),
       _lastExternalTs(0),
       _manualOverride(false),
+      _forceOff(false),
       _firstReadDone(false),
       _relayState(false),
       _failsafe(false),
       _consecutiveErrors(0),
-      _stuckCount(0) {}
+      _stuckCount(0),
+      _lastSwitchMs(0) {}
 
 // Constructor REMOTE — zona cu senzor pe Slave (fără local sensor)
 VentilationZone::VentilationZone(int relayPin, const char* name)
@@ -31,11 +33,13 @@ VentilationZone::VentilationZone(int relayPin, const char* name)
       _currentHum(0.0f),
       _lastExternalTs(0),
       _manualOverride(false),
+      _forceOff(false),
       _firstReadDone(false),
       _relayState(false),
       _failsafe(false),
       _consecutiveErrors(0),
-      _stuckCount(0) {}
+      _stuckCount(0),
+      _lastSwitchMs(0) {}
 
 void VentilationZone::begin() {
     // Ordinea corectă: mai întâi modul pinului, abia apoi scriem starea.
@@ -86,15 +90,35 @@ void VentilationZone::setExternalSensorValues(float temp, float hum, uint32_t ts
     _consecutiveErrors = 0;
 }
 
+void VentilationZone::setForceOff(bool state) { _forceOff = state; }
+bool VentilationZone::getForceOff() const { return _forceOff; }
+
 void VentilationZone::updateLogic(float threshTemp, float threshHum,
-                                   float hystTemp,  float hystHum) {
-    // Failsafe: releul rămâne OFF forțat
+                                   float hystTemp,  float hystHum,
+                                   bool forceImmediate) {
+    // Prioritate: failsafe > forceOff > manualOverride > autoOn
     if (_failsafe) {
         _relayState = false;
         digitalWrite(_relayPin, HIGH);   // Active-LOW → OFF
         return;
     }
 
+    // forceOff: oprire manuala explicita — ignora senzorii (v=2 MQTT)
+    if (_forceOff) {
+        if (_relayState) {
+            Serial.printf("[%s] Relay OFF (forceOff manual activ)\n", _name);
+        }
+        _relayState = false;
+        digitalWrite(_relayPin, HIGH);
+        return;
+    }
+
+    // Anti-chatter #1: histerezis minim EFECTIV impus — banda moarta sub prag
+    // nu dispare niciodata, chiar daca userul seteaza H=0 din MAUI.
+    if (hystTemp < MIN_EFFECTIVE_TEMP_HYST) hystTemp = MIN_EFFECTIVE_TEMP_HYST;
+    if (hystHum  < MIN_EFFECTIVE_HUM_HYST)  hystHum  = MIN_EFFECTIVE_HUM_HYST;
+
+    const bool prevState = _relayState;
     bool autoOn;
     if (!_firstReadDone) {
         autoOn = false;
@@ -107,9 +131,39 @@ void VentilationZone::updateLogic(float threshTemp, float threshHum,
         // Releu OFF: pornește dacă ORICARE depășește pragul.
         autoOn = (_currentTemp >= threshTemp) || (_currentHum >= threshHum);
     }
-    _relayState = autoOn || _manualOverride;
+
+    const bool desired = autoOn || _manualOverride;
+
+    if (desired != prevState) {
+        // Anti-chatter #2: timp minim intre comutari pentru tranzitiile AUTO.
+        // Comuta IMEDIAT la actiuni explicite ale userului: override manual SAU
+        // o comanda (forceImmediate, ex. Save din Settings). Anti-chatter-ul ramane
+        // doar pentru oscilatia automata periodica (zgomot senzor). Safety OFF
+        // (failsafe/forceOff) e tratat in early-return de mai sus.
+        const unsigned long now = millis();
+        const bool immediate = _manualOverride || forceImmediate;
+        if (!immediate && _lastSwitchMs != 0 &&
+            (now - _lastSwitchMs < RELAY_MIN_SWITCH_MS)) {
+            // Suprima comutarea auto — pastreaza starea, reevalueaza la ciclul urmator.
+            Serial.printf("[%s] Comutare auto suprimata (anti-chatter, %lus ramase)\n",
+                          _name,
+                          (RELAY_MIN_SWITCH_MS - (now - _lastSwitchMs)) / 1000UL);
+        } else {
+            _relayState   = desired;
+            _lastSwitchMs = now;
+        }
+    }
+
     const int wantLevel = _relayState ? LOW : HIGH;     // Active-LOW
     digitalWrite(_relayPin, wantLevel);
+
+    // Log doar la schimbare de stare — arata factorii deciziei (debug relee).
+    if (_relayState != prevState) {
+        Serial.printf("[%s] Relay %s | T=%.1f(>=%.1f) H=%.1f(>=%.1f) auto=%d manual=%d\n",
+                      _name, _relayState ? "ON" : "OFF",
+                      _currentTemp, threshTemp, _currentHum, threshHum,
+                      autoOn ? 1 : 0, _manualOverride ? 1 : 0);
+    }
 
     // Stuck relay detection — citim pinul inapoi (output mode permite digitalRead).
     // Pe ESP32 functioneaza fara pinMode INPUT (open-drain config-uiri ok).
@@ -129,6 +183,7 @@ void VentilationZone::updateLogic(float threshTemp, float threshHum,
 void VentilationZone::emergencyOff() {
     _relayState = false;
     _manualOverride = false;
+    _forceOff = false;
     _failsafe = false;
     digitalWrite(_relayPin, HIGH);
 }
